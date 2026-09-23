@@ -36,6 +36,30 @@ class Settings(BaseSettings):
     DATABASE_URL: str | None = None
     DIRECT_DATABASE_URL: str | None = None
 
+    # --- Stage 04: authentication ---
+    # JWT_SECRET signs access tokens (HS256, 256-bit minimum). REQUIRED for any
+    # auth endpoint — fail closed (RuntimeError on first use, never a default).
+    JWT_SECRET: str | None = None
+    ACCESS_TOKEN_MINUTES: int = 15
+    REFRESH_TOKEN_DAYS: int = 30
+    EMAIL_VERIFICATION_HOURS: int = 24
+    PASSWORD_RESET_MINUTES: int = 60
+    # resend | console. console = dev-only (metadata logs + full mail to
+    # DEV_OUTBOX_DIR, refused in production); resend = Resend HTTP API.
+    EMAIL_PROVIDER: Literal["resend", "console"] = "console"
+    RESEND_API_KEY: str | None = None
+    EMAIL_FROM: str = "SRS Ambiguity Detector <noreply@example.com>"
+    # Public base URL used to build emailed links (verify/reset).
+    APP_BASE_URL: str = "http://localhost:3000"
+    DEV_OUTBOX_DIR: str = "./.dev-outbox"
+    # Auth rate limits (single-process token buckets; Stage 22 distributes).
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_AUTH_PER_MINUTE: int = 60
+    # argon2id work factors. Tests override via env (fast-but-real params).
+    ARGON2_TIME_COST: int = 3
+    ARGON2_MEMORY_COST: int = 65536
+    ARGON2_PARALLELISM: int = 4
+
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def _split_origins(cls, value: object) -> object:
@@ -44,6 +68,13 @@ class Settings(BaseSettings):
             if value.startswith("["):
                 return value  # let pydantic-settings parse JSON
             return [o.strip().rstrip("/") for o in value.split(",") if o.strip()]
+        return value
+
+    @field_validator("JWT_SECRET")
+    @classmethod
+    def _jwt_secret_strength(cls, value: str | None) -> str | None:
+        if value is not None and len(value.encode("utf-8")) < 32:
+            raise ValueError("JWT_SECRET must be at least 32 bytes (256 bits).")
         return value
 
     @property

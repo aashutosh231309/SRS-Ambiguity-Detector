@@ -35,17 +35,17 @@ SRS-Ambiguity-Detector/
 │   │   ├── main.py            # App factory, middleware, router mount
 │   │   ├── core/              # config, logging, security primitives
 │   │   ├── api/v1/            # Versioned routers + endpoint modules
-│   │   ├── models/            # SQLAlchemy models (6 tables, Stage 02)
+│   │   ├── models/            # SQLAlchemy models (9 tables, Stages 02+04)
 │   │   ├── schemas/           # Pydantic request/response schemas
 │   │   ├── services/          # Business logic (analysis orchestration, …)
 │   │   ├── repositories/      # Data access — SQLAlchemy lives here only
 │   │   ├── exceptions/        # AppError → envelope mapping
 │   │   ├── analysis/          # Deterministic NLP/rule engine (Stage 06+)
 │   │   ├── ai/                # Provider abstraction + implementations (Stage 17+)
-│   │   ├── email/             # Email abstraction + Resend adapter (Stage 04+)
+│   │   ├── email/             # Email port + Resend/console adapters (Stage 04 ✅)
 │   │   └── storage/           # File storage abstraction (Stage 09+)
 │   ├── alembic.ini            # Migration config (no DSN — env.py reads app config)
-│   ├── alembic/               # env.py + versions/ (linear; 0001: initial schema)
+│   ├── alembic/               # env.py + versions/ (linear; 0001 schema, 0002 auth tokens)
 │   ├── tests/                 # pytest suite (mirrors app structure)
 │   ├── requirements.txt       # Pinned runtime deps
 │   └── requirements-dev.txt   # Pinned dev/test deps
@@ -100,13 +100,16 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
 - `app/core/config.py` — ALL settings via `pydantic-settings` (env-driven, validated at boot).
   No `os.getenv` scattered through feature code.
 - `app/core/database.py` — lazy async engine + session factory (`get_session` is the
-  request-DI seam, first wired in Stage 04) + lifespan disposal. DSN is never logged
-  or echoed (parse-error chains suppressed).
+  request-DI seam, wired by the auth routes in Stage 04) + lifespan disposal. DSN is
+  never logged or echoed (parse-error chains suppressed).
+- `app/core/security.py` + `app/core/rate_limit.py` (Stage 04) — argon2id/token/JWT
+  primitives and single-process auth buckets (fail-open documented; Stage 22 distributes).
 - `app/models/` — one module per table on `Base` (users, analyses, requirements,
-  issues, documents, ai_provider_credentials); auth-token models arrive Stage 04.
+  issues, documents, ai_provider_credentials, + `auth_tokens.py` triple in Stage 04).
 - `app/services/` + `app/repositories/` + `app/schemas/` + `app/exceptions/` — the
   service layer (Stage 03): business logic, data access, Pydantic boundaries, and
-  `AppError` → envelope mapping. Canonical path: `services/readiness.py`.
+  `AppError` → envelope mapping. Canonical paths: `services/readiness.py`,
+  `services/auth.py` (Stage 04: sessions, rotation, recovery — pure of HTTP).
 - `backend/alembic/` — migration env resolving the DSN exactly like the app, plus
   linear `versions/` (each with `downgrade()`).
 - `app/core/logging.py` — structured logging + `RedactingFilter` (drops API keys, tokens,
@@ -118,7 +121,10 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
   emits findings with evidence offsets. MUST have zero network calls and zero LLM calls.
 - `app/ai/` — provider abstraction (`AIProvider` ABC) + per-provider adapters. Called ONLY
   from an enhancement step that can fail open (deterministic result is always returned).
-- `app/email/`, `app/storage/` — port/adapter abstractions so Resend/Supabase can be swapped.
+- `app/email/` (Stage 04 ✅) — port (`EmailMessage` + templates + `EmailService` ABC)
+  with Resend (prod) and console/file-outbox (dev-only, refused in prod) adapters;
+  sends are best-effort post-commit background work. `app/storage/` stays a seam
+  until Stage 09.
 
 ## 5. Frontend module map
 
@@ -145,9 +151,12 @@ optional AI enhancement (timeout-guarded, fail-open) → unified response.
 **Upload (planned):** `POST /api/v1/documents/upload` → authn → size/MIME/magic-byte checks →
 extract (timeout + max-text guard) → segment → same pipeline → delete temp file.
 
-**Auth (planned):** register → pending/unverified → Resend verification email → verify link →
-active; login issues short-lived access JWT + rotating refresh in httpOnly `Secure`
-cookies; every resource endpoint checks `owner_id == current_user.id`.
+**Auth (backend ✅ Stage 04; UI Stage 05):** register → unverified (+ verify email) →
+verify link → verified + auto-login; login issues short-lived access JWT + rotating
+refresh in `HttpOnly; Secure (prod); SameSite=Lax` cookies; `POST /auth/refresh` rotates
+(reuse of a rotated token revokes the family); logout/change/reset revoke server-side;
+forgot/reset/change/delete emit security notices; every resource endpoint checks
+`owner_id == current_user.id` (`get_current_verified_user` gate).
 
 ## 7. Configuration / environment matrix
 
@@ -159,8 +168,10 @@ Backend reads env via `app/core/config.py` (see `backend/.env.example` for the f
 | `DATABASE_URL` | staging/prod (Stage 02+) | `postgresql+asyncpg://…` (pooled/app connection) |
 | `DIRECT_DATABASE_URL` | staging/prod (Stage 02+) | Direct connection for Alembic migrations (bypasses pooler) |
 | `ENCRYPTION_MASTER_KEY` | staging/prod (Stage 17+) | Fernet key encrypting provider API keys at rest |
-| `JWT_*` / cookie secrets | Stage 04+ | Access/refresh signing (reserved names in `.env.example`) |
-| `RESEND_API_KEY`, `EMAIL_FROM` | Stage 04+ | Transactional email |
+| `JWT_SECRET`, `ACCESS_TOKEN_MINUTES`, `REFRESH_TOKEN_DAYS` (+ verify/reset TTLs) | all (Stage 04 ✅) | Access/refresh signing — secret REQUIRED, fail-closed |
+| `EMAIL_PROVIDER`, `RESEND_API_KEY`, `EMAIL_FROM`, `APP_BASE_URL`, `DEV_OUTBOX_DIR` | all (Stage 04 ✅) | Transactional email (console dev-only, refused in prod) |
+| `RATE_LIMIT_*` | all (Stage 04 ✅) | Auth buckets, single-process (distributed Stage 22) |
+| `ARGON2_*` | all (Stage 04 ✅) | Password work factors |
 | `TURNSTILE_SECRET_KEY` | Stage 22+ | Server-side CAPTCHA verify |
 | `SENTRY_DSN` | Stage 24+ | Monitoring (with scrubbing) |
 | `STORAGE_*` | Stage 09+ | Supabase Storage / local adapter |

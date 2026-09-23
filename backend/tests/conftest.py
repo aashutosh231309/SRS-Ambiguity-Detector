@@ -125,6 +125,9 @@ async def db_test_session() -> AsyncIterator[AsyncSession]:
             "requirements",
             "analyses",
             "documents",
+            "refresh_tokens",
+            "email_verification_tokens",
+            "password_reset_tokens",
             "users",
         ):
             # Static allowlist — no user input can reach this statement.

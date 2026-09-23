@@ -50,3 +50,5 @@ pgdata/
 # Misc
 *.log
 .DS_Store
+# Local dev email outbox (Stage 04 console adapter) — full mail incl. links
+.dev-outbox/

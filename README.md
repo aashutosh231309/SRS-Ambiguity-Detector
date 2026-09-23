@@ -105,23 +105,28 @@ All settings are environment-driven and validated at boot. Copy the examples and
 | `APP_ENV` | `local` | `local` / `staging` / `production` behavior switch |
 | `DATABASE_URL` | *(unset — app boots; `/ready` reports `not_configured`)* | `postgresql+asyncpg://…` app connection |
 | `DIRECT_DATABASE_URL` | *(falls back to `DATABASE_URL`)* | Direct connection for Alembic (bypasses Supabase pooler) |
+| `JWT_SECRET` | *(required for auth)* | 256-bit-minimum HS256 signing secret (fail-closed) |
+| `EMAIL_PROVIDER` | `console` | `console` (local dev outbox) / `resend` (production delivery) |
 
 ## Database
 
 PostgreSQL 16+ via SQLAlchemy 2.0 (async) + Alembic. Schema: `users`, `analyses`,
-`requirements`, `issues`, `documents`, `ai_provider_credentials` (revision `0001`,
-fully documented in [`docs/DATABASE_SCHEMA.md`](docs/DATABASE_SCHEMA.md)).
+`requirements`, `issues`, `documents`, `ai_provider_credentials` (revision `0001`) +
+`refresh_tokens`, `email_verification_tokens`, `password_reset_tokens` (revision
+`0002`) — fully documented in [`docs/DATABASE_SCHEMA.md`](docs/DATABASE_SCHEMA.md).
 
 Flow: configure `DATABASE_URL` → `alembic upgrade head` → start backend.
 The schema is migration-controlled: never hand-edit the database, never `create_all()`
-at startup. Auth-token tables arrive with the authentication stage.
+at startup.
 
 ## API
 
 Versioned REST at `/api/v1` — see [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) for the
 binding contract (envelopes, pagination, error codes). Interactive docs (non-production):
 `http://localhost:8000/api/docs`. Current surface: `GET /health` (infra alias),
-`GET /api/v1/health/live`, `GET /api/v1/health/ready` (live DB probe).
+`GET /api/v1/health/live`, `GET /api/v1/health/ready` (live DB probe), and the full
+auth API (`POST /api/v1/auth/register|login|logout|refresh|verify-email|resend-verification|forgot-password|reset-password|change-password`,
+`GET /api/v1/auth/me`, `DELETE /api/v1/auth/account`).
 
 ## Security model (summary)
 
@@ -134,11 +139,12 @@ dedicated security stages do that later.
 
 ## Current limitations
 
-Foundation + database only — intentionally NOT implemented yet: authentication,
-deterministic engine, analysis API, analyzer UI, document upload/extraction, history,
-dashboard, settings, AI providers, CAPTCHA/rate limits, Sentry. The home page is an
-honest placeholder (replaced by the marketing stage), and `ApiStatus` needs the backend
-running. Full plan: [`docs/FUTURE_ROADMAP.md`](docs/FUTURE_ROADMAP.md).
+Backend auth is done; the auth UI arrives next — intentionally NOT implemented yet:
+auth frontend, deterministic engine, analysis API, analyzer UI, document
+upload/extraction, history, dashboard, settings, AI providers, CAPTCHA/distributed rate
+limits, Sentry. The home page is an honest placeholder (replaced by the marketing
+stage), and `ApiStatus` needs the backend running. Full plan:
+[`docs/FUTURE_ROADMAP.md`](docs/FUTURE_ROADMAP.md).
 
 ## Screenshots
 

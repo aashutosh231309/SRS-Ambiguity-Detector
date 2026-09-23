@@ -46,3 +46,54 @@ class ForbiddenError(AppError):
 
     def __init__(self, message: str = "You do not have access to this resource.") -> None:
         super().__init__("forbidden", message, 403)
+
+
+class InvalidCredentialsError(AppError):
+    """401 — bad email/password (identical message for unknown email: no oracle)."""
+
+    def __init__(self) -> None:
+        super().__init__("invalid_credentials", "Invalid email or password.", 401)
+
+
+class EmailNotVerifiedError(AppError):
+    """403 — session valid but email unverified (verified-user gate)."""
+
+    def __init__(self) -> None:
+        super().__init__("email_unverified", "Please verify your email to continue.", 403)
+
+
+class AccountDisabledError(AppError):
+    """403 — password correct but account deactivated (post-auth, no oracle)."""
+
+    def __init__(self) -> None:
+        super().__init__("account_disabled", "This account has been disabled.", 403)
+
+
+class InvalidTokenError(AppError):
+    """400 — token unknown/expired/consumed. Honest errors are safe here: 256-bit
+    tokens are not enumerable, so there is no oracle."""
+
+    def __init__(self, message: str = "This link is invalid or has expired.") -> None:
+        super().__init__("invalid_token", message, 400)
+
+
+class WeakPasswordError(AppError):
+    """400 — password fails policy beyond length (denylist)."""
+
+    def __init__(self, message: str = "This password is too easy to guess.") -> None:
+        super().__init__("password_too_weak", message, 400)
+
+
+class RateLimitedError(AppError):
+    """429 — auth rate bucket exhausted (main.py adds the Retry-After header)."""
+
+    def __init__(self, retry_after_seconds: int) -> None:
+        super().__init__("rate_limited", "Too many attempts. Please try again shortly.", 429)
+        self.retry_after_seconds = retry_after_seconds
+
+
+class CurrentPasswordError(AppError):
+    """400 — wrong current password on change (authenticated: honesty is safe)."""
+
+    def __init__(self) -> None:
+        super().__init__("current_password_incorrect", "Current password is incorrect.", 400)

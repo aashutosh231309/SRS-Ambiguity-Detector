@@ -224,10 +224,65 @@ design (documented infrastructure exception, not a request transaction).
 
 **Next stage:** Stage 04 — Authentication Backend.
 
+### Stage 04 — Authentication Backend ✅ (2026-09-23)
+
+**Completed:**
+- Sessions: argon2id (`argon2-cffi`, env-tunable, off-loop) + access JWT 15 min
+  (HS256, `JWT_SECRET` fail-closed) + rotating refresh 30 d with reuse detection
+  (re-presenting a ROTATED token revokes its whole family — committed BEFORE the
+  error raises, since `@transactional` rolls back on failure).
+- 11 endpoints (`api/v1/endpoints/auth.py` + `dependencies.py`): register (synthetic
+  201 on duplicate), verify-email (auto-login), resend (always-202), login, logout
+  (204, idempotent, works with expired access), me, refresh (explicit endpoint —
+  contract amendment), forgot (always-202), reset (logout-everywhere), change
+  (current password required), DELETE account (hard delete + cascade + farewell).
+- Policy: unverified accounts CAN log in; app resources gate per-endpoint
+  (`get_current_verified_user` → `403 email_unverified`). Email inputs never
+  enumerate (synthetic-201/always-202 + dummy-hash uniform timing); 256-bit link
+  tokens return honest 400s; bad-email vs bad-password are byte-identical 401s.
+- Email port: `EmailMessage` + 4 templates + `EmailService` ABC; Resend (prod) and
+  console/file-outbox (dev-only, refused in prod) adapters; sends are best-effort
+  post-commit BackgroundTasks (resend endpoints = recovery path). Emailed links use
+  frontend routes `/verify-email?token=…` / `/reset-password?token=…` (Stage 05).
+- Guards: `Origin`/`Referer` allowlist on every mutating route (safe-method GET
+  exempt); per-endpoint+IP single-process buckets (429 + `Retry-After`, fail-open
+  documented); `turnstile_token` accepted-and-ignored until Stage 22.
+- Two real bugs found by the new tests and fixed: (1) FastAPI drops the injected
+  `Response` when an endpoint returns a `Response` — logout/delete now set cookies
+  on the RETURNED response (logout previously never cleared cookies); (2) the
+  refresh-reuse family revocation was rolled back by `@transactional` (now commits
+  first; trap documented in `transactions.py`).
+
+**Database changes:** revision `0002` (`refresh_tokens` with `family_id` /
+`replaced_by_hash` rotation columns, `email_verification_tokens`,
+`password_reset_tokens`; `CHAR(64)` sha256 hashes, CASCADE FKs, owner/family
+indexes). Upgrade → downgrade → upgrade cycle verified; `alembic check` zero drift.
+
+**API changes:** §4.2 live (see contract for the refresh-endpoint amendment, `/me`
+shape, and anti-enumeration notes); `Retry-After` header on 429s.
+
+**Tests:** `verify.sh` ALL GREEN — pytest 114/114 (63 new: 39 auth E2E incl. CSRF,
+cookie attrs, rotation/reuse, recovery cycles, 429 + Retry-After, prod `Secure`
+flag; 24 primitives/email/factory units), vitest 6/6, ruff, mypy-strict (app AND
+tests), `next build`. Skip-mode verified. Live E2E: uvicorn + `DATABASE_URL` →
+register → console-outbox link → verify → login → refresh rotation → logout, plus
+`/ready`, CORS-preflight, and 404-envelope curl checks.
+
+**Security:** hash-only password column live; sha256-only token storage; constant-time
+compare; cookies `HttpOnly; Secure (prod); SameSite=Lax; Path=/`; no tokens in logs
+(console adapter logs metadata only — tested); DSN/secret hygiene unchanged.
+
+**Known limitations:** single-process buckets (≈N× budget behind N workers — Stage 22
+distributes); no Turnstile verification yet (Stage 22); no auth UI (Stage 05);
+`docker-compose.yml` STILL unvalidated (no Docker in sandbox) — recurring warning.
+
+**Next stage:** Stage 05 — Authentication Frontend.
+
 ## Current stage
-None active — Stage 03 complete; all success conditions hold (layered services,
-transactions, envelope, logging, CORS, lifespan disposal, tests green, docs match).
-Next: **Stage 04 — Authentication Backend**.
+None active — Stage 04 complete; all success conditions hold (11 auth endpoints,
+rotation + reuse detection, email port, CSRF + rate-limit guards, 0002 migration,
+tests green, docs match).
+Next: **Stage 05 — Authentication Frontend**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 Database → backend → auth backend → auth frontend → deterministic engine → analysis API →
@@ -249,6 +304,11 @@ SEO content → responsive/a11y → QA → deploy → docs/shots → audit.
 - One live provider key per user+provider (partial unique); disable-then-replace rotation.
 - Test DB: real PG via `TEST_DATABASE_URL`, skip-if-unreachable, single-loop discipline.
 - `@transactional` = default transaction strategy (shared-session commit for orchestration).
+- Auth sessions: unverified-can-login + per-endpoint verified gate (not login-time block).
+- `POST /auth/refresh` is the explicit rotation endpoint (Stage 04 contract amendment).
+- State that must survive an error (theft revocation) commits explicitly before raising.
+- Cookies/headers belong on the RETURNED `Response` when an endpoint returns one —
+  FastAPI drops the injected `Response` in that case (logout-cookie bug, Stage 04).
 
 ## Warnings for future agents
 1. IMPLEMENTED: `app/{models,schemas,services,repositories,exceptions}/` (Stages 02–03).

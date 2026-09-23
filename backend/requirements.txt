@@ -11,3 +11,8 @@ asyncpg==0.31.0
 alembic==1.20.0
 greenlet==3.5.6
 Mako==1.4.3
+# Stage 04: authentication (argon2id password hashing + HS256 session JWTs).
+argon2-cffi==25.1.0
+PyJWT==2.15.0
+# Pydantic EmailStr validation (DNS checks off; format-only at the boundary).
+email-validator==2.2.0

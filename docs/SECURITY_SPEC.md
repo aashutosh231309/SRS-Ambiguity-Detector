@@ -33,22 +33,29 @@ their own keys; we disclose what is sent — see `AI_PROVIDER_SPEC.md` §Privacy
    uploaded file bytes. `RedactingFilter` installed in Stage 01; Sentry `before_send`
    scrubber in Stage 24 (blocker for enabling Sentry).
 
-## 3. Authentication & sessions (Stage 04 implements; design locked here)
+## 3. Authentication & sessions (IMPLEMENTED Stage 04 — backend; UI Stage 05)
 
-- Email + password. Hash: **argon2id** (via `pwdlib[argon2]` or `argon2-cffi`); parameters
-  tuned so single-hash ≈ 200–500 ms on prod hardware. No MD5/SHA/bcrypt-only downgrades.
-- Email verification REQUIRED before full access (pending → verified flow; tokens:
-  256-bit random, `sha256` stored, ≤24 h expiry, single-use, constant-time compare).
-- Sessions: short-lived **access JWT (15 min)** + **rotating refresh token (30 d, reuse
-  detection → revoke chain)**; both in `HttpOnly; Secure (prod); SameSite=Lax; Path=/`
-  cookies. No tokens in `localStorage`, ever.
-- CSRF: `SameSite=Lax` + server-side `Origin`/`Referer` allowlist check on mutating routes;
-  consider double-submit token in Stage 21 if threat review demands it.
-- Login hardening: per-IP + per-account rate limits (Stage 22), Turnstile after N failures,
-  constant-time password compare, identical responses for bad-email vs bad-password,
-  no account enumeration on register/forgot/resend (always-202 + uniform timing posture).
-- Password policy: ≥12 chars server-side; change requires current password; reset links
-  ≤1 h, single-use; security notification emails on reset/verify/delete (Stage 04+).
+- Email + password. Hash: **argon2id** via `argon2-cffi` (env-tunable work factors,
+  single hash ≈ 200–500 ms, computed off the event loop). No MD5/SHA/bcrypt-only.
+- Verification flow: tokens are 256-bit random, `sha256` at rest, ≤24 h, single-use,
+  constant-time compare. Policy: unverified accounts CAN log in (sessions issued),
+  but app resources gate on verification per-endpoint (`403 email_unverified`).
+- Sessions: short-lived **access JWT (15 min, HS256)** + **rotating refresh (30 d)**;
+  both in `HttpOnly; Secure (prod); SameSite=Lax; Path=/` cookies. Refresh reuse of a
+  ROTATED token revokes its whole family (theft response, committed before the error
+  is raised); logged-out/expired/unknown tokens are plain rejections. No tokens in
+  `localStorage`, ever.
+- CSRF: `SameSite=Lax` + server-side `Origin` (else `Referer`) allowlist check on every
+  mutating route (safe-method `GET /me` exempt); consider double-submit in Stage 21
+  if threat review demands it.
+- Login hardening (as built): per-endpoint+IP token buckets, single-process exact
+  (per-account buckets + distributed store in Stage 22); `turnstile_token`
+  accepted-and-ignored until Stage 22; constant-time compare; byte-identical 401s for
+  bad-email vs bad-password; no enumeration (synthetic-201 register + always-202
+  forgot/resend + dummy-hash uniform timing).
+- Password policy: 12–256 chars + common-password denylist + email-local-part rule;
+  change requires the current password; reset links ≤1 h, single-use, and trigger
+  logout-everywhere; security notices on verify/reset/change/delete.
 
 ## 4. API-key vault (provider credentials — Stage 17 implements; design locked here)
 
@@ -114,10 +121,10 @@ Frontend throttling is cosmetic only.
 
 | Use | Primitive | Notes |
 |-----|-----------|-------|
-| Passwords | argon2id | Stage 04 |
+| Passwords | argon2id | ✅ Stage 04 |
 | Provider keys at rest | Fernet (`ENCRYPTION_MASTER_KEY`) | Stage 17 |
-| Session signing | JWT HS256 with 256-bit server secret (separate from master key) | Stage 04 |
-| Token storage | sha256 hash of 256-bit random tokens | Stage 04 |
+| Session signing | JWT HS256 with 256-bit server secret (separate from master key) | ✅ Stage 04 |
+| Token storage | sha256 hash of 256-bit random tokens | ✅ Stage 04 |
 | Checksums | sha256 of uploads | Stage 09 |
 
 ## 10. Dependency & secret hygiene
@@ -149,7 +156,7 @@ Frontend throttling is cosmetic only.
 - **Credential encryption:** `ai_provider_credentials.encrypted_api_key` holds Fernet
   ciphertext (`vN:`-prefixed) — never plaintext. Vault + rotation land in Stage 17;
   `key_version` already supports rotation audits. `ENCRYPTION_MASTER_KEY` is env-only.
-- **Password hashing:** `users.password_hash` holds argon2id hashes (Stage 04) — the
+- **Password hashing:** `users.password_hash` holds argon2id hashes (✅ Stage 04) — the
   column shape (nullable TEXT) reserves NULL for a future external IdP only.
 - **Sensitive text:** requirement/SRS text lives in `requirements.text` /
   `issues.phrase` — real user content. NEVER logged, never in Sentry, never in error

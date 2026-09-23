@@ -4,6 +4,35 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.5.0] — Stage 04 — Authentication Backend — 2026-09-23
+
+### Added
+- Auth backend: `core/security.py` (argon2id, 256-bit tokens, HS256 JWTs),
+  `core/rate_limit.py` (single-process buckets), `services/auth.py` (11 flows),
+  `repositories/auth.py`, `schemas/auth.py`, `api/v1/dependencies.py`
+  (identity + CSRF + rate-limit guards), `api/v1/endpoints/auth.py` (11 routes).
+- Email port: `email/` package (templates + `EmailService` ABC + Resend and
+  console/file-outbox adapters, wired at startup with prod fail-closed).
+- `CurrentPasswordError`, `RateLimitedError` → `Retry-After` header, 63 new tests.
+
+### Changed
+- `tests/test_database.py`: metadata/head/tables expectations for `0002`, token
+  tables added to the cascade test. `backend/.env.example`: Stage-04 block active.
+
+### Contract (amendments, all additive — see API_CONTRACT §4.2)
+- New explicit `POST /auth/refresh` rotation endpoint (theft response included).
+- `/me` also returns `display_name` / `is_active`; `register` takes `name`.
+- New codes: `invalid_credentials`, `invalid_token`, `password_too_weak`,
+  `current_password_incorrect`, `account_disabled`.
+
+### Database
+- Revision `0002`: `refresh_tokens` (rotation + reuse-detection columns),
+  `email_verification_tokens`, `password_reset_tokens`. Cycle + `alembic check` clean.
+
+### Security
+- Hash-only credentials at rest; constant-time compare; `HttpOnly; Secure (prod);
+  SameSite=Lax` cookies; Origin/Referer CSRF checks; anti-enumeration posture tested.
+
 ## [0.4.0] — Stage 03 — Backend Foundation / Service Layer — 2026-09-23
 
 ### Added

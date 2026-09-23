@@ -5,6 +5,7 @@ All fixture data uses obviously-fake `@example.com` identities — never real us
 """
 
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import func, inspect, select
@@ -13,6 +14,11 @@ from sqlalchemy.exc import IntegrityError
 from app.core.config import get_settings
 from app.core.database import get_engine, normalize_url
 from app.models import AICredential, Analysis, Document, Issue, Requirement, User
+from app.models.auth_tokens import (
+    EmailVerificationToken,
+    PasswordResetToken,
+    RefreshToken,
+)
 from tests.conftest import db_test_session, run
 
 
@@ -29,7 +35,7 @@ def _analysis(owner_id: uuid.UUID, **kw: object) -> Analysis:
         "band": "high",
     }
     params.update(kw)
-    return Analysis(**params)  # type: ignore[arg-type]
+    return Analysis(**params)
 
 
 # --- Configuration (no database needed) -------------------------------------
@@ -73,13 +79,16 @@ def test_model_metadata_tables() -> None:
         "requirements",
         "issues",
         "ai_provider_credentials",
+        "refresh_tokens",
+        "email_verification_tokens",
+        "password_reset_tokens",
     }
 
 
 # --- Migrations -------------------------------------------------------------
 
 
-def test_migration_head_is_0001(migrated_db: str) -> None:
+def test_migration_head_is_0002(migrated_db: str) -> None:
     from alembic.migration import MigrationContext
 
     async def _heads() -> tuple[str, ...]:
@@ -94,7 +103,7 @@ def test_migration_head_is_0001(migrated_db: str) -> None:
         finally:
             await _dispose()
 
-    assert run(_heads()) == ("0001",)
+    assert run(_heads()) == ("0002",)
 
 
 def test_tables_exist(migrated_db: str) -> None:
@@ -116,6 +125,9 @@ def test_tables_exist(migrated_db: str) -> None:
         "issues",
         "documents",
         "ai_provider_credentials",
+        "refresh_tokens",
+        "email_verification_tokens",
+        "password_reset_tokens",
         "alembic_version",
     ):
         assert expected in names
@@ -336,6 +348,17 @@ def test_cascade_delete_user_removes_everything(migrated_db: str) -> None:
             s.add(user)
             await s.commit()
             s.add(_analysis(user.id, score=1, band="low"))
+            live = datetime.now(UTC) + timedelta(hours=1)
+            s.add(
+                RefreshToken(
+                    owner_id=user.id,
+                    token_hash="c" * 64,
+                    family_id=uuid.uuid4(),
+                    expires_at=live,
+                )
+            )
+            s.add(EmailVerificationToken(owner_id=user.id, token_hash="d" * 64, expires_at=live))
+            s.add(PasswordResetToken(owner_id=user.id, token_hash="e" * 64, expires_at=live))
             s.add(
                 Document(
                     owner_id=user.id,
@@ -358,7 +381,16 @@ def test_cascade_delete_user_removes_everything(migrated_db: str) -> None:
             await s.commit()
             await s.delete(user)
             await s.commit()
-            for model in (Analysis, Document, AICredential, Requirement, Issue):
+            for model in (
+                Analysis,
+                Document,
+                AICredential,
+                Requirement,
+                Issue,
+                RefreshToken,
+                EmailVerificationToken,
+                PasswordResetToken,
+            ):
                 assert await s.scalar(select(func.count()).select_from(model)) == 0
 
     run(_case())

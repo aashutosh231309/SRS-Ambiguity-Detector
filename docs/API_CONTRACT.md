@@ -38,9 +38,9 @@
 
 | HTTP | `code` | Meaning |
 |------|--------|---------|
-| 400 | `bad_request` / `validation_error` | Malformed input / schema failure |
-| 401 | `unauthenticated` | Missing/invalid session |
-| 403 | `forbidden` / `email_unverified` | Not owner / account not verified |
+| 400 | `bad_request` / `validation_error` / `invalid_token` / `password_too_weak` / `current_password_incorrect` | Malformed input / schema failure / bad link-token / weak password / wrong current password |
+| 401 | `unauthenticated` / `invalid_credentials` | Missing/invalid session / bad email+password (indistinguishable) |
+| 403 | `forbidden` / `email_unverified` / `account_disabled` | Not owner / unverified / deactivated |
 | 404 | `<resource>_not_found` | e.g. `analysis_not_found` |
 | 409 | `conflict` | e.g. duplicate provider key |
 | 413 | `payload_too_large` | Text/upload over limits |
@@ -72,22 +72,36 @@ GET /health/ready   → 200 {"status":"ready"|"degraded","checks":{"database":"n
   exact `live` payload for load balancers / uptime checks / PaaS probes. It is NOT part of
   the versioned product API and MUST NOT gain product fields; OpenAPI-excluded.
 
-### 4.2 Auth — Stage 04 (backend) / Stage 05 (frontend)
+### 4.2 Auth — backend IMPLEMENTED Stage 04 / frontend Stage 05
 
 ```
-POST /auth/register            {email, password, turnstile_token?} → 201 {id,email,is_verified:false}
+POST /auth/register            {name, email, password, turnstile_token?} → 201 {id,email,is_verified:false}
 POST /auth/verify-email        {token} → 200 {id,email,is_verified:true} (+ sets session cookies)
 POST /auth/resend-verification {email} → 202 {} (always 202: no account enumeration)
 POST /auth/login               {email, password, turnstile_token?} → 200 {id,email,is_verified} (+ cookies)
-POST /auth/logout              → 204 (clears cookies, revokes refresh)
-GET  /auth/me                  → 200 {id,email,is_verified,created_at} | 401
+POST /auth/refresh             (refresh cookie) → 200 {id,email,is_verified} (+ rotates cookies)
+POST /auth/logout              (refresh cookie, optional) → 204 (clears cookies, revokes refresh)
+GET  /auth/me                  → 200 {id,email,display_name,is_verified,is_active,created_at} | 401
 POST /auth/forgot-password     {email} → 202 {} (always 202)
 POST /auth/reset-password      {token, new_password} → 200 {}
-POST /auth/change-password     {current_password, new_password} → 200 {}
-DELETE /auth/account           {confirmation:"DELETE"} → 204 (full cascade delete)
+POST /auth/change-password     {current_password, new_password} → 200 {} (auth required)
+DELETE /auth/account           {confirmation:"DELETE"} → 204 (full cascade delete, auth required)
 ```
-Validation: email format (server), password ≥ 12 chars (strength guidance client-side only
-as hint; server enforces minimum + breach-common list when available).
+- Amendment (Stage 04, additive): `POST /auth/refresh` is the explicit rotation
+  endpoint — the Stage 00 contract implied silent rotation but named no endpoint.
+  Re-presenting a rotated refresh token revokes its whole family (theft response).
+- `/me` also returns `display_name` / `is_active` (additive); `register` takes `name`.
+- Validation (server): email format; password 12–256 chars + common-password denylist
+  + must not contain the email local part; link tokens 16–128 chars. `turnstile_token`
+  is accepted-and-ignored until Stage 22 verifies it.
+- Anti-enumeration: duplicate register → synthetic `201` (+ `account_exists` notice to
+  the real inbox); forgot/resend → always `202` (+ uniform timing); token endpoints
+  (256-bit, unguessable) return honest `400 invalid_token`.
+- Unverified accounts CAN log in (sessions issued); app resources gate on verification
+  per-endpoint (`403 email_unverified`). Logout works with an expired access token
+  (the refresh cookie is the credential) and is idempotent.
+- Emailed links point at frontend routes `/verify-email?token=…` and
+  `/reset-password?token=…` (Stage 05 implements these pages).
 
 ### 4.3 Analysis — Stage 07 (engine Stage 06)
 

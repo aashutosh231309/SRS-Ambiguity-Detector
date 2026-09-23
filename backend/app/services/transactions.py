@@ -22,6 +22,8 @@ def transactional(
     """Commit the session on success; rollback and re-raise on failure.
 
     The wrapped coroutine MUST take its AsyncSession as the first argument.
+    A function that must persist state AND raise (e.g. the refresh-reuse theft
+    response) commits explicitly before raising — the rollback then no-ops.
     """
 
     @wraps(fn)

@@ -23,7 +23,8 @@ from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.database import dispose_engine
 from app.core.logging import configure_logging, get_logger
-from app.exceptions import AppError
+from app.email import get_email_service
+from app.exceptions import AppError, RateLimitedError
 from app.schemas.system import LiveResponse
 
 logger = get_logger(__name__)
@@ -71,6 +72,10 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
         **docs_kwargs,  # type: ignore[arg-type]
     )
+
+    # Transactional email adapter (Resend prod / console dev). Fail-fast:
+    # production misconfiguration crashes the boot, never the first register.
+    app.state.email_service = get_email_service()
 
     @app.middleware("http")
     async def request_id_middleware(
@@ -146,9 +151,15 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(AppError)
     async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
+        headers = (
+            {"Retry-After": str(exc.retry_after_seconds)}
+            if isinstance(exc, RateLimitedError)
+            else None
+        )
         return JSONResponse(
             status_code=exc.status_code,
             content=error_envelope(exc.code, exc.message, exc.details),
+            headers=headers,
         )
 
     @app.exception_handler(SQLAlchemyError)

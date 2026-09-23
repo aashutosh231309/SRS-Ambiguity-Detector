@@ -17,6 +17,11 @@ from app.models.base import Base, CreatedMixin, UpdatedMixin
 if TYPE_CHECKING:  # runtime resolution is by registry name (no import cycle)
     from app.models.ai_credential import AICredential
     from app.models.analysis import Analysis
+    from app.models.auth_tokens import (
+        EmailVerificationToken,
+        PasswordResetToken,
+        RefreshToken,
+    )
     from app.models.document import Document
 
 
@@ -54,5 +59,14 @@ class User(Base, CreatedMixin, UpdatedMixin):
     analyses: Mapped[list["Analysis"]] = relationship(back_populates="owner", passive_deletes=True)
     documents: Mapped[list["Document"]] = relationship(back_populates="owner", passive_deletes=True)
     ai_credentials: Mapped[list["AICredential"]] = relationship(
+        back_populates="owner", passive_deletes=True
+    )
+    refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
+        back_populates="owner", passive_deletes=True
+    )
+    email_verification_tokens: Mapped[list["EmailVerificationToken"]] = relationship(
+        back_populates="owner", passive_deletes=True
+    )
+    password_reset_tokens: Mapped[list["PasswordResetToken"]] = relationship(
         back_populates="owner", passive_deletes=True
     )

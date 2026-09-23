@@ -2,8 +2,9 @@
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import health
+from app.api.v1.endpoints import auth, health
 
 api_router = APIRouter()
 api_router.include_router(health.router)
-# Stage 04+: auth, analysis, documents, dashboard, ai_providers, settings, privacy.
+api_router.include_router(auth.router)
+# Stage 07+: analysis, documents, dashboard, ai_providers, settings, privacy.

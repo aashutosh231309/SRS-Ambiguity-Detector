@@ -3,6 +3,11 @@ every table on Base.metadata (alembic target + tests). Auth-token tables arrive 
 
 from app.models.ai_credential import AICredential
 from app.models.analysis import Analysis
+from app.models.auth_tokens import (
+    EmailVerificationToken,
+    PasswordResetToken,
+    RefreshToken,
+)
 from app.models.base import Base, CreatedMixin, UpdatedMixin
 from app.models.document import Document
 from app.models.issue import Issue
@@ -15,7 +20,10 @@ __all__ = [
     "Base",
     "CreatedMixin",
     "Document",
+    "EmailVerificationToken",
     "Issue",
+    "PasswordResetToken",
+    "RefreshToken",
     "Requirement",
     "UpdatedMixin",
     "User",

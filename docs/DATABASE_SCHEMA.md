@@ -1,9 +1,9 @@
 # Database Schema
 
-> **Status:** IMPLEMENTED in Stage 02 (Alembic revision `0001`). This file describes the
-> ACTUAL schema — models in `backend/app/models/`, DDL in
-> `backend/alembic/versions/0001_initial_schema.py` (`alembic check` verifies they match).
-> Auth-token tables and preferences are PLANNED (Stage 04 / Stage 16) — see §3.7.
+> **Status:** IMPLEMENTED Stages 02–04 (Alembic revisions `0001`–`0002`). This file
+> describes the ACTUAL schema — models in `backend/app/models/`, DDL in
+> `backend/alembic/versions/000*.py` (`alembic check` verifies they match).
+> Preferences are PLANNED (Stage 16) — see §3.8.
 
 ## 1. Conventions (binding, as implemented)
 
@@ -40,9 +40,9 @@
 users 1──* analyses 1──* requirements 1──* issues        [IMPLEMENTED]
 users 1──* documents 1──* analyses (via analyses.document_id, nullable)
 users 1──* ai_provider_credentials                       [IMPLEMENTED]
-users 1──* refresh_tokens                                [PLANNED — Stage 04]
-users 1──* email_verification_tokens                     [PLANNED — Stage 04]
-users 1──* password_reset_tokens                         [PLANNED — Stage 04]
+users 1──* refresh_tokens                                [IMPLEMENTED — Stage 04]
+users 1──* email_verification_tokens                     [IMPLEMENTED — Stage 04]
+users 1──* password_reset_tokens                         [IMPLEMENTED — Stage 04]
 users 1──1 user_preferences / settings                   [PLANNED — Stage 16]
 ```
 
@@ -55,12 +55,12 @@ users 1──1 user_preferences / settings                   [PLANNED — Stage 
 | `id` | UUID | PK, client default | |
 | `email` | VARCHAR(320) | UNIQUE NOT NULL | App lowercases before persist (§7); UNIQUE ⇒ lookup index |
 | `display_name` | VARCHAR(100) | NULL | User-facing name (profile UI, Stage 16) |
-| `password_hash` | TEXT | NULL | argon2id hash (Stage 04). NULL reserves a future external IdP; local accounts NOT NULL (app-enforced) |
+| `password_hash` | TEXT | NULL | argon2id hash (✅ Stage 04). NULL reserves a future external IdP; local accounts NOT NULL (app-enforced) |
 | `identity_provider` | VARCHAR(32) | NOT NULL DEFAULT `'local'` | Future-IdP hook (OAuth NOT in scope) |
 | `external_subject` | TEXT | NULL | Future IdP subject |
 | `is_verified` | BOOLEAN | NOT NULL DEFAULT FALSE | Pending/unverified ⇔ FALSE |
 | `is_active` | BOOLEAN | NOT NULL DEFAULT TRUE | Disabled ⇔ FALSE; deleted = row gone (hard delete) |
-| `last_login_at` | TIMESTAMPTZ | NULL | Set by login (Stage 04) |
+| `last_login_at` | TIMESTAMPTZ | NULL | Set by login (✅ Stage 04) |
 | `created_at` / `updated_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
 
 - FKs: none (root). Indexes: `UNIQUE(email)`; partial
@@ -194,12 +194,62 @@ users 1──1 user_preferences / settings                   [PLANNED — Stage 
 - Delete behavior: cascade from users (provider removal + account deletion).
 - Planned: rotation bookkeeping beyond `key_version` (Stage 17 runbook).
 
-### 3.7 Auth-support tables (PLANNED — Stage 04 finalizes, reserved names)
+### 3.7 Auth-support tables (IMPLEMENTED — Stage 04, revision `0002`)
 
-- `refresh_tokens(id, owner_id, token_hash CHAR(64) UNIQUE, expires_at, revoked_at, created_at, user_agent, ip_hash)` — rotation with reuse detection.
-- `email_verification_tokens(id, owner_id, token_hash UNIQUE, expires_at, consumed_at, …)`.
-- `password_reset_tokens(id, owner_id, token_hash UNIQUE, expires_at, consumed_at, …)`.
-- Token hashes are `sha256(token)`; raw tokens exist ONLY inside emailed links.
+Every token column stores the `sha256` hex (`CHAR(64)`) of a 256-bit random value —
+raw tokens exist ONLY inside emailed links and request bodies, never at rest, never
+in logs. Comparison is constant-time (`hmac.compare_digest` over the hash).
+
+**`refresh_tokens`** — rotating sessions with reuse detection:
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK, client default | |
+| `owner_id` | UUID | FK `users.id` CASCADE NOT NULL | Session owner |
+| `token_hash` | CHAR(64) | UNIQUE NOT NULL | `sha256` of the cookie value; UNIQUE ⇒ lookup index |
+| `family_id` | UUID | NOT NULL | Rotation lineage (one login chain = one family) |
+| `replaced_by_hash` | CHAR(64) | NULL | Set on rotation: distinguishes rotated (theft signal) from logged-out |
+| `expires_at` | TIMESTAMPTZ | NOT NULL | 30 d sliding on each rotation |
+| `revoked_at` | TIMESTAMPTZ | NULL | Rotation, logout, or family/owner revocation |
+| `user_agent` | VARCHAR(255) | NULL | Truncated client string (forensics) |
+| `ip_hash` | CHAR(64) | NULL | One-way IP fingerprint (PII minimization) |
+| `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | No `updated_at` (rows are append-mostly) |
+
+- Indexes: `ix_refresh_tokens_owner`, `ix_refresh_tokens_family` (theft-response sweep).
+- Reuse rule: presenting a token with `replaced_by_hash` set revokes the whole family;
+  presenting a revoked-never-replaced token (logout) is a plain rejection.
+
+**`email_verification_tokens`** — single-use verify links (≤24 h):
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK, client default | |
+| `owner_id` | UUID | FK `users.id` CASCADE NOT NULL | |
+| `token_hash` | CHAR(64) | UNIQUE NOT NULL | `sha256` of the link token |
+| `expires_at` | TIMESTAMPTZ | NOT NULL | |
+| `consumed_at` | TIMESTAMPTZ | NULL | Set on success; consumed rows stay as audit |
+| `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
+
+- Index: `ix_email_verification_tokens_owner`. Resend supersedes pending rows (deletes
+  unconsumed, keeps consumed audit).
+
+**`password_reset_tokens`** — same shape as verification (≤1 h TTL):
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | UUID | PK, client default | |
+| `owner_id` | UUID | FK `users.id` CASCADE NOT NULL | |
+| `token_hash` | CHAR(64) | UNIQUE NOT NULL | `sha256` of the link token |
+| `expires_at` | TIMESTAMPTZ | NOT NULL | |
+| `consumed_at` | TIMESTAMPTZ | NULL | Set on success; consumed rows stay as audit |
+| `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() | |
+
+- Index: `ix_password_reset_tokens_owner`. Reset consumes + clears pending + revokes
+  all owner sessions (logout-everywhere).
+
+### 3.8 User preferences (PLANNED — Stage 16, reserved names)
+
+- `user_preferences` / settings shape is finalized by the settings stage.
 
 ## 4. Retention & deletion (schema support: IMPLEMENTED; workflows: later stages)
 
@@ -207,15 +257,17 @@ users 1──1 user_preferences / settings                   [PLANNED — Stage 
   issues, documents metadata, and credentials. ORM relationships use
   `passive_deletes=True`: the DATABASE is the enforcement point, never ORM SELECTs.
 - Application-level (the DB cannot do these): storage-object deletion
-  (`documents.storage_path`), temp-file cleanup. Account deletion (Stage 16/23) runs
-  DB delete + storage purge in one workflow, then verifies zero rows per `owner_id`
-  (verification test in Stage 23).
+  (`documents.storage_path`), temp-file cleanup. Account-deletion backend
+  (`DELETE /auth/account`, ✅ Stage 04) hard-deletes + cascades (sessions/tokens
+  included — no storage objects exist before Stage 09) and is covered by E2E tests;
+  lifecycle/verification workflows arrive in Stage 23.
 - History purge / retention (Stage 23) deletes per-user `analyses` (+ cascades) and
   orphaned `documents`.
 
 ## 5. Migrations & local workflow (IMPLEMENTED)
 
-- Revisions: `0001` (this schema). Linear history, every revision has `downgrade()`.
+- Revisions: `0001` (core schema) + `0002` (auth-token tables). Linear history,
+  every revision has `downgrade()`.
 - DSN resolution (shared by app + Alembic): `DIRECT_DATABASE_URL` preferred (Supabase:
   bypasses the transaction pooler, which cannot run DDL), `DATABASE_URL` fallback.
   `postgresql://`/`postgres://` schemes are coerced to the asyncpg driver; anything
@@ -253,6 +305,13 @@ users 1──1 user_preferences / settings                   [PLANNED — Stage 
 | `uq_ai_cred_default_per_owner` (partial) | One default per user |
 | `uq_ai_cred_enabled_per_provider` (partial) | One live key per user+provider |
 | `ix_ai_cred_owner_fallback` | Fallback-chain ordering |
+| `UNIQUE refresh_tokens(token_hash)` | Session lookup by cookie value |
+| `ix_refresh_tokens_owner` | Owner session sweeps (logout-everywhere) |
+| `ix_refresh_tokens_family` | Theft-response family revocation |
+| `UNIQUE email_verification_tokens(token_hash)` | Verify-link lookup |
+| `ix_email_verification_tokens_owner` | Pending-token supersede |
+| `UNIQUE password_reset_tokens(token_hash)` | Reset-link lookup |
+| `ix_password_reset_tokens_owner` | Pending-token supersede |
 
 ## 7. Normalization & vocabulary notes
 
