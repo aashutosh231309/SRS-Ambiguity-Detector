@@ -38,6 +38,8 @@ SRS-Ambiguity-Detector/
 │   │   ├── models/            # SQLAlchemy models (6 tables, Stage 02)
 │   │   ├── schemas/           # Pydantic request/response schemas
 │   │   ├── services/          # Business logic (analysis orchestration, …)
+│   │   ├── repositories/      # Data access — SQLAlchemy lives here only
+│   │   ├── exceptions/        # AppError → envelope mapping
 │   │   ├── analysis/          # Deterministic NLP/rule engine (Stage 06+)
 │   │   ├── ai/                # Provider abstraction + implementations (Stage 17+)
 │   │   ├── email/             # Email abstraction + Resend adapter (Stage 04+)
@@ -97,10 +99,14 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
   uniform error envelope.
 - `app/core/config.py` — ALL settings via `pydantic-settings` (env-driven, validated at boot).
   No `os.getenv` scattered through feature code.
-- `app/core/database.py` — lazy async engine + session factory + `database_status()`
-  probe. DSN is never logged or echoed (parse-error chains suppressed).
+- `app/core/database.py` — lazy async engine + session factory (`get_session` is the
+  request-DI seam, first wired in Stage 04) + lifespan disposal. DSN is never logged
+  or echoed (parse-error chains suppressed).
 - `app/models/` — one module per table on `Base` (users, analyses, requirements,
   issues, documents, ai_provider_credentials); auth-token models arrive Stage 04.
+- `app/services/` + `app/repositories/` + `app/schemas/` + `app/exceptions/` — the
+  service layer (Stage 03): business logic, data access, Pydantic boundaries, and
+  `AppError` → envelope mapping. Canonical path: `services/readiness.py`.
 - `backend/alembic/` — migration env resolving the DSN exactly like the app, plus
   linear `versions/` (each with `downgrade()`).
 - `app/core/logging.py` — structured logging + `RedactingFilter` (drops API keys, tokens,

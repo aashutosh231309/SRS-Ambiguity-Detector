@@ -166,3 +166,9 @@ Frontend throttling is cosmetic only.
 - **Migration safety:** DDL is reviewed, transactional (`alembic upgrade` runs in a
   transaction), and reproducible (`alembic check` in the workflow); destructive
   changes need backup + CHANGELOG + STAGE_STATUS treatment.
+- **Error sanitization:** `AppError` messages are user-safe by construction;
+  `SQLAlchemyError` and unhandled exceptions map to `500 internal_error` with
+  server-side-only logging (no SQL/DSN/traces in responses — tested).
+- **Access log:** method + path (never query params) + status + latency, correlated
+  via `X-Request-ID`; `Referrer-Policy` aligned to §8
+  (`strict-origin-when-cross-origin`).

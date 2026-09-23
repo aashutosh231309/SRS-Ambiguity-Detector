@@ -180,11 +180,54 @@ ready); auth-token tables = Stage 04; no `updated_at` on immutable tables (by de
 
 **Next stage:** Stage 03 — Backend Foundation / Service Layer Integration.
 
+### Stage 03 — Backend Foundation / Service Layer ✅ (2026-09-23)
+
+**Completed:**
+- Layered architecture live: routers → `services/` → `repositories/` → models, with
+  `schemas/` (Pydantic boundaries) + `exceptions/` (`AppError` → envelope mapping).
+  Canonical minimal path: `/ready` → `services/readiness.py` → `SystemRepository.ping()`.
+- Transactions: `@transactional` (commit/rollback) in `services/transactions.py`;
+  multi-service atomicity = shared session + single commit (no code until needed).
+- `main.py`: lifespan engine disposal, access-log middleware (method+path+status+ms,
+  request-ID correlated, never query params), `AppError` + `SQLAlchemyError` handlers,
+  CORS tightened to explicit methods/headers (no `*`).
+- `database.py`: `database_status()` retired (superseded by the readiness service);
+  `get_session` kept as the request-DI seam for Stage 04 routes.
+- Error handling extended: services raise `AppError` (mapped to the envelope);
+  `SQLAlchemyError` → sanitized `500 internal_error`; per-field validation details
+  preserved (envelope shape itself was already contract-exact).
+- Fixed `alembic/env.py` silencing app logging: `fileConfig()` defaults to
+  `disable_existing_loggers=True`, which disabled the `app.main` logger whenever
+  migrations ran in-process (the test harness) — now `False`.
+- Pagination seam: `PaginationParams` + `Page[T]` in `schemas/common.py` (first
+  consumers: Stage 07+ list endpoints). `Document.analyses` gained
+  `passive_deletes=True` (ORM-only, zero migration drift via `alembic check`).
+
+**Database changes:** none (no migration; `0001` still head, `alembic check` clean).
+
+**API changes:** none (same routes; envelopes now contract-exact).
+
+**Tests:** `verify.sh` ALL GREEN — pytest 51/51 (15 DB tests on real PG via an
+ephemeral sandbox server + `TEST_DATABASE_URL`), vitest 6/6, ruff, mypy-strict,
+`next build`. Skip-mode verified (36 passed / 15 skipped with no server). Live E2E:
+uvicorn + `DATABASE_URL` → `/ready` =
+`{"status":"ready","checks":{"database":"ok"}}`, plus access-log + request-ID +
+CORS-preflight curl checks.
+
+**Security:** error sanitization (no SQL/DSN/traces in responses — tested); access
+log excludes query params (tested); DSN hygiene unchanged. No auth yet (Stage 04).
+
+**Known limitations:** `docker-compose.yml` STILL unvalidated (no Docker in sandbox) —
+recurring warning; `verify.sh` has no automated drift check (manual `alembic check`
+per SECURITY_SPEC §12); the readiness probe takes its own short-lived session by
+design (documented infrastructure exception, not a request transaction).
+
+**Next stage:** Stage 04 — Authentication Backend.
+
 ## Current stage
-None active — Stage 02 complete; all success conditions hold (PG configured, migrations
-work, schema + constraints enforced, ownership represented, indexes justified, vault
-field prepared, config secure, tests green, docs match, app still runs).
-Next: **Stage 03 — Backend Foundation / Service Layer Integration**.
+None active — Stage 03 complete; all success conditions hold (layered services,
+transactions, envelope, logging, CORS, lifespan disposal, tests green, docs match).
+Next: **Stage 04 — Authentication Backend**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 Database → backend → auth backend → auth frontend → deterministic engine → analysis API →
@@ -205,11 +248,12 @@ SEO content → responsive/a11y → QA → deploy → docs/shots → audit.
   RLS deferred with reasoning (service-role connections bypass it).
 - One live provider key per user+provider (partial unique); disable-then-replace rotation.
 - Test DB: real PG via `TEST_DATABASE_URL`, skip-if-unreachable, single-loop discipline.
+- `@transactional` = default transaction strategy (shared-session commit for orchestration).
 
 ## Warnings for future agents
-1. `app/models/` is IMPLEMENTED (Stage 02). Remaining SEAMS (docstrings only):
-   `app/{schemas,services,analysis,ai,email,storage}/` — do not import behavior from
-   them until their stage implements them.
+1. IMPLEMENTED: `app/{models,schemas,services,repositories,exceptions}/` (Stages 02–03).
+   Remaining SEAMS (docstrings only): `app/{analysis,ai,email,storage}/` — do not
+   import behavior from them until their stage implements them.
 2. Never rename `owner_id`, envelope shapes, env names, or `docs/` files without ADR + CHANGELOG.
 3. Never `npm install` a dependency the stage doesn't import (recharts: dashboard/report stages).
 4. Frontend placeholder `/` page must be REPLACED in the SEO/marketing stage, not extended.
@@ -218,3 +262,7 @@ SEO content → responsive/a11y → QA → deploy → docs/shots → audit.
    before "upgrading" (see Toolchain note in CHANGELOG 0.1.0).
 7. Apply edits to the SAME file sequentially and grep-verify afterwards — parallel
    same-file edits have been observed to clobber each other (see DEVELOPMENT_RULES §6).
+8. Never rewrite a file from remembered content: re-read (or `git show HEAD:`) first,
+   then `git diff`-review the rewrite line by line for silently dropped behavior.
+   Stage 03 caught a rewrite that dropped status codes, security headers, and docs
+   paths this way — the gate was green but the diff was wrong.

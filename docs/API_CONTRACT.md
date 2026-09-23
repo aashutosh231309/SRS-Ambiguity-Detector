@@ -30,6 +30,9 @@
 - `message`: human-readable, safe to display (already redacted server-side).
 - `details`: optional object (e.g. per-field validation errors). Never secrets/stack traces.
 - FastAPI's default `{"detail": …}` MUST be converted by exception handlers in `main.py`.
+- Server mapping: services raise `AppError` subclasses (`backend/app/exceptions/`);
+  `SQLAlchemyError` and unknown failures → `500 internal_error`, sanitized (never
+  SQL/DSN/traces in responses — server-side logs only).
 
 **Standard codes (extend per resource, keep this table current):**
 

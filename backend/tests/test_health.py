@@ -43,3 +43,33 @@ def test_security_headers_present(client: TestClient) -> None:
     res = client.get("/api/v1/health/live")
     assert res.headers["X-Content-Type-Options"] == "nosniff"
     assert res.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+
+
+def test_openapi_lists_only_real_routes(client: TestClient) -> None:
+    res = client.get("/api/openapi.json")
+    assert res.status_code == 200
+    paths = res.json()["paths"]
+    assert "/api/v1/health/live" in paths
+    assert "/api/v1/health/ready" in paths
+    assert "DATABASE_URL" not in res.text  # no secrets in schemas
+    assert "/health" not in paths  # infra alias excluded from schema
+    assert "/" not in paths  # root meta excluded from schema
+
+
+def test_root_meta_shape(client: TestClient) -> None:
+    res = client.get("/")
+    assert res.status_code == 200
+    assert res.json() == {
+        "service": "srs-ambiguity-detector",
+        "version": __version__,
+        "docs": "/api/docs",
+    }
+
+
+def test_lifespan_startup_and_shutdown() -> None:
+    from app.main import create_app
+
+    with TestClient(create_app()) as lifespan_client:
+        res = lifespan_client.get("/api/v1/health/live")
+        assert res.status_code == 200
+    # Exiting the context runs lifespan shutdown (engine disposal) without errors.

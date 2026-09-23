@@ -4,14 +4,14 @@ DSN handling rules (SECURITY_SPEC): the URL is accepted from `DATABASE_URL` only
 never logged, never returned, never echoed in errors — exception chains that could
 carry it are deliberately suppressed (`from None`).
 
-Stage 03 wires `get_session` into routes and adds lifespan shutdown; until then the
-only consumer is the `/ready` probe plus tests.
+Lifecycle: process-wide lazy engine, disposed by the app lifespan on shutdown
+(tests dispose per test). Requests get one session each via the `get_session`
+FastAPI dependency; infrastructure probes (readiness) take a short-lived session
+from `get_session_factory`.
 """
 
 from collections.abc import AsyncGenerator
-from typing import Literal
 
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -20,9 +20,6 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.core.config import get_settings
-from app.core.logging import get_logger
-
-logger = get_logger(__name__)
 
 _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
@@ -70,29 +67,14 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
-    """FastAPI dependency yielding one session per request (routes from Stage 03)."""
+    """FastAPI dependency yielding one session per request (routes from Stage 04)."""
     factory = get_session_factory()
     async with factory() as session:
         yield session
 
 
-async def database_status() -> Literal["not_configured", "ok", "error"]:
-    """Truthful reachability probe for `/ready`. Never raises, never leaks the DSN."""
-    try:
-        engine = get_engine()
-    except RuntimeError:
-        return "not_configured"
-    try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-        return "ok"
-    except Exception:
-        logger.warning("Database reachability check failed (details withheld).")
-        return "error"
-
-
 async def dispose_engine() -> None:
-    """Dispose + forget the cached engine (tests; Stage 03 lifespan shutdown)."""
+    """Dispose + forget the cached engine (lifespan shutdown; tests)."""
     global _engine, _session_factory
     if _engine is not None:
         await _engine.dispose()

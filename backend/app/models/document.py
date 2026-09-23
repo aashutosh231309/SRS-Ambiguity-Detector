@@ -54,4 +54,6 @@ class Document(Base, CreatedMixin):
     )
 
     owner: Mapped["User"] = relationship(back_populates="documents")
-    analyses: Mapped[list["Analysis"]] = relationship(back_populates="document")
+    analyses: Mapped[list["Analysis"]] = relationship(
+        back_populates="document", passive_deletes=True
+    )

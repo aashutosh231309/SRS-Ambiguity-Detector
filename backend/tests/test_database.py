@@ -11,7 +11,7 @@ from sqlalchemy import func, inspect, select
 from sqlalchemy.exc import IntegrityError
 
 from app.core.config import get_settings
-from app.core.database import database_status, dispose_engine, get_engine, normalize_url
+from app.core.database import get_engine, normalize_url
 from app.models import AICredential, Analysis, Document, Issue, Requirement, User
 from tests.conftest import db_test_session, run
 
@@ -62,29 +62,18 @@ def test_engine_requires_url_and_hides_values(monkeypatch: pytest.MonkeyPatch) -
         get_settings.cache_clear()
 
 
-def test_database_status_not_configured(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("DATABASE_URL", raising=False)
-    get_settings.cache_clear()
-    try:
-        assert run(database_status()) == "not_configured"
-    finally:
-        get_settings.cache_clear()
+def test_model_metadata_tables() -> None:
+    """Model registry sanity: every expected table is declared (no DB needed)."""
+    from app.models.base import Base
 
-
-def test_database_status_error_on_unreachable(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@127.0.0.1:1/db")
-    get_settings.cache_clear()
-
-    async def _probe() -> str:
-        try:
-            return await database_status()
-        finally:
-            await dispose_engine()
-
-    try:
-        assert run(_probe()) == "error"  # truthful: never a false "ok"
-    finally:
-        get_settings.cache_clear()
+    assert set(Base.metadata.tables) == {
+        "users",
+        "documents",
+        "analyses",
+        "requirements",
+        "issues",
+        "ai_provider_credentials",
+    }
 
 
 # --- Migrations -------------------------------------------------------------

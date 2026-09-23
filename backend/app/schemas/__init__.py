@@ -1,1 +1,6 @@
-"""Pydantic request/response schemas. SEAM — first schemas land in Stage 03/04."""
+"""Pydantic API-boundary models (never expose ORM objects directly)."""
+
+from app.schemas.common import Page, PaginationParams
+from app.schemas.system import LiveResponse, ReadyResponse
+
+__all__ = ["LiveResponse", "Page", "PaginationParams", "ReadyResponse"]

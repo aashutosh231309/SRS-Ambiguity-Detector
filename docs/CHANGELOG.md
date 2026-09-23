@@ -4,6 +4,31 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.4.0] — Stage 03 — Backend Foundation / Service Layer — 2026-09-23
+
+### Added
+- Service layer: `app/services/` (`readiness`, `transactions.@transactional`),
+  `app/repositories/` (`SystemRepository`), `app/exceptions/` (`AppError` + 4
+  subclasses), `app/schemas/` (`system`, `common` pagination).
+- `main.py`: lifespan engine disposal, access-log middleware, `AppError` +
+  `SQLAlchemyError` handlers, tightened CORS (explicit methods/headers).
+- 26 backend tests added, 2 retired (net +24): services, errors, middleware, CORS,
+  schemas, OpenAPI/lifespan, model-metadata sanity.
+
+### Changed
+- Error handling extended: `AppError` → envelope mapping, sanitized `SQLAlchemyError`
+  → `500 internal_error` (per-field validation details preserved).
+- `/ready` now flows through the service layer (same shapes, same truth table).
+- Fixed `alembic/env.py` silencing app logging in-process (`fileConfig()` now
+  passes `disable_existing_loggers=False`).
+- `Document.analyses` gained `passive_deletes=True` (ORM-only, no migration).
+
+### Database
+- None (no migration; `0001` still head, `alembic check` zero drift).
+
+### Security
+- Error sanitization + query-param-free access log (both tested); DSN hygiene unchanged.
+
 ## [0.3.0] — Stage 02 — Database Foundation — 2026-09-23
 
 ### Added

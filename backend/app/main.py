@@ -1,24 +1,30 @@
 """Application factory + process-level wiring.
 
-Owns: settings, logging, middleware (request-id, security headers, CORS),
-the uniform error envelope (``docs/API_CONTRACT.md`` §2), and router mounting.
-Feature code lives in ``app/api/``, ``app/services/``, etc. — never here.
+Owns: settings, logging, middleware (request-id, security headers, access log,
+CORS), lifespan (engine disposal), the uniform error envelope
+(``docs/API_CONTRACT.md`` §2), and router mounting. Feature code lives in
+``app/api/``, ``app/services/``, etc. — never here.
 """
 
+import time
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app import __version__
-from app.api.v1.endpoints.health import LiveResponse
 from app.api.v1.router import api_router
 from app.core.config import get_settings
+from app.core.database import dispose_engine
 from app.core.logging import configure_logging, get_logger
+from app.exceptions import AppError
+from app.schemas.system import LiveResponse
 
 logger = get_logger(__name__)
 
@@ -40,6 +46,14 @@ def error_envelope(code: str, message: str, details: object = None) -> dict[str,
     return {"error": {"code": code, "message": message, "details": details}}
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Startup needs no I/O by design; shutdown disposes the pooled engine."""
+    _ = app
+    yield
+    await dispose_engine()
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.LOG_LEVEL)
@@ -54,6 +68,7 @@ def create_app() -> FastAPI:
         title=settings.APP_NAME,
         version=__version__,
         debug=settings.DEBUG and not settings.is_production,
+        lifespan=lifespan,
         **docs_kwargs,  # type: ignore[arg-type]
     )
 
@@ -61,7 +76,7 @@ def create_app() -> FastAPI:
     async def request_id_middleware(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        request_id = request.headers.get("X-Request-ID", uuid.uuid4().hex[:12])
+        request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex[:12]
         request.state.request_id = request_id
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
@@ -81,12 +96,32 @@ def create_app() -> FastAPI:
             )
         return response
 
+    @app.middleware("http")
+    async def access_log_middleware(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        start = time.perf_counter()
+        response = await call_next(request)
+        duration_ms = (time.perf_counter() - start) * 1000
+        # Path only (never query params) + status + latency; correlation via request_id.
+        logger.info(
+            "%s %s -> %s %.1fms",
+            request.method,
+            request.url.path,
+            response.status_code,
+            duration_ms,
+            extra={"request_id": getattr(request.state, "request_id", "-")},
+        )
+        return response
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.BACKEND_CORS_ORIGINS,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+        expose_headers=["X-Request-ID"],
+        max_age=600,
     )
 
     @app.exception_handler(StarletteHTTPException)
@@ -107,6 +142,24 @@ def create_app() -> FastAPI:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content=error_envelope("validation_error", "Request validation failed.", details),
+        )
+
+    @app.exception_handler(AppError)
+    async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=error_envelope(exc.code, exc.message, exc.details),
+        )
+
+    @app.exception_handler(SQLAlchemyError)
+    async def sqlalchemy_error_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
+        # Sanitized: driver errors may carry SQL/DSN fragments — log server-side only.
+        _ = exc
+        request_id = getattr(request.state, "request_id", "-")
+        logger.exception("Database error", extra={"request_id": request_id})
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content=error_envelope("internal_error", "Internal server error."),
         )
 
     @app.exception_handler(Exception)

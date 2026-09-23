@@ -6,4 +6,4 @@ from app.api.v1.endpoints import health
 
 api_router = APIRouter()
 api_router.include_router(health.router)
-# Stage 03+: auth, analysis, documents, dashboard, ai_providers, settings, privacy.
+# Stage 04+: auth, analysis, documents, dashboard, ai_providers, settings, privacy.

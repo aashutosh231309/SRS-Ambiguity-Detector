@@ -53,6 +53,9 @@
 - Settings ONLY via `app/core/config.py`; logging ONLY via configured logger (redacting);
   no `print()`; no f-string SQL; Pydantic schemas validate every input/output boundary.
 - Routers: thin (auth → validate → service → response). Services: no FastAPI imports.
+- Layers: routers (HTTP only) → services (logic, `@transactional`, `AppError`) →
+  repositories (SQLAlchemy only, no business rules) → models. Sessions arrive via DI
+  (business paths) or short-lived factory use (infrastructure probes only).
   Engine (`analysis/`): pure, deterministic, zero network.
 - Every `{id}` route: ownership check + 404-on-foreign (IDOR) + test.
 
