@@ -54,7 +54,7 @@ their own keys; we disclose what is sent — see `AI_PROVIDER_SPEC.md` §Privacy
 
 - Transport: HTTPS only in staging/prod (HSTS; redirect 80→443 at platform).
 - At rest: **Fernet (AES-128-CBC + HMAC-SHA256)**, ciphertext stored as `v1:<token>`.
-  Master key = `CREDENTIALS_MASTER_KEY` env (Fernet key, 32 bytes, base64). Rotation:
+  Master key = `ENCRYPTION_MASTER_KEY` env (Fernet key, 32 bytes, base64). Rotation:
   introduce `v2`, decrypt-with-old → encrypt-with-new lazily + `key_version` column
   discipline; document rotation runbook in Stage 17.
 - In use: decrypt ONLY inside the backend process at call time; key lives in local memory,
@@ -115,7 +115,7 @@ Frontend throttling is cosmetic only.
 | Use | Primitive | Notes |
 |-----|-----------|-------|
 | Passwords | argon2id | Stage 04 |
-| Provider keys at rest | Fernet (`CREDENTIALS_MASTER_KEY`) | Stage 17 |
+| Provider keys at rest | Fernet (`ENCRYPTION_MASTER_KEY`) | Stage 17 |
 | Session signing | JWT HS256 with 256-bit server secret (separate from master key) | Stage 04 |
 | Token storage | sha256 hash of 256-bit random tokens | Stage 04 |
 | Checksums | sha256 of uploads | Stage 09 |

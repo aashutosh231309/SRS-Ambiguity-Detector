@@ -15,6 +15,10 @@ Anti-goals (will be rejected in review): generic purple/blue gradients, glassmor
 everywhere, decorative blobs, neon glows, default-Tailwind card grids, cookie-cutter
 dashboard sidebar, emoji iconography, animation for its own sake.
 
+Project contract, verbatim: «The UI must not look like a generic AI-generated SaaS
+dashboard.» Public marketing pages may use richer motion; private productivity screens
+(analyzer, report, history, dashboard, settings) stay calmer and denser.
+
 ## 2. Visual identity foundation (implemented Stage 01, refined later)
 
 **Color (CSS-first tokens in `globals.css`, Tailwind v4 `@theme`):**

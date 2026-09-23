@@ -6,7 +6,7 @@
 
 ## 1. Base + versioning
 
-- Base URL (browser): `NEXT_PUBLIC_API_BASE_URL`, default `http://localhost:8000/api/v1`.
+- Base URL (browser): `NEXT_PUBLIC_API_URL`, default `http://localhost:8000/api/v1`.
 - All paths below are relative to `/api/v1`. Breaking changes require `/api/v2` + dual-serve
   window; additive changes (new optional fields/endpoints) do not.
 - `Content-Type: application/json; charset=utf-8` for JSON bodies. Multipart only for uploads.
@@ -63,6 +63,9 @@ GET /health/ready   → 200 {"status":"ready"|"degraded","checks":{"database":"n
 ```
 - No auth. `live` = process up. `ready` = dependencies reachable; Stage 02+ adds the DB check.
 - Frontend `ApiStatus` component polls `live` (proves the envelope + CORS wiring).
+- Infra alias (IMPLEMENTED): `GET /health` (unversioned, outside `/api/v1`) returns the
+  exact `live` payload for load balancers / uptime checks / PaaS probes. It is NOT part of
+  the versioned product API and MUST NOT gain product fields; OpenAPI-excluded.
 
 ### 4.2 Auth — Stage 04 (backend) / Stage 05 (frontend)
 

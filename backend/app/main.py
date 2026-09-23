@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app import __version__
+from app.api.v1.endpoints.health import LiveResponse
 from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger
@@ -117,6 +118,17 @@ def create_app() -> FastAPI:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content=error_envelope("internal_error", "Internal server error."),
         )
+
+    @app.get("/health", include_in_schema=False)
+    async def health_alias() -> LiveResponse:
+        """Stable infrastructure probe (load balancers, uptime checks, PaaS).
+
+        The canonical contract lives at /api/v1/health/* (API_CONTRACT.md §4.1).
+        This unversioned alias exists ONLY so infrastructure has a fixed path that
+        never moves across API versions. It returns the live payload, nothing more —
+        no env details, no dependency internals (SECURITY_SPEC §2).
+        """
+        return LiveResponse()
 
     @app.get("/", include_in_schema=False)
     async def root() -> dict[str, str]:

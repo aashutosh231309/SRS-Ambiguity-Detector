@@ -48,7 +48,7 @@ uvicorn app.main:app --reload --port 8000            # API → http://localhost:
 # 2. Frontend (new terminal)
 cd frontend
 npm install
-cp .env.example .env.local                           # NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+cp .env.example .env.local                           # NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 npm run dev                                          # Web → http://localhost:3000
 
 # 3. Database (from Stage 02; optional for the Stage-01 skeleton)
@@ -67,10 +67,12 @@ All settings are environment-driven and validated at boot. Copy the examples and
 
 - `backend/.env.example` → `backend/.env` (server-only; **never commit `.env`**)
 - `frontend/.env.example` → `frontend/.env.local` (`NEXT_PUBLIC_*` only — never secrets)
+- Root `.env.example` is the master inventory + `docker compose` reference (documents all
+  variables in one place; only `${POSTGRES_*}` is read from the repo root)
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8000/api/v1` | Browser → API base URL (the only backend address the browser needs) |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000/api/v1` | Browser → API base URL (the only backend address the browser needs) |
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | Canonical site URL (SEO, emails, OAuth-free callbacks) |
 | `APP_ENV` | `local` | `local` / `staging` / `production` behavior switch |
 | `DATABASE_URL` | *(unset — skeleton runs without it)* | `postgresql+asyncpg://…` (required from Stage 02) |

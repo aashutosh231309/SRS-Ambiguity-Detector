@@ -16,6 +16,15 @@ def test_live_returns_ok_shape(client: TestClient) -> None:
     assert res.headers["X-Request-ID"]  # request-id middleware active
 
 
+def test_root_health_alias_matches_live(client: TestClient) -> None:
+    """GET /health is a stable infra alias for GET /api/v1/health/live (Stage 00 §6)."""
+    alias = client.get("/health")
+    live = client.get("/api/v1/health/live")
+    assert alias.status_code == 200
+    assert alias.json() == live.json()
+    assert set(alias.json()) == {"status", "service", "version"}  # no env leakage
+
+
 def test_ready_reports_dependency_checks(client: TestClient) -> None:
     res = client.get("/api/v1/health/ready")
     assert res.status_code == 200

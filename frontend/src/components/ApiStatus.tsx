@@ -57,22 +57,20 @@ export function ApiStatus({ className }: { className?: string }) {
       role="status"
       aria-live="polite"
     >
-      <p className="font-mono text-xs tracking-widest text-(--color-ink-faint) uppercase">
-        Backend API
-      </p>
+      <p className="font-mono text-xs tracking-widest text-ink-faint uppercase">Backend API</p>
       <div className="mt-3 flex items-center gap-2.5">
         {state.kind === "loading" && (
           <>
-            <Loader2 className="size-5 animate-spin text-(--color-ink-faint)" aria-hidden />
-            <span className="text-sm text-(--color-ink-soft)">Contacting service…</span>
+            <Loader2 className="size-5 animate-spin text-ink-faint" aria-hidden />
+            <span className="text-sm text-ink-soft">Contacting service…</span>
           </>
         )}
         {state.kind === "online" && (
           <>
-            <CheckCircle2 className="size-5 text-(--color-signal)" aria-hidden />
+            <CheckCircle2 className="size-5 text-signal" aria-hidden />
             <span className="text-sm font-medium">
               Online{" "}
-              <span className="font-mono text-xs text-(--color-ink-faint)">
+              <span className="font-mono text-xs text-ink-faint">
                 v{state.version} · {state.latencyMs} ms
               </span>
             </span>
@@ -80,7 +78,7 @@ export function ApiStatus({ className }: { className?: string }) {
         )}
         {state.kind === "offline" && (
           <>
-            <AlertTriangle className="size-5 text-(--color-sev-high)" aria-hidden />
+            <AlertTriangle className="size-5 text-sev-high" aria-hidden />
             <span className="text-sm font-medium">{state.message}</span>
           </>
         )}

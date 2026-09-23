@@ -27,6 +27,8 @@ SRS-Ambiguity-Detector/
 │   ├── src/app/               # Routes (public + (app) private groups later)
 │   ├── src/components/        # Design-system + feature components
 │   ├── src/lib/               # API client, env, utils (no secrets here)
+│   ├── src/hooks/             # Shared hooks (first use Stage 05)
+│   ├── src/types/             # Contract-mirrored domain types (as features land)
 │   └── public/                # Static assets
 ├── backend/                   # Python + FastAPI
 │   ├── app/
@@ -59,7 +61,7 @@ All stages modify this SAME tree.
 | Styling | Tailwind CSS v4 (CSS-first `@theme`) | Design tokens in `globals.css`; no CSS-in-JS runtime |
 | Motion | Motion for React (`motion` package) | Primary interaction system; GSAP only if scroll storytelling demands it |
 | Icons | `lucide-react` | No emoji icons in UI |
-| Charts | `recharts` | Dashboard + report visualizations |
+| Charts | Recharts (NOT installed until Stage 13/15 — dependency discipline) | Dashboard + report visualizations |
 | Backend | Python 3.11+, FastAPI, Pydantic v2 | Async endpoints; OpenAPI at `/api/docs` (dev/staging) |
 | ORM / migrations | SQLAlchemy 2.0 (async) + Alembic | Migration per schema change; never ad-hoc DDL in prod |
 | Database | PostgreSQL (Supabase managed in prod; `docker-compose` locally) | No SQLite/Postgres dialect forks in app code |
@@ -82,7 +84,7 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
 ```
 
 - Local dev: frontend `:3000`, backend `:8000`, Postgres via `docker-compose` (or Supabase project).
-- API base URL is the ONLY backend address the browser needs: `NEXT_PUBLIC_API_BASE_URL`
+- API base URL is the ONLY backend address the browser needs: `NEXT_PUBLIC_API_URL`
   (default `http://localhost:8000/api/v1`). Browser code MUST NEVER call `localhost` for any
   other service; all backend access goes through this one base URL.
 
@@ -135,15 +137,16 @@ Backend reads env via `app/core/config.py` (see `backend/.env.example` for the f
 | Variable | Required in | Purpose |
 |----------|-------------|---------|
 | `APP_ENV` (`local`/`staging`/`production`) | all | Behavior switch (docs, frame headers, cookie `Secure`) |
-| `DATABASE_URL` | staging/prod (Stage 02+) | `postgresql+asyncpg://…` |
-| `CREDENTIALS_MASTER_KEY` | staging/prod (Stage 17+) | Fernet key encrypting provider API keys at rest |
+| `DATABASE_URL` | staging/prod (Stage 02+) | `postgresql+asyncpg://…` (pooled/app connection) |
+| `DIRECT_DATABASE_URL` | staging/prod (Stage 02+) | Direct connection for Alembic migrations (bypasses pooler) |
+| `ENCRYPTION_MASTER_KEY` | staging/prod (Stage 17+) | Fernet key encrypting provider API keys at rest |
 | `JWT_*` / cookie secrets | Stage 04+ | Access/refresh signing (reserved names in `.env.example`) |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Stage 04+ | Transactional email |
 | `TURNSTILE_SECRET_KEY` | Stage 22+ | Server-side CAPTCHA verify |
 | `SENTRY_DSN` | Stage 24+ | Monitoring (with scrubbing) |
 | `STORAGE_*` | Stage 09+ | Supabase Storage / local adapter |
 
-Frontend (`frontend/.env.example`): `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_SITE_URL`;
+Frontend (`frontend/.env.example`): `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL`;
 later: Turnstile site key, Sentry DSN. `NEXT_PUBLIC_*` MUST NEVER hold secrets.
 
 ## 8. Data ownership rule

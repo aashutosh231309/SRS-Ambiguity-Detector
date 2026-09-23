@@ -38,56 +38,80 @@ Runnable skeletons + verification gate. Details:
   `eslint-config-next/typescript`) — the legacy `FlatCompat` path crashes with v16 configs.
 - Frontend foundation page (`/`) is an HONEST placeholder marked for replacement in
   Stage 26 — not the marketing design. Same for `not-found` (enriched Stage 26).
-- `recharts` is declared but not yet imported (first use Stage 13/15); everything else
-  in `package.json` is already exercised. Backend pins: FastAPI 0.115.6, uvicorn 0.34.0,
-  Pydantic 2.10.4, pydantic-settings 2.7.0, httpx 0.28.1; pytest 8.3.4, ruff 0.8.4, mypy 1.14.1.
+- Backend pins: FastAPI 0.115.6, uvicorn 0.34.0, Pydantic 2.10.4, pydantic-settings 2.7.0,
+  httpx 0.28.1; pytest 8.3.4, ruff 0.8.4, mypy 1.14.1.
 
 **Environment variables added:** see `backend/.env.example` (`APP_*`, `API_V1_PREFIX`,
 `BACKEND_CORS_ORIGINS`, `DATABASE_URL`, + reserved Stage 02–24 names) and
-`frontend/.env.example` (`NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_SITE_URL`, + reserved).
+`frontend/.env.example` (`NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL`, + reserved);
+root `.env.example` is the master inventory. Canonical names follow the Stage 00 prompt:
+`NEXT_PUBLIC_API_URL`, `JWT_SECRET`, `ENCRYPTION_MASTER_KEY`, `DIRECT_DATABASE_URL`.
+No global provider keys exist by design (user-owned, encrypted per-user).
 
-**Database changes:** none (schema is PROPOSED in `DATABASE_SCHEMA.md`; Stage 02 implements).
+**Database changes:** none (schema is PROPOSED in `DATABASE_SCHEMA.md`; database stage implements).
 
-**API changes:** `GET /api/v1/health/live`, `GET /api/v1/health/ready` (envelope + headers
-verified live). Contract for all future endpoints frozen in `API_CONTRACT.md`.
+**API changes:** `GET /api/v1/health/live`, `GET /api/v1/health/ready`, plus the stable
+infra alias `GET /health` (same live payload, OpenAPI-excluded). Contract for all future
+endpoints frozen in `API_CONTRACT.md`.
 
 **Tests performed (all green):**
-- `scripts/verify.sh`: ruff check + format, mypy strict (17 files), pytest (4 tests),
+- `scripts/verify.sh`: ruff check + format, mypy strict (17 files), pytest (5 tests),
   eslint, `tsc --noEmit`, prettier, `next build` (5 static routes) — ALL PASSED.
-- Live E2E: uvicorn `:8000` + `next start` `:3000` — live/ready shapes, 404 envelope,
-  `X-Request-ID`, security headers, CORS allow-origin+credentials, `/` 200 with content,
-  `/robots.txt` + `/sitemap.xml` 200, unknown route 404 — all verified via curl.
+- Live E2E: uvicorn `:8000` + `next start` `:3000` — `/health` alias, live/ready shapes,
+  404 envelope, `X-Request-ID`, security headers, CORS allow-origin+credentials, `/` 200
+  with content, `/robots.txt` + `/sitemap.xml` 200, unknown route 404 — verified via curl.
 
 **Known limitations (accepted, not bugs):**
 - No auth/DB/engine/upload/history/dashboard/settings/AI — each has an owning stage.
-- `docker-compose.yml` is untested here (no Docker in this environment) — Stage 02 must
-  validate it when Postgres becomes required.
+- `docker-compose.yml` is untested here (no Docker in this environment) — the database
+  stage must validate it when Postgres becomes required.
 - Frontend `ApiStatus` shows "offline" until the backend runs — by design (live probe).
+- Recharts deliberately NOT installed (dependency discipline, Stage 00 §24) — the
+  dashboard/report stages add it when first imported.
+
+### Stage 00 (formal) reconciliation ✅ (2026-09-23)
+The formal Stage 00 prompt arrived after the foundation was built; the repo was inspected
+(no rebuild) and reconciled. Deltas applied in this pass:
+- Removed `recharts` (was declared-but-unused) per dependency discipline (§24).
+- Added root `.env.example` (master inventory + compose reference) per §7.
+- Aligned env names to the prompt: `NEXT_PUBLIC_API_URL`, `JWT_SECRET`,
+  `ENCRYPTION_MASTER_KEY`; added `DIRECT_DATABASE_URL` (pooler/direct split).
+  Global provider keys deliberately absent (prompt §7 permits this; user-owned vault).
+- Added `GET /health` infra alias (§6) + test + contract note.
+- Added `src/hooks/` + `src/types/` purpose READMEs (§4 structure).
+- Added the verbatim UI contract sentence (§16) and the §18 items 14–15 rules.
+- Re-verified: `verify.sh` green + live curl of all health paths + homepage.
 
 ## Current stage
-None active — Stage 01 complete. Next up: **Stage 02 — Database foundation**.
+None active — the foundation satisfies the formal Stage 00 success condition
+(clean, runnable, secure foundation + permanent project contract).
+Next: **Stage 01 as defined by the user's forthcoming prompt** (roadmap slot: database
+foundation — models, migrations, live DB wiring; see `FUTURE_ROADMAP.md`).
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
-02 DB foundation → 03 backend foundation → 04 auth backend → 05 auth frontend →
-06 deterministic engine → 07 analysis API → 08 analyzer UI → 09 upload → 10 extraction →
-11 segmentation → 12 history → 13 report UI → 14 dashboard data → 15 dashboard viz →
-16 settings → 17 AI vault → 18 providers → 19 overview/improvements → 20 fallback →
-21 hardening → 22 CAPTCHA/rate-limit → 23 privacy → 24 monitoring → 25 performance →
-26 SEO foundation → 27 SEO content → 28 responsive/a11y → 29 QA → 30 deploy → 31 docs/shots → 32 audit.
+Database → backend → auth backend → auth frontend → deterministic engine → analysis API →
+analyzer UI → upload → extraction → segmentation → history → report UI → dashboard data →
+dashboard viz → settings → AI vault → providers → overview/improvements → fallback →
+hardening → CAPTCHA/rate-limit → privacy → monitoring → performance → SEO foundation →
+SEO content → responsive/a11y → QA → deploy → docs/shots → audit.
 
 ## Major decisions log
 - `/api/v1` versioning (ADR-002) — master prompt listed unversioned paths; version now.
 - Cookie sessions over bearer-in-storage (ADR-003).
-- Fernet vault with `vN:` rotation prefix (ADR-006).
+- Fernet vault with `vN:` rotation prefix under `ENCRYPTION_MASTER_KEY` (ADR-006).
 - Fontsource self-hosting over `next/font/google` (ADR-007) — offline-safe builds.
 - `422` reserved for unprocessable FILES; schema validation is `400 validation_error`.
+- `GET /health` = fixed infra alias; product health contract stays versioned.
+- No global AI provider env keys, ever — per-user encrypted vault only.
 
 ## Warnings for future agents
 1. `app/{models,schemas,services,analysis,ai,email,storage}/` are SEAMS (docstrings only).
    Do not import behavior from them until their stage implements it.
-2. Never rename `owner_id`, envelope shapes, or `docs/` files without ADR + CHANGELOG.
-3. `recharts` unused until Stage 13/15 — do not remove it (declared intentionally).
-4. Frontend placeholder `/` page must be REPLACED in Stage 26, not extended into the product.
+2. Never rename `owner_id`, envelope shapes, env names, or `docs/` files without ADR + CHANGELOG.
+3. Never `npm install` a dependency the stage doesn't import (recharts: dashboard/report stages).
+4. Frontend placeholder `/` page must be REPLACED in the SEO/marketing stage, not extended.
 5. No Docker here — whoever first needs Postgres locally validates `docker-compose.yml`.
 6. TS v6 / ESLint v9 pins are upstream-compatibility holds, not preferences — re-check
    before "upgrading" (see Toolchain note in CHANGELOG 0.1.0).
+7. Apply edits to the SAME file sequentially and grep-verify afterwards — parallel
+   same-file edits have been observed to clobber each other (see DEVELOPMENT_RULES §6).

@@ -11,7 +11,7 @@ import { SITE } from "@/lib/site";
  * Product UI lives under the private route group added in Stage 05.
  */
 export default function Home() {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
   const apiDocs = `${apiBase.replace(/\/api\/v1\/?$/, "")}/api/docs`;
 
   return (

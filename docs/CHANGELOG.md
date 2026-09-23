@@ -4,6 +4,29 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.1.1] — Stage 00 (formal) reconciliation — 2026-09-23
+
+### Added
+- Root `.env.example` (master inventory + compose reference); `DIRECT_DATABASE_URL`
+  (pooled app connection vs direct migration connection).
+- `GET /health` infrastructure alias (same live payload, OpenAPI-excluded) + test.
+- `frontend/src/hooks/` + `src/types/` purpose READMEs.
+
+### Changed
+- Env names aligned to the Stage 00 prompt: `NEXT_PUBLIC_API_URL`, `JWT_SECRET`,
+  `ENCRYPTION_MASTER_KEY` (code, examples, README, and all docs updated).
+- Verbatim UI contract sentence added (`UI_UX_SPEC.md`); dependency-discipline and
+  no-generic-UI rules added (`DEVELOPMENT_RULES.md`); same-file sequential-edit
+  workflow rule added after an observed clobbering incident.
+
+### Removed
+- `recharts` uninstalled (was declared but unused — dependency discipline, Stage 00
+  §24). Returns in the dashboard/report stages that first import it.
+
+### Security
+- No global AI provider keys: documented as a deliberate architectural absence
+  (user-owned keys, encrypted per-user vault — `AI_PROVIDER_SPEC.md` §5).
+
 ## [0.1.0] — Stage 00 + Stage 01 — 2026-09-23
 
 ### Added

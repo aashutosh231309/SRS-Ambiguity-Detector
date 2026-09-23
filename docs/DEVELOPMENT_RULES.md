@@ -31,6 +31,12 @@
 - NEVER `git push --force`, NEVER commit to `main` directly from a stage branch, NEVER
   commit `.env`, `node_modules/`, `__pycache__/`, `.venv/`, or `dist/`.
 - NEVER present the heuristic score as a validated industry metric (UI copy + docs).
+- NEVER add a dependency the current stage does not import and exercise. No AI SDKs,
+  CAPTCHA packages, document parsers, monitoring SDKs, or chart libraries "for later" —
+  each lands in the stage that first uses it (recharts: Stage 13/15).
+- NEVER ship generic AI-template UI. Every screen must satisfy `UI_UX_SPEC.md`: «The UI
+  must not look like a generic AI-generated SaaS dashboard.» No fake buttons, no lorem,
+  no decorative chart junk, no unexplained numbers.
 
 ## 3. Code standards
 
@@ -69,11 +75,19 @@ user-owned; never trust client IDs.
 ```bash
 ./scripts/verify.sh            # full gate: install-check, lint, typecheck, tests, builds
 ./scripts/verify.sh --fast     # lint + typecheck + unit tests (no production build)
-cd frontend && npm run dev     # web on :3000 (NEXT_PUBLIC_API_BASE_URL → backend)
+cd frontend && npm run dev     # web on :3000 (NEXT_PUBLIC_API_URL → backend)
 cd backend && uvicorn app.main:app --reload --port 8000   # api on :8000
 ```
 
-## 6. Handoff discipline
+## 6. Edit discipline (learned 2026-09-23 — binding)
+
+- NEVER issue parallel edits against the SAME file: concurrent same-file edits have
+  been observed to silently clobber each other (only one survives). Batch parallel
+  edits ONLY across different files.
+- After every same-file edit sequence, grep-verify each change landed before running
+  the verification gate — a green `git status` means nothing if an edit was lost.
+
+## 7. Handoff discipline
 
 End every stage with `STAGE_STATUS.md` updated: completed work, files created/modified,
 architectural decisions, env vars added, DB/API changes, tests performed + results,
