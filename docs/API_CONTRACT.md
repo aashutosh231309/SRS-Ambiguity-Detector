@@ -61,7 +61,9 @@ Unknown params are ignored (forward-compatible).
 GET /health/live    → 200 {"status":"ok","service":"srs-ambiguity-detector","version":"0.1.0"}
 GET /health/ready   → 200 {"status":"ready"|"degraded","checks":{"database":"not_configured"|"ok"|"error",…}}
 ```
-- No auth. `live` = process up. `ready` = dependencies reachable; Stage 02+ adds the DB check.
+- No auth. `live` = process up. `ready` runs a live `SELECT 1` when `DATABASE_URL`
+  is set (`not_configured` without it, `degraded` on failure) — implemented Stage 02.
+  Business endpoints below remain PLANNED until their stages land.
 - Frontend `ApiStatus` component polls `live` (proves the envelope + CORS wiring).
 - Infra alias (IMPLEMENTED): `GET /health` (unversioned, outside `/api/v1`) returns the
   exact `live` payload for load balancers / uptime checks / PaaS probes. It is NOT part of

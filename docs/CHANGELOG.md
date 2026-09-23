@@ -4,6 +4,41 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.3.0] — Stage 02 — Database Foundation — 2026-09-23
+
+### Added
+- Async PG stack (SQLAlchemy 2.0.54, asyncpg 0.31.0, Alembic 1.20.0, greenlet, Mako).
+- `app/core/database.py` (lazy engine, session factory, `get_session`, status probe,
+  dispose) + six models + Alembic env + hand-written revision `0001`.
+- `/ready` live DB probe (`ok`/`error`/`not_configured`); `DIRECT_DATABASE_URL` support.
+- `tests/test_database.py` (17 tests) + conftest PG harness (`TEST_DATABASE_URL`,
+  scratch-DB auto-create, skip-if-unreachable).
+
+### Changed
+- `DATABASE_SCHEMA.md` rewritten as IMPLEMENTED (conventions, per-table reference,
+  index rationale, migration workflow); `SECURITY_SPEC.md` §12, `API_CONTRACT.md`
+  §4.1, `ARCHITECTURE.md`, README (local DB workflow) updated.
+- `verify.sh` ruff scope extended to `alembic/`.
+
+### Database
+- Tables: `users`, `analyses`, `requirements`, `issues`, `documents`,
+  `ai_provider_credentials`. UUID PKs (client-side), TIMESTAMPTZ, VARCHAR+CHECK
+  vocabularies (no PG enums), `owner_id` cascades, 16 indexes, 20 CHECKs.
+- Conventions locked: email lowercase app-side, one live key per user+provider
+  (partial unique), document link via `analyses.document_id`, RLS deferred (reasoned).
+
+### Security
+- DSN never logged/echoed (tested); hash-only password column; ciphertext-only key
+  column; cascade deletion plan; least-privilege prod guidance; no creds committed.
+
+### Tests
+- `verify.sh` green (pytest 27/27 on real PG 16, vitest 6/6, lint/type/build);
+  downgrade/upgrade cycle + `alembic check` clean; skip-mode + live `ready:ok` verified.
+
+### Notes
+- No auth/analysis/upload/AI logic (later stages). `docker-compose.yml` still
+  unvalidated (no Docker in sandbox). Sandbox PG via uncommitted `pgserver` aid.
+
 ## [0.2.0] — Stage 01 (formal) — Repository & Development Foundation — 2026-09-23
 
 ### Added

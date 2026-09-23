@@ -35,13 +35,15 @@ SRS-Ambiguity-Detector/
 │   │   ├── main.py            # App factory, middleware, router mount
 │   │   ├── core/              # config, logging, security primitives
 │   │   ├── api/v1/            # Versioned routers + endpoint modules
-│   │   ├── models/            # SQLAlchemy models (Stage 02+)
+│   │   ├── models/            # SQLAlchemy models (6 tables, Stage 02)
 │   │   ├── schemas/           # Pydantic request/response schemas
 │   │   ├── services/          # Business logic (analysis orchestration, …)
 │   │   ├── analysis/          # Deterministic NLP/rule engine (Stage 06+)
 │   │   ├── ai/                # Provider abstraction + implementations (Stage 17+)
 │   │   ├── email/             # Email abstraction + Resend adapter (Stage 04+)
 │   │   └── storage/           # File storage abstraction (Stage 09+)
+│   ├── alembic.ini            # Migration config (no DSN — env.py reads app config)
+│   ├── alembic/               # env.py + versions/ (linear; 0001: initial schema)
 │   ├── tests/                 # pytest suite (mirrors app structure)
 │   ├── requirements.txt       # Pinned runtime deps
 │   └── requirements-dev.txt   # Pinned dev/test deps
@@ -95,6 +97,12 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
   uniform error envelope.
 - `app/core/config.py` — ALL settings via `pydantic-settings` (env-driven, validated at boot).
   No `os.getenv` scattered through feature code.
+- `app/core/database.py` — lazy async engine + session factory + `database_status()`
+  probe. DSN is never logged or echoed (parse-error chains suppressed).
+- `app/models/` — one module per table on `Base` (users, analyses, requirements,
+  issues, documents, ai_provider_credentials); auth-token models arrive Stage 04.
+- `backend/alembic/` — migration env resolving the DSN exactly like the app, plus
+  linear `versions/` (each with `downgrade()`).
 - `app/core/logging.py` — structured logging + `RedactingFilter` (drops API keys, tokens,
   passwords, email bodies). Installed before any request handling.
 - `app/api/v1/` — one router module per resource (`health`, `auth`, `analysis`, `documents`,

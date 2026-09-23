@@ -16,8 +16,8 @@ cd "$ROOT"
 
 section "Backend: ruff lint + format check"
 cd backend
-ruff check app tests || fail "ruff check failed"
-ruff format --check app tests || fail "ruff format check failed"
+ruff check app tests alembic || fail "ruff check failed"
+ruff format --check app tests alembic || fail "ruff format check failed"
 pass "ruff clean"
 
 section "Backend: mypy"

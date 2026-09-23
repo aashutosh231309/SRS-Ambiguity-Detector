@@ -30,8 +30,11 @@ class Settings(BaseSettings):
     # Accepts a JSON list OR a comma-separated string.
     BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
-    # Stage 02+: required in staging/production, optional for the skeleton.
+    # Stage 02+: DATABASE_URL drives the app; DIRECT_DATABASE_URL (optional, falls
+    # back to DATABASE_URL) drives Alembic — on Supabase it bypasses the pooler,
+    # which cannot run DDL in transaction-pooling mode.
     DATABASE_URL: str | None = None
+    DIRECT_DATABASE_URL: str | None = None
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

@@ -6,7 +6,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app import __version__
-from app.core.config import get_settings
+from app.core.database import database_status
 
 router = APIRouter(prefix="/health", tags=["health"])
 
@@ -32,10 +32,10 @@ async def live() -> LiveResponse:
 async def ready() -> ReadyResponse:
     """Dependencies reachable.
 
-    Stage 01: the skeleton has no required dependencies, so it reports ``ready``
-    with ``database: not_configured``. Stage 02 turns this into a real connection
-    check (``ok`` / ``error``) and flips ``status`` to ``degraded`` on failure.
+    `database` is a live `SELECT 1` when `DATABASE_URL` is set (`not_configured`
+    otherwise); any connectivity failure flips the probe to `degraded`.
+    Never exposes connection details.
     """
-    settings = get_settings()
-    checks = {"database": "ok" if settings.DATABASE_URL else "not_configured"}
-    return ReadyResponse(status="ready", checks=checks)
+    db = await database_status()
+    status: Literal["ready", "degraded"] = "degraded" if db == "error" else "ready"
+    return ReadyResponse(status=status, checks={"database": db})

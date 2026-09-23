@@ -136,3 +136,33 @@ Frontend throttling is cosmetic only.
 - [ ] No new secret/token/log exposure (`grep` for `console.log`, `print(`, f-string SQL)
 - [ ] Rate limit considered for new expensive endpoint
 - [ ] STAGE_STATUS "Security notes" updated
+
+## 12. Database security (IMPLEMENTED Stage 02 — schema layer)
+
+- **Ownership:** every user-owned row carries `owner_id` (FK `users.id`, CASCADE).
+  Endpoints MUST filter by it; cross-user ids return 404 (no existence oracle).
+  IDOR tests are required per `{id}` route from the first route that serves one.
+- **Foreign keys:** integrity at the DB, not just the app — orphans are unrepresentable
+  (`owner_id` NOT NULL everywhere; redundant `owner_id` on requirements/issues is
+  intentional for join-free ownership checks).
+- **UUIDs ≠ authorization:** unpredictable ids reduce enumeration only; checks still apply.
+- **Credential encryption:** `ai_provider_credentials.encrypted_api_key` holds Fernet
+  ciphertext (`vN:`-prefixed) — never plaintext. Vault + rotation land in Stage 17;
+  `key_version` already supports rotation audits. `ENCRYPTION_MASTER_KEY` is env-only.
+- **Password hashing:** `users.password_hash` holds argon2id hashes (Stage 04) — the
+  column shape (nullable TEXT) reserves NULL for a future external IdP only.
+- **Sensitive text:** requirement/SRS text lives in `requirements.text` /
+  `issues.phrase` — real user content. NEVER logged, never in Sentry, never in error
+  details; length caps enforced app-side (limits finalized in analysis/upload stages).
+- **Database credentials:** `DATABASE_URL`/`DIRECT_DATABASE_URL` from env only. The DSN
+  is never logged, returned, or echoed in errors (parse-error chains suppressed);
+  `/ready` reports `ok`/`error`/`not_configured` with zero connection detail.
+- **Least privilege:** production guidance — dedicated app role (no superuser,
+  no CREATEDB/CREATEROLE); migrations run with a separate elevated role or job.
+  The test suite auto-creates its scratch DB and therefore needs CREATEDB locally only.
+- **Deletion:** account cleanup = FK cascades (DB) + storage-object purge (app).
+  `documents.storage_path` deletion is application-level — the DB cannot reach object
+  storage. Stage 23 adds the zero-rows verification test.
+- **Migration safety:** DDL is reviewed, transactional (`alembic upgrade` runs in a
+  transaction), and reproducible (`alembic check` in the workflow); destructive
+  changes need backup + CHANGELOG + STAGE_STATUS treatment.

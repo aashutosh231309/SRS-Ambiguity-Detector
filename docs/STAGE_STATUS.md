@@ -132,11 +132,59 @@ honest placeholder; TS v6 / ESLint v9 upstream holds remain.
 **Next stage:** Stage 02 — Database Foundation (models, Alembic migrations, live DB
 wiring, real `/ready` DB check).
 
+### Stage 02 — Database Foundation ✅ (2026-09-23)
+
+**Completed:**
+- Async PG stack pinned: SQLAlchemy 2.0.54 + asyncpg 0.31.0 + Alembic 1.20.0
+  (+ greenlet 3.5.6, Mako 1.4.3 for `alembic revision`).
+- `app/core/database.py`: lazy engine (`pool_pre_ping`), session factory
+  (`expire_on_commit=False`), `get_session` dependency (unwired until Stage 03),
+  `database_status()` probe, `dispose_engine()`. DSN hygiene: `postgresql://` coerced
+  to asyncpg, non-PG URLs rejected loudly, DSN never logged/echoed (chains suppressed).
+- Six models (one module each + `base.py` mixins); relationships use
+  `passive_deletes=True` — the DATABASE enforces cascades, never ORM SELECTs.
+- Alembic: async `env.py` (DSN resolution mirrors the app: DIRECT ▸ DATABASE),
+  hand-written revision `0001` with named CHECKs/indexes/partial uniques;
+  `alembic check` reports zero drift between models and migration.
+- `/ready` is now a live `SELECT 1` (`ok`/`error`/`not_configured` → `ready`/`degraded`).
+- Test harness: `tests/test_database.py` (17 tests) + conftest PG support
+  (`TEST_DATABASE_URL`, scratch-DB auto-create, session `upgrade head`, per-test
+  cleanup, skip-if-unreachable, single-event-loop discipline). `verify.sh` ruff scope
+  extended to `alembic/` (mypy stays `app/`-only — migrations are operational scripts).
+
+**Database schema:** `users`, `analyses`, `requirements`, `issues`, `documents`,
+`ai_provider_credentials` — full detail in `DATABASE_SCHEMA.md` (now IMPLEMENTED).
+Prompt-alignment calls: `owner_id` kept (canonical, never renamed); `display_name`
+added (§8 "name"); `requirements.severity` added = worst-of-issues (§13);
+`encrypted_api_key` renamed (§19); `is_enabled` + partial `UNIQUE(owner, provider)
+WHERE is_enabled` added (§18/§20); `key_version` added (rotation audits);
+document link stays `analyses.document_id` (one doc → many re-analyses, §16/§21).
+
+**Migrations:** `0001` at head; `current`/`history`/`check` plus a full
+`downgrade base` → `upgrade head` cycle verified against real PostgreSQL 16.
+
+**Tests:** `verify.sh` ALL GREEN — pytest 27/27 (17 DB tests on real PG via an
+ephemeral sandbox server + `TEST_DATABASE_URL`), vitest 6/6, ruff, mypy-strict,
+`next build`. Skip-mode verified (15 passed / 12 skipped with no server). Live E2E:
+uvicorn + `DATABASE_URL` → `/ready` = `{"status":"ready","checks":{"database":"ok"}}`.
+Schema audit: 16 named indexes + email unique, 9 FKs, 20 CHECKs — all as designed.
+
+**Security:** `SECURITY_SPEC.md` §12 added (ownership, FKs, IDOR, encryption/hash field
+shapes, sensitive-text handling, DSN hygiene, least-privilege guidance, deletion plan).
+DSN non-echo covered by tests. No credentials committed; fixtures use `@example.com`.
+
+**Known limitations:** `docker-compose.yml` STILL unvalidated (no Docker in sandbox) —
+recurring warning; RLS evaluated and reasoned-DEFERRED (single service role bypasses
+it; endpoint checks enforce); engine lifespan shutdown = Stage 03 (`dispose_engine()`
+ready); auth-token tables = Stage 04; no `updated_at` on immutable tables (by design).
+
+**Next stage:** Stage 03 — Backend Foundation / Service Layer Integration.
+
 ## Current stage
-None active — Stage 01 (formal) complete; all success conditions hold (frontend runs,
-backend runs, health works, structure clean, env handling safe, commands documented,
-minimal tests green, docs accurate, no future feature misrepresented).
-Next: **Stage 02 — Database Foundation**.
+None active — Stage 02 complete; all success conditions hold (PG configured, migrations
+work, schema + constraints enforced, ownership represented, indexes justified, vault
+field prepared, config secure, tests green, docs match, app still runs).
+Next: **Stage 03 — Backend Foundation / Service Layer Integration**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 Database → backend → auth backend → auth frontend → deterministic engine → analysis API →
@@ -153,10 +201,15 @@ SEO content → responsive/a11y → QA → deploy → docs/shots → audit.
 - `422` reserved for unprocessable FILES; schema validation is `400 validation_error`.
 - `GET /health` = fixed infra alias; product health contract stays versioned.
 - No global AI provider env keys, ever — per-user encrypted vault only.
+- UUID PKs client-generated (no `pgcrypto`); VARCHAR+CHECK vocabularies (no PG enums);
+  RLS deferred with reasoning (service-role connections bypass it).
+- One live provider key per user+provider (partial unique); disable-then-replace rotation.
+- Test DB: real PG via `TEST_DATABASE_URL`, skip-if-unreachable, single-loop discipline.
 
 ## Warnings for future agents
-1. `app/{models,schemas,services,analysis,ai,email,storage}/` are SEAMS (docstrings only).
-   Do not import behavior from them until their stage implements it.
+1. `app/models/` is IMPLEMENTED (Stage 02). Remaining SEAMS (docstrings only):
+   `app/{schemas,services,analysis,ai,email,storage}/` — do not import behavior from
+   them until their stage implements them.
 2. Never rename `owner_id`, envelope shapes, env names, or `docs/` files without ADR + CHANGELOG.
 3. Never `npm install` a dependency the stage doesn't import (recharts: dashboard/report stages).
 4. Frontend placeholder `/` page must be REPLACED in the SEO/marketing stage, not extended.
