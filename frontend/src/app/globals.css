@@ -60,6 +60,14 @@ body {
   color: #fff;
 }
 
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
 :focus-visible {
   outline: 2px solid var(--color-signal);
   outline-offset: 2px;

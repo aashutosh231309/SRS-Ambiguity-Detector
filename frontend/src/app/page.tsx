@@ -3,19 +3,20 @@ import Link from "next/link";
 
 import { ApiStatus } from "@/components/ApiStatus";
 import { Reveal } from "@/components/Reveal";
+import { Container } from "@/components/layout/Container";
+import { apiBaseUrl } from "@/lib/api";
 import { SITE } from "@/lib/site";
 
 /**
  * FOUNDATION PLACEHOLDER (Stage 01) — an honest status page proving the stack runs
- * end to end. Stage 26+ replaces this with the real marketing home page.
- * Product UI lives under the private route group added in Stage 05.
+ * end to end. Later stages replace this with the real marketing home page.
+ * Product UI lives under the private route group added with authentication.
  */
 export default function Home() {
-  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
-  const apiDocs = `${apiBase.replace(/\/api\/v1\/?$/, "")}/api/docs`;
+  const apiDocs = `${apiBaseUrl().replace(/\/api\/v1\/?$/, "")}/api/docs`;
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-5xl flex-col px-6 sm:px-10">
+    <Container className="flex min-h-dvh flex-col">
       <header className="flex items-center justify-between border-b border-line py-5">
         <p className="flex items-center gap-2.5">
           <span
@@ -95,8 +96,8 @@ export default function Home() {
 
       <footer className="flex flex-col gap-2 border-t border-line py-6 text-sm text-ink-faint sm:flex-row sm:items-center sm:justify-between">
         <p>Deterministic engine first. AI optional, user-owned, fail-open.</p>
-        <p className="font-mono text-xs">Stage 01 · contract + foundation</p>
+        <p className="font-mono text-xs">Stage 01 · development foundation</p>
       </footer>
-    </div>
+    </Container>
   );
 }

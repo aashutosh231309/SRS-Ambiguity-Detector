@@ -4,6 +4,34 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.2.0] — Stage 01 (formal) — Repository & Development Foundation — 2026-09-23
+
+### Added
+- `Container` layout primitive adopted by `/` and 404; `loading.tsx` + `error.tsx`
+  app-shell conventions (safe message + retry).
+- API client timeout (30 s default, per-call override, `request_timeout` code).
+- Frontend tests: Vitest 5 + `lib/api.test.ts` (6 tests), `npm test` script.
+- `tests/test_logging.py` (5 redaction tests); `verify.sh` runs the Vitest suite.
+- README: development-commands table, current limitations, Python strategy note.
+
+### Changed
+- Log redaction now scrubs quoted keys, whole `Authorization` credentials, and
+  Bearer-prefixed values (contract guidance added: clients SHOULD default ~30 s).
+- Home page uses shared `apiBaseUrl()`; env examples annotated (required/optional,
+  CORS dev-vs-prod); `ARCHITECTURE.md`/`DEVELOPMENT_RULES.md` updated for conventions.
+
+### Security
+- Redaction gaps closed before any secret exists: JSON-quoted keys and auth headers
+  are now covered and test-locked. Still NOT production-hardened (later stages).
+
+### Tests
+- `verify.sh` green: ruff, mypy-strict, pytest 10/10, eslint, tsc, vitest 6/6,
+  prettier, `next build`. Live curl matrix green (health alias, envelopes, pages).
+
+### Notes
+- No new env vars; no dependency except Vitest (dev-only, exercised immediately);
+  nothing from Stage 02+ implemented.
+
 ## [0.1.1] — Stage 00 (formal) reconciliation — 2026-09-23
 
 ### Added

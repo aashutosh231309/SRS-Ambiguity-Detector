@@ -77,6 +77,8 @@ user-owned; never trust client IDs.
 ./scripts/verify.sh --fast     # lint + typecheck + unit tests (no production build)
 cd frontend && npm run dev     # web on :3000 (NEXT_PUBLIC_API_URL → backend)
 cd backend && uvicorn app.main:app --reload --port 8000   # api on :8000
+cd frontend && npm test        # vitest unit tests (watch: npx vitest)
+cd backend && python -m pytest -q  # pytest suite
 ```
 
 ## 6. Edit discipline (learned 2026-09-23 — binding)

@@ -43,6 +43,10 @@ section "Frontend: typecheck"
 npm run typecheck --silent || fail "tsc failed"
 pass "tsc clean"
 
+section "Frontend: unit tests"
+npm test --silent || fail "vitest failed"
+pass "vitest green"
+
 section "Frontend: prettier"
 npm run format --silent || fail "prettier check failed (run: npm run format:write)"
 pass "prettier clean"

@@ -11,25 +11,40 @@ import sys
 
 _REDACTED = "***REDACTED***"
 
-_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
-    # api_key=..., "password": "...", secret:'...', token = ... etc.
-    (
-        re.compile(
-            r"(?i)(api[_-]?key|password|passwd|pwd|secret|token|authorization|cookie"
-            r"|set-cookie|access[_-]?token|refresh[_-]?token|client[_-]?secret)"
-            r"(\s*[:=]\s*)([\"']?)([^\s,;\"'}\]]+)\3"
-        ),
-        r"\1\2\3" + _REDACTED + r"\3",
-    ),
-    # Authorization: Bearer <token> / raw "Bearer <token>" fragments.
-    (re.compile(r"(?i)(Bearer\s+)[A-Za-z0-9\-._~+/]+=*"), r"\1" + _REDACTED),
+_KEY_ALTERNATION = (
+    r"api[_-]?key|password|passwd|pwd|secret|token|cookie"
+    r"|set-cookie|access[_-]?token|refresh[_-]?token|client[_-]?secret"
 )
+
+# Authorization headers: redact the whole credential, preserving the scheme word.
+#   Authorization: Bearer <tok>  →  Authorization: Bearer ***REDACTED***
+_AUTH_HEADER_PATTERN = re.compile(
+    r"(?i)([\"']?authorization[\"']?)(\s*[:=]\s*)(Bearer\s+)?\S+(?:\s+\S+)?"
+)
+
+# Generic pairs, incl. quoted JSON/Python keys and Bearer-prefixed values:
+#   api_key=... / "password": "..." / 'token': '...' / secret:'...'
+# The trailing \4 consumes the closing value-quote so it isn't duplicated.
+_PAIR_PATTERN = re.compile(
+    rf"(?i)([\"']?)({_KEY_ALTERNATION})\1(\s*[:=]\s*)([\"']?)(Bearer\s+)?([^\s,;\"'}}\]]+)\4"
+)
+
+# Bare "Bearer <token>" fragments outside any key context.
+_BEARER_PATTERN = re.compile(r"(?i)(Bearer\s+)[A-Za-z0-9\-._~+/]+=*")
+
+
+def _scrub_pair(match: re.Match[str]) -> str:
+    """Rebuild a key=value match with the value redacted (quotes/scheme preserved)."""
+    key_quote, key, sep, val_quote, bearer, _value = match.groups()
+    scheme = "Bearer " if bearer else ""
+    return f"{key_quote}{key}{key_quote}{sep}{val_quote}{scheme}{_REDACTED}{val_quote}"
 
 
 def redact(text: str) -> str:
     """Redact secret-looking fragments from an already-rendered string."""
-    for pattern, replacement in _PATTERNS:
-        text = pattern.sub(replacement, text)
+    text = _AUTH_HEADER_PATTERN.sub(r"\1\2\3" + _REDACTED, text)
+    text = _PAIR_PATTERN.sub(_scrub_pair, text)
+    text = _BEARER_PATTERN.sub(r"\1" + _REDACTED, text)
     return text
 
 

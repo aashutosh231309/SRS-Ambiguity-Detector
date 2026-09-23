@@ -1,9 +1,11 @@
 import Link from "next/link";
 
-/** Minimal branded 404 (SEO_SPEC: correct noindex 404 behavior; enriched Stage 26). */
+import { Container } from "@/components/layout/Container";
+
+/** Minimal branded 404 (SEO_SPEC: correct noindex 404 behavior; enriched later). */
 export default function NotFound() {
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col items-start justify-center px-6">
+    <Container className="flex min-h-dvh max-w-2xl flex-col items-start justify-center">
       <p className="font-mono text-xs tracking-[0.2em] text-signal uppercase">404</p>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight">
         This section isn&apos;t specified.
@@ -18,6 +20,6 @@ export default function NotFound() {
       >
         Back to home
       </Link>
-    </main>
+    </Container>
   );
 }

@@ -82,11 +82,61 @@ The formal Stage 00 prompt arrived after the foundation was built; the repo was 
 - Added the verbatim UI contract sentence (§16) and the §18 items 14–15 rules.
 - Re-verified: `verify.sh` green + live curl of all health paths + homepage.
 
+### Stage 01 (formal) — Repository & Development Foundation ✅ (2026-09-23)
+Inspection-first: the tree already held a complete runnable foundation, so nothing was
+rebuilt — only genuine Stage 01 gaps were closed (layout primitive, loading/error
+conventions, client timeout, frontend tests, redaction hardening, workflow docs).
+
+**Completed:**
+- `Container` layout primitive (`components/layout/`) adopted by `/` and the 404 page —
+  the single source of horizontal rhythm for later screens.
+- App-shell conventions: `loading.tsx` (route-transition fallback) and `error.tsx`
+  (safe message + retry, never renders details) alongside the branded 404.
+- API client: default 30 s timeout (`AbortSignal.timeout`, per-call override, distinct
+  `request_timeout` code); home page now uses the shared `apiBaseUrl()` (no duplication).
+- Frontend tests: Vitest 5 (node env, no jsdom) + `lib/api.test.ts` (6 tests pinning the
+  envelope/timeout/cookie behavior); `npm test` script + `verify.sh` step added.
+- Logging redaction hardened: quoted JSON/Python keys (`"password": "…"`) now scrubbed,
+  `Authorization` headers scrubbed whole-credential (scheme word preserved), Bearer-in-value
+  handled; `tests/test_logging.py` (5 tests) locks the behavior.
+- Workflow docs: README gained a development-commands table, current-limitations section,
+  and the Python strategy line; frontend `.env.example` gained a required/optional legend;
+  CORS dev-vs-prod note added; `ARCHITECTURE.md`/`API_CONTRACT.md`/`DEVELOPMENT_RULES.md`
+  updated for the new conventions (client-timeout guidance, test commands).
+
+**Not implemented (explicitly pending, per roadmap):** authentication, database models/
+migrations, deterministic engine, analysis API, analyzer UI, document upload/extraction,
+segmentation, history, report UI, dashboard, settings, AI vault/providers/enhancement,
+CAPTCHA/rate limiting, privacy lifecycle, Sentry, performance pass, SEO content,
+responsive/a11y audit, deployment. Nothing future is presented as done.
+
+**Architectural decisions:** `Container` = one horizontal-rhythm primitive (override via
+`className`, conflicts resolved by `tailwind-merge`); `error.tsx` renders safe messages
+only; client timeout 30 s default; Vitest over heavier runners (lib tests need no DOM);
+redaction favors over-redaction (safe direction) for auth headers.
+
+**Environment variables:** none added or renamed in Stage 01 (annotations/legends only).
+Canonical names unchanged: `NEXT_PUBLIC_API_URL`, `JWT_SECRET`, `ENCRYPTION_MASTER_KEY`,
+`DIRECT_DATABASE_URL`. No global provider keys (by design).
+
+**Tests:** `verify.sh` ALL GREEN — ruff, mypy-strict, pytest 10/10, eslint, `tsc`, vitest
+6/6, prettier, `next build` (6 routes incl. loading/error). Live E2E (uvicorn + `next
+start`): `/health` ≡ `/live`, `/ready`, 404 envelope, `/` 200 with content, 404 page,
+robots — all curl-verified. Two real bugs found and fixed by the new tests (fetch-stub
+timeout fidelity; doubled closing quote in redaction).
+
+**Known limitations:** `docker-compose.yml` still unvalidated (no Docker here) — Stage 02
+must test it; `ApiStatus` shows offline without the backend (by design); home page is an
+honest placeholder; TS v6 / ESLint v9 upstream holds remain.
+
+**Next stage:** Stage 02 — Database Foundation (models, Alembic migrations, live DB
+wiring, real `/ready` DB check).
+
 ## Current stage
-None active — the foundation satisfies the formal Stage 00 success condition
-(clean, runnable, secure foundation + permanent project contract).
-Next: **Stage 01 as defined by the user's forthcoming prompt** (roadmap slot: database
-foundation — models, migrations, live DB wiring; see `FUTURE_ROADMAP.md`).
+None active — Stage 01 (formal) complete; all success conditions hold (frontend runs,
+backend runs, health works, structure clean, env handling safe, commands documented,
+minimal tests green, docs accurate, no future feature misrepresented).
+Next: **Stage 02 — Database Foundation**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 Database → backend → auth backend → auth frontend → deterministic engine → analysis API →

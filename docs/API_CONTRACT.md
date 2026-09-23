@@ -176,3 +176,6 @@ Exact fields finalized in Stage 16; names above are reserved.
   return `404` (not 403 — no existence oracle).
 - Rate-limit headers on sensitive routes: `RateLimit-Limit/Remaining/Reset` + `Retry-After` on 429.
 - OpenAPI: served at `/api/docs` in `local`/`staging`; disabled in `production` (Stage 21).
+- Client timeouts: consumers SHOULD apply a default ~30 s timeout per request (the
+  reference web client does; long AI/document calls override per call) and surface
+  timeouts distinctly from transport failures (`request_timeout` in the web client).

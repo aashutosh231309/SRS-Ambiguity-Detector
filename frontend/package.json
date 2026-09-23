@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "format": "prettier --check .",
     "format:write": "prettier --write ."
   },
@@ -31,7 +32,8 @@
     "eslint-config-next": "^16.3.6",
     "prettier": "^3.9.9",
     "tailwindcss": "^4.3.3",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.1"
   },
   "engines": {
     "node": ">=20"

@@ -36,8 +36,13 @@ const BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/
   "",
 );
 
-interface ApiOptions extends Omit<RequestInit, "body"> {
+/** Default per-request timeout (ms). Long AI/document calls may override per call. */
+export const DEFAULT_TIMEOUT_MS = 30_000;
+
+interface ApiOptions extends Omit<RequestInit, "body" | "signal"> {
   body?: unknown;
+  /** Per-request timeout in ms (default 30 000). `0` disables the timeout. */
+  timeoutMs?: number;
 }
 
 function isErrorEnvelope(json: unknown): json is { error: ApiErrorBody } {
@@ -52,7 +57,7 @@ function isErrorEnvelope(json: unknown): json is { error: ApiErrorBody } {
 }
 
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
-  const { body, headers, ...rest } = options;
+  const { body, headers, timeoutMs = DEFAULT_TIMEOUT_MS, ...rest } = options;
   let res: Response;
   try {
     res = await fetch(`${BASE_URL}${path}`, {
@@ -60,8 +65,15 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
       credentials: "include",
       headers: { "Content-Type": "application/json", ...(headers ?? {}) },
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal: timeoutMs > 0 ? AbortSignal.timeout(timeoutMs) : undefined,
     });
-  } catch {
+  } catch (err: unknown) {
+    if (err instanceof DOMException && err.name === "TimeoutError") {
+      throw new ApiRequestError(0, {
+        code: "request_timeout",
+        message: "The request timed out. Please try again.",
+      });
+    }
     throw new ApiRequestError(0, {
       code: "network_unreachable",
       message: "Could not reach the analysis service. Is the backend running?",

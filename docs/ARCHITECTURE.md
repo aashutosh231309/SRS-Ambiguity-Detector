@@ -24,8 +24,8 @@ SRS-Ambiguity-Detector/
 │   ├── FUTURE_ROADMAP.md      # Stage plan with entry/exit criteria
 │   └── CHANGELOG.md           # Contract + product changes
 ├── frontend/                  # Next.js App Router + TS + Tailwind
-│   ├── src/app/               # Routes (public + (app) private groups later)
-│   ├── src/components/        # Design-system + feature components
+│   ├── src/app/               # Routes + loading/error/not-found conventions
+│   ├── src/components/        # layout/ primitives, ui/ later, + feature components
 │   ├── src/lib/               # API client, env, utils (no secrets here)
 │   ├── src/hooks/             # Shared hooks (first use Stage 05)
 │   ├── src/types/             # Contract-mirrored domain types (as features land)
@@ -112,10 +112,15 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
   `/how-it-works`, …); authenticated product under a private route group (added Stage 05+).
   `layout.tsx` owns global metadata; `robots.ts`/`sitemap.ts` own crawler surface.
 - `src/lib/api.ts` — single typed fetch wrapper: base URL, cookies (`credentials: "include"`),
-  uniform error-envelope parsing. Feature code MUST NOT hand-roll `fetch` to the API.
+  uniform error-envelope parsing, default 30 s timeout (overridable per call). Feature code
+  MUST NOT hand-roll `fetch` to the API. Pinned by `src/lib/api.test.ts` (Vitest).
 - `src/lib/site.ts` — canonical site metadata (name, URL, description).
-- `src/components/` — `ui/` (design-system primitives) + feature folders. Motion lives in
-  small wrapper components sharing one easing/duration token set (`UI_UX_SPEC.md` §Motion).
+- `src/components/layout/` — layout primitives (`Container` page width); `ui/` arrives with
+  the design-system stages. Motion lives in small wrappers sharing one easing/duration
+  token set (`UI_UX_SPEC.md` §Motion).
+- App conventions: `loading.tsx` (route-transition fallback), `error.tsx` (safe message +
+  retry; never renders details), `not-found.tsx` (branded 404). Feature routes may add
+  closer-to-the-data variants later.
 
 ## 6. Canonical request flows
 
