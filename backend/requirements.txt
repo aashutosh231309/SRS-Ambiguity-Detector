@@ -1,0 +1,8 @@
+# Runtime dependencies (pinned). Stage 01: minimal ASGI + settings + HTTP client.
+# Later stages append (SQLAlchemy/asyncpg/Alembic in S02, argon2/email in S04, …)
+# with a CHANGELOG note. Regenerate pins deliberately, never by accident.
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.0
+httpx==0.28.1

@@ -1,0 +1,23 @@
+import Link from "next/link";
+
+/** Minimal branded 404 (SEO_SPEC: correct noindex 404 behavior; enriched Stage 26). */
+export default function NotFound() {
+  return (
+    <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col items-start justify-center px-6">
+      <p className="font-mono text-xs tracking-[0.2em] text-signal uppercase">404</p>
+      <h1 className="mt-3 text-3xl font-semibold tracking-tight">
+        This section isn&apos;t specified.
+      </h1>
+      <p className="mt-3 leading-relaxed text-ink-soft">
+        Unlike a good requirement, this URL is ambiguous — it doesn&apos;t point anywhere.
+        Let&apos;s return to something measurable.
+      </p>
+      <Link
+        href="/"
+        className="mt-6 rounded-input bg-ink px-5 py-2.5 text-sm font-medium text-paper transition-transform duration-120 hover:-translate-y-px"
+      >
+        Back to home
+      </Link>
+    </main>
+  );
+}
