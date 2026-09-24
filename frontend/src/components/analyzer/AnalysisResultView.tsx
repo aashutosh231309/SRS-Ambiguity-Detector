@@ -2,10 +2,13 @@
 
 /**
  * Analysis result report (Stage 09): overall score + heuristic band, severity
- * stats, the AI enhancement outcome block (Stage 14 — overview / error /
- * empty state / skipped note), category + requirement-health overviews, and
- * the filterable / sortable requirement list with collapsible explainable
- * issues. Shared by the fresh workspace result (`context="fresh"`) and the
+ * stats, category + requirement-health overviews, THEN the AI enhancement
+ * outcome block (Stage 14 states; Stage 15 trust layer — disclaimer,
+ * long-text disclosure, partial-coverage honesty), then the filterable /
+ * sortable requirement list with collapsible explainable issues (AI
+ * rewrites render inline, labeled, additive-only). Deterministic-first
+ * ordering is deliberate: AI never precedes the authoritative result.
+ * Shared by the fresh workspace result (`context="fresh"`) and the
  * saved-report route (`context="saved"` — the footer `actions` differ, the
  * report never does). Everything rendered is the persisted backend record —
  * no recalculation.
@@ -90,6 +93,19 @@ export function AnalysisResultView({
   );
   const allExpanded =
     visible.length > 0 && visible.every((requirement) => expandedIds.has(requirement.id));
+  // Stage 15: persisted rewrite coverage for the AI block's partial-honesty
+  // note — derived from the record (flagged vs rewritten counts), never
+  // invented. Only meaningful on `ok` runs; every other state passes null.
+  const rewriteCoverage =
+    result.ai_status === "ok"
+      ? {
+          rewritten: result.requirements.filter(
+            (requirement) => requirement.suggested_rewrite !== null,
+          ).length,
+          flagged: result.requirements.filter((requirement) => requirement.issues.length > 0)
+            .length,
+        }
+      : null;
 
   function toggleRequirement(id: string) {
     setExpandedIds((previous) => {
@@ -206,13 +222,6 @@ export function AnalysisResultView({
         </p>
       </div>
 
-      <AiOverviewSection
-        status={result.ai_status}
-        overview={result.ai_overview}
-        provider={result.ai_provider}
-        error={result.ai_error}
-      />
-
       {result.status === "segmented" ? (
         <div
           role="status"
@@ -250,6 +259,14 @@ export function AnalysisResultView({
           {result.health !== null ? <HealthBars health={result.health} /> : null}
         </div>
       ) : null}
+
+      <AiOverviewSection
+        status={result.ai_status}
+        overview={result.ai_overview}
+        provider={result.ai_provider}
+        error={result.ai_error}
+        rewriteCoverage={rewriteCoverage}
+      />
 
       {result.requirements.length >= 2 ? (
         <div className="mt-6 rounded-card border border-line bg-paper p-4">

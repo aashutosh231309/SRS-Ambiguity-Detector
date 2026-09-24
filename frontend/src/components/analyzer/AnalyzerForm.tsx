@@ -220,7 +220,7 @@ export function AnalyzerForm({
           {pending ? (
             <>
               <Loader2 className="size-4 animate-spin" aria-hidden />
-              Analyzing requirements…
+              {aiEnhance ? "Analyzing requirements with AI…" : "Analyzing requirements…"}
             </>
           ) : (
             "Analyze requirements"

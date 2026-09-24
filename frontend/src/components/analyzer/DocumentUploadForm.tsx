@@ -273,7 +273,7 @@ export function DocumentUploadForm({
           {pending ? (
             <>
               <Loader2 className="size-4 animate-spin" aria-hidden />
-              Uploading and analyzing…
+              {aiEnhance ? "Uploading and analyzing with AI…" : "Uploading and analyzing…"}
             </>
           ) : (
             "Upload and analyze"

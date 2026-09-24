@@ -272,4 +272,26 @@ describe("AnalyzerForm", () => {
       screen.getByRole("link", { name: "Manage providers in Settings" }).getAttribute("href"),
     ).toBe("/settings");
   });
+
+  it("names AI in the pending state when enhancement is checked", async () => {
+    const user = userEvent.setup();
+    let release!: (value: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Promise<Response>((resolve) => {
+            release = resolve;
+          }),
+      ),
+    );
+    const onResult = vi.fn();
+    render(<AnalyzerForm onResult={onResult} />);
+    fireEvent.change(screen.getByLabelText("SRS text"), { target: { value: "FR-1: hi" } });
+    await user.click(screen.getByRole("checkbox", { name: "Enhance with AI" }));
+    await user.click(screen.getByRole("button", { name: "Analyze requirements" }));
+    expect(screen.getByRole("button", { name: "Analyzing requirements with AI…" })).toBeDefined();
+    release(jsonResponse(analysisResult()));
+    await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
+  });
 });

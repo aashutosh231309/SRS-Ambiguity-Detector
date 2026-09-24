@@ -171,4 +171,39 @@ describe("RequirementCard", () => {
     rerender(<RequirementCard requirement={requirement()} />);
     expect(screen.queryByText("Suggested rewrite")).toBeNull();
   });
+
+  it("copies the suggestion text via the Copy suggestion action", async () => {
+    const user = userEvent.setup();
+    let seen = "";
+    const writeText = async (value: string) => {
+      seen = value;
+    };
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    render(
+      <RequirementCard
+        requirement={requirement({
+          suggested_rewrite: "The service shall respond within 200 ms.",
+          suggestion_source: "ai",
+        })}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Copy suggestion" }));
+    expect(seen).toBe("The service shall respond within 200 ms.");
+    expect(screen.getByText("Copied")).toBeDefined();
+  });
+
+  it("shows review-before-applying microcopy only for AI rewrites", () => {
+    const { rerender } = render(
+      <RequirementCard
+        requirement={requirement({ suggested_rewrite: "R.", suggestion_source: "ai" })}
+      />,
+    );
+    expect(screen.getByText(/review before applying/i)).toBeDefined();
+    rerender(
+      <RequirementCard
+        requirement={requirement({ suggested_rewrite: "R.", suggestion_source: "rule" })}
+      />,
+    );
+    expect(screen.queryByText(/review before applying/i)).toBeNull();
+  });
 });

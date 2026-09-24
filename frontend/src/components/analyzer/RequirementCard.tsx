@@ -78,7 +78,8 @@ function MarkedText({ text, issues }: { text: string; issues: AnalysisIssue[] })
 /**
  * One scored requirement: score + worst severity + highlighted text +
  * collapsible issues + optional suggested rewrite (Stage 14 — AI-labeled,
- * additive-only: the original text above is never modified) +
+ * additive-only: the original text above is never modified; Stage 15 adds
+ * the copy action + review-before-applying microcopy) +
  * segmentation provenance. The text stays visible; issues start collapsed
  * behind a toggle so long reports stay scannable (UI_UX_SPEC §30).
  * Parent-owned `expanded`/`onToggle` enable Expand-all; standalone usage
@@ -183,12 +184,22 @@ export function RequirementCard({
 
       {requirement.suggested_rewrite ? (
         <div className="mt-3 rounded-lg border border-dashed border-line bg-white p-3">
-          <p className="font-mono text-[11px] tracking-[0.12em] text-ink-faint uppercase">
-            {requirement.suggestion_source === "ai" ? "AI-suggested rewrite" : "Suggested rewrite"}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-mono text-[11px] tracking-[0.12em] text-ink-faint uppercase">
+              {requirement.suggestion_source === "ai"
+                ? "AI-suggested rewrite"
+                : "Suggested rewrite"}
+            </p>
+            <CopyButton text={requirement.suggested_rewrite} label="Copy suggestion" />
+          </div>
           <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-wrap text-ink-soft">
             {requirement.suggested_rewrite}
           </p>
+          {requirement.suggestion_source === "ai" ? (
+            <p className="mt-1.5 text-[13px] leading-relaxed text-ink-faint">
+              AI-generated suggestion — review before applying. The original above is unchanged.
+            </p>
+          ) : null}
         </div>
       ) : null}
 

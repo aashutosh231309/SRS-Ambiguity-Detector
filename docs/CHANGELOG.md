@@ -4,6 +4,29 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.16.0] — Stage 15 (as-built) — AI results integration & trust UX — 2026-09-24
+
+### Added
+- AI trust UX inside the shared report (frontend only, no backend/contract
+  change): an explicit review disclaimer on the `ok` AI block; a `Copy
+  suggestion` button + "Review before applying" microcopy on AI-suggested
+  rewrites (shared `CopyButton`); an accessible Show more/less disclosure
+  for overviews longer than 600 chars; an honest derived partial-coverage
+  note ("AI rewrites cover X of Y flagged requirements"); and AI-aware
+  pending labels on both enhance checkboxes.
+- Deterministic-first report ordering: score → overview cards → `Issue
+  categories` → `Requirement health` → `AiOverviewSection` → flagged
+  requirements. AI stays additive and never precedes authoritative content.
+
+### Changed
+- Frontend suite 356 → 368 tests (+12: disclaimer/expand/coverage × 5,
+  copy/microcopy × 2, ordering × 3, pending labels × 2). Backend unchanged
+  (470/470). Roadmap row 15 ("Dashboard visualization") was already absorbed
+  by the actual Stage 11 — this as-built Stage 15 supersedes its slot.
+
+### Contract
+- None — no API, schema, or migration change.
+
 ## [0.15.0] — Stage 14 — Live AI Enhancement (adapters + chain + report UI) — 2026-09-24
 
 ### Added

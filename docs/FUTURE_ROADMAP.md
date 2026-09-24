@@ -23,7 +23,7 @@
 | 12 | Analysis history | API_CONTRACT §4.3, UI_UX_SPEC | Search/filter/sort/paginate/delete; ownership-scoped; responsive table→cards |
 | 13 | Detailed report UI | UI_UX_SPEC §7–8 | `/analysis/[id]`: gauge, highlighted phrases, issues, "Why flagged?", AI empty states |
 | 14 | Dashboard data | API_CONTRACT §4.5 | stats/categories/trends/severity/activity endpoints, denormalized counts |
-| 15 | Dashboard visualization | UI_UX_SPEC §7 | Gauge, bars, trend, activity; useful empty states; mobile variants |
+| 15 | Dashboard visualization | UI_UX_SPEC §7 | Gauge, bars, trend, activity; useful empty states; mobile variants — ALREADY ABSORBED by actual Stage 11; slot reused by as-built Stage 15 (AI results integration & trust UX, UI_UX_SPEC §13a, no backend change) |
 | 16 | Settings/profile/security | API_CONTRACT §4.6–4.7, UI_UX_SPEC | Profile, password, providers mgmt UI, privacy, DELETE-typed account deletion |
 | 17 | AI credential architecture | AI_PROVIDER_SPEC §2/5, SECURITY_SPEC §4 | ABC + registry + Fernet vault + rotate + key lifecycle tests |
 | 18 | AI provider integrations | AI_PROVIDER_SPEC §4 | Gemini → Groq → OpenAI → Anthropic → OpenRouter → HF; per-adapter tests (mocked HTTP) |

@@ -306,4 +306,26 @@ describe("DocumentUploadForm", () => {
       screen.getByRole("link", { name: "Manage providers in Settings" }).getAttribute("href"),
     ).toBe("/settings");
   });
+
+  it("names AI in the pending state when enhancement is checked", async () => {
+    const user = userEvent.setup();
+    let release!: (value: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Promise<Response>((resolve) => {
+            release = resolve;
+          }),
+      ),
+    );
+    const onResult = vi.fn();
+    render(<DocumentUploadForm onResult={onResult} />);
+    fireEvent.change(screen.getByLabelText("SRS file"), { target: { files: [textFile()] } });
+    await user.click(screen.getByRole("checkbox", { name: "Enhance with AI" }));
+    await user.click(screen.getByRole("button", { name: "Upload and analyze" }));
+    expect(screen.getByRole("button", { name: "Uploading and analyzing with AI…" })).toBeDefined();
+    release(jsonResponse({ document: documentMetadata(), analysis: analysisResult() }));
+    await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
+  });
 });

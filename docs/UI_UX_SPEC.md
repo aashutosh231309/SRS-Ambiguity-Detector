@@ -202,3 +202,23 @@ forms tomorrow):
   (React-escaped, `whitespace-pre-wrap`); markup-looking output stays inert.
 - Unknown provider ids degrade to unattributed rendering (no crash, no
   raw-id leak into user-facing copy beyond the label map).
+
+## 13a. AI results integration (binding — Stage 15, additive over §13)
+
+- Deterministic-first ordering: the score card, overview cards, `Issue
+  categories`, and `Requirement health` grids render ABOVE `AiOverviewSection`;
+  flagged requirements render BELOW it. AI never precedes authoritative content.
+- The `ok` block carries an explicit review disclaimer ("AI-generated
+  enrichment — review suggestions against the original before applying").
+- Overviews longer than 600 characters clamp (`line-clamp-6`) behind an
+  accessible Show more/less disclosure (`aria-expanded` + `aria-controls`).
+- Partial rewrite coverage renders an honest derived note ("AI rewrites cover
+  X of Y flagged requirements") when flagged > rewritten; complete or empty
+  coverage renders nothing. The count derives from the report payload —
+  no extra fetch, and the note never claims rewrites that don't exist.
+- AI-suggested rewrites ship a `Copy suggestion` button (shared `CopyButton`,
+  clipboard fallback where the API is unavailable) + "Review before applying"
+  microcopy. Copy exempts the no-clipboard-write test rule (§9) — it is the
+  feature, user-initiated per click.
+- The enhance checkbox pending label owns the wait honestly: "Analyzing with
+  AI (deterministic results first, AI enrichment follows)…" on both forms.

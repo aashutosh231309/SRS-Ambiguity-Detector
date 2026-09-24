@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { AiOverviewSection } from "./AiOverviewSection";
 
@@ -81,5 +82,72 @@ describe("AiOverviewSection", () => {
     expect(container.querySelector("script")).toBeNull();
     expect(container.querySelector("b")).toBeNull();
     expect(screen.getByText("<script>alert('xss')</script> & <b>bold</b>")).toBeDefined();
+  });
+
+  it("ok carries an explicit review disclaimer", () => {
+    render(<AiOverviewSection status="ok" overview="Overview." provider="groq" error={null} />);
+    expect(
+      screen.getByText(/AI-generated enrichment — review suggestions against the original/),
+    ).toBeDefined();
+  });
+
+  it("long overviews clamp behind an accessible Show more/less disclosure", async () => {
+    const user = userEvent.setup();
+    const long = `Summary. ${"x".repeat(700)}`;
+    const { container } = render(
+      <AiOverviewSection status="ok" overview={long} provider="groq" error={null} />,
+    );
+    const toggle = screen.getByRole("button", { name: "Show more" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(container.querySelector("p.line-clamp-6")).not.toBeNull();
+    await user.click(toggle);
+    expect(screen.getByRole("button", { name: "Show less" }).getAttribute("aria-expanded")).toBe(
+      "true",
+    );
+    expect(container.querySelector("p.line-clamp-6")).toBeNull();
+  });
+
+  it("short overviews render fully with no disclosure", () => {
+    const { container } = render(
+      <AiOverviewSection status="ok" overview="Short." provider="groq" error={null} />,
+    );
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector("p.line-clamp-6")).toBeNull();
+  });
+
+  it("partial rewrite coverage renders the honest derived note", () => {
+    render(
+      <AiOverviewSection
+        status="ok"
+        overview="Overview."
+        provider="groq"
+        error={null}
+        rewriteCoverage={{ rewritten: 7, flagged: 10 }}
+      />,
+    );
+    expect(screen.getByText("AI rewrites cover 7 of 10 flagged requirements.")).toBeDefined();
+  });
+
+  it("complete or empty coverage renders no note", () => {
+    const { rerender, container } = render(
+      <AiOverviewSection
+        status="ok"
+        overview="Overview."
+        provider="groq"
+        error={null}
+        rewriteCoverage={{ rewritten: 3, flagged: 3 }}
+      />,
+    );
+    expect(container.textContent).not.toContain("AI rewrites cover");
+    rerender(
+      <AiOverviewSection
+        status="ok"
+        overview="Overview."
+        provider="groq"
+        error={null}
+        rewriteCoverage={{ rewritten: 0, flagged: 0 }}
+      />,
+    );
+    expect(container.textContent).not.toContain("AI rewrites cover");
   });
 });

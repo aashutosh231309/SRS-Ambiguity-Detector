@@ -1014,12 +1014,45 @@ only).
 (roadmap-09 remainder) and/or Settings remainder (roadmap-16:
 profile/password/privacy sections) and/or the `retry-ai` endpoint.
 
+### Stage 15 (as-built) — AI results integration & trust UX ✅ (2026-09-24)
+
+Roadmap row 15 ("Dashboard visualization") was already absorbed by the actual
+Stage 11, so this as-built Stage 15 reuses the slot for §§2-19 scope: the
+Stage-14 AI results made understandable/trustworthy inside the shared report
+(deterministic authoritative; AI additive). Frontend only — NO backend, API,
+schema, or migration change.
+
+- `AiOverviewSection`: `rewriteCoverage` prop + explicit review disclaimer on
+  `ok` + `line-clamp-6` Show more/less disclosure for overviews > 600 chars
+  (`useId` + `aria-expanded`/`aria-controls`) + honest derived partial-coverage
+  note ("AI rewrites cover X of Y") only when flagged > rewritten.
+- `RequirementCard`: `Copy suggestion` button (shared `CopyButton`) + "Review
+  before applying" microcopy on AI-suggested rewrites.
+- `AnalysisResultView`: deterministic-first IA — score → overview cards →
+  `Issue categories` → `Requirement health` → `AiOverviewSection` → flagged
+  requirements; `rewriteCoverage` derived from the report payload.
+- Both enhance forms: AI-aware pending label ("Analyzing with AI
+  (deterministic results first, AI enrichment follows)…").
+- Saved-report parity: everything derives from persisted `ai_*`/rewrite fields
+  — no new fetch; all new copy covered in fresh-analysis AND saved-report tests.
+- 470/470 pytest + 368/368 vitest (+12 frontend), tsc/eslint/prettier clean,
+  `verify.sh` green. Non-goals preserved: no `retry-ai`, no new providers
+  (anthropic/HF stay deferred), no model/timestamp persistence, no
+  chatbot/RAG/embeddings.
+- NO browser in this sandbox (as in Stages 05–14) — disclaimer, copy button,
+  disclosure, coverage note, and reordered sections NOT pixel-verified, NO
+  screenshots ship (`screenshots/` still empty). First browsed environment
+  must capture `stage15-*` at 390/768/1440 + the pending sets.
+
+**Next stage:** Stage 16 (as-built) — document list/download endpoints
+(roadmap-09 remainder) and/or Settings remainder (roadmap-16:
+profile/password/privacy sections) and/or the `retry-ai` endpoint.
+
 ## Current stage
-None active — Stage 14 complete; all success conditions hold (optional AI
-enhancement live with deterministic authoritative, fail-open everywhere,
-4 adapters + chain + report UI, secrets never persisted/logged/returned,
-470/470 + 356/356 tests, journeys green, docs match).
-Next: **Stage 15 (as-built) — document list/download and/or Settings
+None active — Stage 15 complete; all success conditions hold (AI results
+integrated + trustworthy in the shared report, deterministic-first ordering,
+review/copy/coverage UX, 470/470 + 368/368 tests, verify.sh green, docs match).
+Next: **Stage 16 (as-built) — document list/download and/or Settings
 remainder (profile/password/privacy) and/or `retry-ai`**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
