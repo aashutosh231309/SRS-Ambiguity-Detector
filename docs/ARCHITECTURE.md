@@ -295,3 +295,10 @@ health. Each has an owning stage in `FUTURE_ROADMAP.md`. Scaffolds added now are
 - **ADR-007 (S01): Self-hosted fonts via Fontsource (Inter + IBM Plex Mono).**
   Rejected `next/font/google` (build-time fetch of Google Fonts = third-party dependency,
   privacy request, offline-build failure). Same faces; tokens keep any future swap cheap.
+- **ADR-008 (S23): Privacy lifecycle ordering + live export tickets.** Account deletion
+  and purge delete owned storage objects through the storage port before deleting DB rows;
+  this prevents a success response while known owned objects remain, while accepting that
+  a later DB failure can leave rows pointing at already-missing objects (safe to retry because
+  object deletion is idempotent). Privacy export uses a short-lived signed owner ticket and
+  generates allowlisted JSON live instead of persisting export artifacts, avoiding another
+  sensitive storage lifecycle surface in v1.

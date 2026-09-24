@@ -1,4 +1,7 @@
-"""Settings/profile schemas (API_CONTRACT §4.7 — Stage 16 finalizes profile fields)."""
+"""Settings schemas (API_CONTRACT §4.7).
+
+Stage 16 finalized profile fields; Stage 23 adds real privacy lifecycle settings.
+"""
 
 import datetime as dt
 

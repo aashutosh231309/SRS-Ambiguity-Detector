@@ -504,11 +504,17 @@ no oracle) / `409 conflict` (enabled/fingerprint dup, contradictory PATCH, occup
 re-enable) / `429 rate_limited` (test bucket only) / `500 internal_error` (vault
 unconfigured or ciphertext tampered — generic message, never vault internals).
 
-### 4.7 Settings / privacy — Stage 16 (profile final) / Stage 23 (privacy)
+### 4.7 Settings / privacy — Stage 16 (profile final) / Stage 23 (privacy ✅)
 
 ```
 GET /settings/profile    → 200 {email, display_name, is_verified, is_active, created_at}
 PATCH /settings/profile  {display_name: string|null} → 200 (same shape)
+GET /settings/privacy    → 200 {history_retention_days:null|1..3650}
+PATCH /settings/privacy  {history_retention_days:null|1..3650} → 200 (same shape)
+POST /privacy/export     → 202 {export_id, download_url, expires_at}
+GET /privacy/export/{export_id} → 200 PrivacyExport JSON attachment
+POST /privacy/purge-history {older_than_days?:1..3650}
+                         → 200 {deleted_analyses:n, deleted_documents:n}
 ```
 
 Profile (FINAL Stage 16): verified users only (`401 unauthenticated` /
@@ -519,18 +525,29 @@ explicit `null` or blank clears it back to unset, and the field is required
 recovery anchor). No `{id}` exists — the session IS the selector, so there
 is no IDOR surface. PATCH rides the default verified-mutation rate bucket.
 
-Privacy (RESERVED for Stage 23 — names held, no endpoints yet):
+Privacy settings (Stage 23): verified users only. `history_retention_days`
+NULL means no automatic retention rule; 1..3650 days configures the retention
+maintenance seam (`python -m app.cli.purge_retention`). PATCH is CSRF guarded
+and rate-limited by the default verified mutation bucket.
 
-```
-GET/PATCH /settings/privacy    {history_retention_days|null, …}
-POST /privacy/export           → 202 {export_id} then GET /privacy/export/{id} (signed, expiring)
-POST /privacy/purge-history    {older_than_days?} → 200 {deleted_analyses:n}
-```
+Privacy export (Stage 23): `POST /privacy/export` is authenticated + CSRF +
+rate-limited and returns a short-lived signed ticket. `GET /privacy/export/{id}`
+is also authenticated; the signed ticket owner MUST match the current session.
+The export is generated on demand from live owner-scoped rows and allowlists
+safe fields only: profile, privacy settings, analyses/requirements/issues,
+document metadata, and provider metadata. It never includes password hashes,
+refresh/session/reset/verification tokens or hashes, provider plaintext keys,
+encrypted provider-key ciphertext, key fingerprints/last4, storage paths,
+storage credentials, signed document-download tokens, or other users' data.
 
-Stage 16 deliberately ships NO retention/export/purge controls: a setting
-with no enforcement behind it would be a fake control (UI_UX_SPEC §9 bans
-those). The Stage 16 Privacy UI section states the lifecycle honestly and
-points at the working controls (per-analysis delete, account delete).
+History purge (Stage 23): `POST /privacy/purge-history` deletes only the
+caller's analyses older than the explicit `older_than_days`; if omitted, the
+saved `history_retention_days` is used. If neither exists, it returns
+`400 validation_error` rather than purging unexpectedly. Purging analyses also
+purges now-unreferenced owned document rows + storage objects. Re-running the
+same purge is safe and returns zero counts once clean. Account deletion now
+uses the same storage abstraction to purge every owned document object before
+hard-deleting the user row and relying on DB cascades for rows/tokens/credentials.
 
 ## 5. Conventions
 

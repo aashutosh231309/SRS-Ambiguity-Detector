@@ -220,7 +220,8 @@ def test_patch_profile_rejects_non_string(settings_client: TestClient) -> None:
     assert _code(response) == "validation_error"
 
 
-def test_unbuilt_privacy_paths_stay_404(settings_client: TestClient) -> None:
+def test_unknown_settings_paths_stay_404(settings_client: TestClient) -> None:
     _login_verified(settings_client, "unknown-path")
-    assert settings_client.get("/api/v1/settings/privacy").status_code == 404
+    assert settings_client.get("/api/v1/settings/privacy").status_code == 200
     assert settings_client.get("/api/v1/settings/profile/other").status_code == 404
+    assert settings_client.get("/api/v1/settings/privacy/other").status_code == 404

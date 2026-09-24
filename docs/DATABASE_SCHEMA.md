@@ -260,24 +260,38 @@ in logs. Comparison is constant-time (`hmac.compare_digest` over the hash).
 - Index: `ix_password_reset_tokens_owner`. Reset consumes + clears pending + revokes
   all owner sessions (logout-everywhere).
 
-### 3.8 User preferences (PLANNED — Stage 16, reserved names)
+### 3.8 `user_preferences` (IMPLEMENTED — Stage 23, revision `0006`)
 
-- `user_preferences` / settings shape is finalized by the settings stage.
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `owner_id` | UUID | PK, FK users CASCADE | One row per user |
+| `history_retention_days` | INTEGER | NULL or CHECK 1..3650 | NULL = no automatic retention rule |
+| `created_at` / `updated_at` | TIMESTAMPTZ | NOT NULL | |
 
-## 4. Retention & deletion (schema support: IMPLEMENTED; workflows: later stages)
+- Delete behavior: cascade from users. Preferences are mutable only by the owning
+  session through `/settings/privacy`.
+
+## 4. Retention & deletion (IMPLEMENTED — Stage 23)
 
 - `DELETE FROM users` cascades (FK `ON DELETE CASCADE`) to analyses → requirements →
-  issues, documents metadata, and credentials. ORM relationships use
+  issues, documents metadata, credentials, user preferences, sessions, refresh tokens,
+  email-verification tokens, and password-reset tokens. ORM relationships use
   `passive_deletes=True`: the DATABASE is the enforcement point, never ORM SELECTs.
 - Application-level (the DB cannot do these): storage-object deletion
-  (`documents.storage_path`), temp-file cleanup. Account-deletion backend
-  (`DELETE /auth/account`, ✅ Stage 04) hard-deletes + cascades (sessions/tokens
-  included — storage objects exist since Stage 08 and account-deletion does NOT
-  yet purge them (orphaned objects on account delete — Stage 23 lifecycle must
-  cover this) and is covered by E2E tests; lifecycle/verification workflows
-  arrive in Stage 23.
-- History purge / retention (Stage 23) deletes per-user `analyses` (+ cascades) and
-  orphaned `documents`.
+  (`documents.storage_path`) and temp-file cleanup. Account deletion now gathers
+  the user's owned document storage refs from trusted DB rows, deletes each object
+  through `StorageBackend.delete()`, and only then hard-deletes the user row.
+  Missing objects are idempotent no-ops. Storage backend failures abort before DB
+  deletion and surface a generic retryable server error; the API must not claim
+  success while known owned objects remain. A DB failure after object deletion can
+  leave rows that point to already-missing files, which retry/remediation may clean
+  because storage deletion is idempotent.
+- History purge / retention deletes per-user `analyses` (+ cascades) and now-orphaned
+  owned `documents` plus their storage objects. Re-running the same purge is safe.
+- Privacy export is generated live from owner-scoped rows and an explicit allowlist;
+  it excludes password hashes, refresh/reset/verification/session tokens, AI
+  credential plaintext/ciphertext/fingerprints, storage paths, storage credentials,
+  signed download tokens, and file bytes.
 
 ## 5. Migrations & local workflow (IMPLEMENTED)
 
@@ -285,8 +299,9 @@ in logs. Comparison is constant-time (`hmac.compare_digest` over the hash).
   (Stage 06: `analyses.status`/`source_text`, NULL-until-scored `score`/`band`,
   `requirements.section`/`segmentation`) + `0004` (Stage 07: widen `status`
   CHECK to `segmented|analyzed|failed`) + `0005` (Stage 08:
-  `documents.file_type` + CHECK). Linear history, every revision has
-  `downgrade()` (`0003`'s deletes unscored rows — pre-release only).
+  `documents.file_type` + CHECK) + `0006` (Stage 23: `user_preferences`).
+  Linear history, every revision has `downgrade()` (`0003`'s deletes unscored
+  rows — pre-release only).
 - DSN resolution (shared by app + Alembic): `DIRECT_DATABASE_URL` preferred (Supabase:
   bypasses the transaction pooler, which cannot run DDL), `DATABASE_URL` fallback.
   `postgresql://`/`postgres://` schemes are coerced to the asyncpg driver; anything

@@ -193,8 +193,10 @@ forms tomorrow):
   so no stale name lingers. Field-shaped failures land on the field OR
   form-level — never duplicated in both (one screen-reader announcement).
 - Password mounts the Stage 05 `ChangePasswordForm` as-is (no fork, no restyle).
-- Privacy is an HONEST lifecycle statement with links to working controls only
-  — no retention/export/purge controls until Stage 23 ships their enforcement.
+- Privacy (Stage 23) exposes only working lifecycle controls: save automatic
+  history-retention days (or blank = off), create a short-lived data-export link,
+  and purge old history now. Copy must state exactly what account deletion/export
+  include and exclude; no fake or aspirational privacy controls are allowed.
   Banned here: fake settings, disabled-looking buttons, "coming soon" buttons.
 - Account deletion requires typing DELETE (exact, case-sensitive); the confirm
   stays disabled until armed. The dialog names the account email, focuses the

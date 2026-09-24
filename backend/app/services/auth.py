@@ -53,6 +53,7 @@ from app.repositories.auth import (
     RefreshTokenRepository,
     UserRepository,
 )
+from app.services.privacy import delete_account_with_lifecycle
 from app.services.transactions import transactional
 
 logger = get_logger(__name__)
@@ -440,17 +441,13 @@ async def change_password(
     )
 
 
-@transactional
 async def delete_account(session: AsyncSession, *, user_id: uuid.UUID) -> tuple[EmailMessage, ...]:
-    """Hard-delete the account (FK cascades purge tokens + owned rows) + farewell
-    notice. Storage purge is n/a (no storage objects exist before Stage 09)."""
-    users = UserRepository(session)
-    user = await users.get_by_id(user_id)
-    if user is None:
-        raise UnauthorizedError()
-    email = user.email  # capture before the row is gone
-    await users.delete(user)
-    logger.info("account deleted user_id=%s", user_id)
+    """Hard-delete the account + storage objects + farewell notice.
+
+    `delete_account_with_lifecycle` owns the transaction/storage ordering. The
+    returned email is captured before the row is deleted.
+    """
+    email = await delete_account_with_lifecycle(session, user_id=user_id)
     return (
         EmailMessage(
             to=email,

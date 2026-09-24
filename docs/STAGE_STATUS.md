@@ -1423,11 +1423,64 @@ production abuse posture remains future.
 **Next stage:** Stage 23 — Privacy/data lifecycle, or a repo-authoritative
 remaining roadmap-22 production-limiter-storage slice if prioritized first.
 
+## Stage 23 — Privacy, data lifecycle & account deletion completion (COMPLETE)
+
+**Scope delivered:**
+- Backend lifecycle: `DELETE /auth/account` now uses the privacy lifecycle service to
+  collect owned document storage refs from trusted DB rows, delete objects through the
+  configured storage backend, then hard-delete the user row so DB cascades remove analyses,
+  requirements, issues, document metadata, provider credential ciphertext, preferences,
+  refresh tokens, verification tokens, and reset tokens. Client filenames/paths are never
+  deletion inputs. Missing objects are idempotent; storage failures abort before DB delete
+  and return a generic retryable server error.
+- Privacy settings: `user_preferences` migration/model with nullable
+  `history_retention_days` (NULL = no automatic retention, else 1..3650), plus
+  authenticated/verified `GET/PATCH /settings/privacy`.
+- Export: `POST /privacy/export` returns a 15-minute signed owner ticket + download URL;
+  `GET /privacy/export/{export_id}` also requires the current verified session to match.
+  Export JSON is generated live from owner-scoped rows and excludes password hashes,
+  tokens, provider API keys/ciphertext/fingerprints, storage paths, file bytes, and
+  cross-user data.
+- Purge/retention: `POST /privacy/purge-history` deletes the caller's old analyses and
+  now-orphaned owned document rows/storage objects; `python -m app.cli.purge_retention`
+  enforces configured retention windows and prints aggregate counts only.
+- Frontend: Settings → Privacy now has working retention-save, export-link, and purge-now
+  controls with honest lifecycle copy; the old statement-only/no-fake-controls placeholder
+  is gone.
+- Regression coverage: new `backend/tests/test_privacy.py` covers privacy settings auth,
+  CSRF/persistence, account deletion DB/storage/token/credential cleanup, storage-failure
+  retry safety, owner-scoped redacted export, purge-history isolation/storage deletion,
+  retention rerun safety, and post-delete download-token behavior. Frontend settings tests
+  assert the privacy controls call real endpoints and render outcomes.
+
+**Verification:**
+- Full `TEST_DATABASE_URL=... DATABASE_URL=... ./scripts/verify.sh` green.
+- Backend: ruff format/lint clean, mypy clean (98 source files), pytest 565/565 passed
+  with 2 existing warnings, import/OpenAPI sanity clean.
+- Frontend: eslint clean, typecheck clean, Vitest 49 files / 410 tests passed, Prettier
+  clean, Next production build green.
+- Secret/dependency gates: secret scan clean, `npm audit` 0 vulnerabilities, `pip-audit`
+  clean with the documented ignored Starlette advisories.
+
+**Known limitations (accepted, not bugs):**
+- DB rows and object storage cannot be one atomic transaction. Stage 23 documents and
+  tests the chosen storage-first semantics; a DB failure after object deletion may require
+  retry/remediation, but missing storage objects are idempotent.
+- Export is a signed live ticket flow, not a persisted export-artifact table; this avoids
+  adding a second sensitive artifact lifecycle in v1.
+- Distributed rate-limit storage remains future from Stage 22; unrelated to this lifecycle
+  slice.
+- NO browser validation yet in this sandbox; covered by type/build/tests unless a live
+  browser becomes available before final reporting.
+
+**Next stage:** Stage 24 — monitoring/error reporting, or the separately documented
+future distributed limiter storage slice if explicitly prioritized.
+
 ## Current stage
-None active — Stage 22 complete; all success conditions hold for the Turnstile
-slice (`./scripts/verify.sh` green: backend 558/558, frontend 410/410,
-Turnstile docs/env updated). Distributed limiter storage remains future.
-Next: **Stage 23 — Privacy/data lifecycle** (unless the next prompt explicitly
+None active — Stage 23 complete; privacy/data lifecycle success conditions hold and
+full verification is green in this working branch. Distributed limiter storage remains
+future.
+Next: **Stage 24 — monitoring/error reporting** (unless the next prompt explicitly
 prioritizes the remaining distributed limiter-store slice).
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)

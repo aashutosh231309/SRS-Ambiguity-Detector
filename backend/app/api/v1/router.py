@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     dashboard,
     documents,
     health,
+    privacy,
     settings,
 )
 
@@ -20,4 +21,4 @@ api_router.include_router(documents.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(ai_providers.router)
 api_router.include_router(settings.router)
-# Later: privacy (owning stage).
+api_router.include_router(privacy.router)

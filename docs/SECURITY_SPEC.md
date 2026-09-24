@@ -184,8 +184,30 @@ anonymous callers never reach the bucket (401 first).
 | Token storage | sha256 hash of 256-bit random tokens | ✅ Stage 04 |
 | Checksums | sha256 of uploads (streamed during staging, stored per document) | Stage 08 ✅ |
 | Download URLs | HS256 JWT, `type: document_download` (single doc, ≤15 min, boot-capped) | Stage 19 ✅ |
+| Privacy export tickets | HS256 JWT, `type: privacy_export` (single owner, 15 min) | Stage 23 ✅ |
 
-## 10. Dependency & secret hygiene
+## 10. Privacy/data lifecycle controls (IMPLEMENTED Stage 23)
+
+- Account deletion uses trusted DB ownership data only: collect the current user's
+  `documents.storage_path` values server-side, delete through the storage abstraction,
+  then delete the user row so FK cascades remove analyses, requirements, issues,
+  document metadata, provider credentials, preferences, sessions, refresh tokens,
+  email-verification tokens, and password-reset tokens. Client filenames and paths are
+  never deletion inputs.
+- Storage/DB is not a single transaction. Stage 23 chooses "storage first, DB second"
+  for account deletion and purge so the API never reports success while known owned
+  storage objects remain. Missing objects are idempotent; storage failures abort before
+  DB deletion and are returned/logged generically with ids only. If the DB fails after
+  storage deletion, retry/remediation is safe because storage deletion is idempotent.
+- Privacy export is owner-scoped twice: the ticket encodes an owner id, and download
+  still requires the current verified session to match that id. Export is live JSON from
+  an allowlist and excludes password hashes, auth/session/reset/verification tokens,
+  AI key plaintext/ciphertext/fingerprints, storage paths, signed document-download
+  tokens, file bytes, infrastructure credentials, and cross-user rows.
+- Retention enforcement exists outside the UI via `python -m app.cli.purge_retention`;
+  it prints aggregate counts only and logs no document contents, secrets, or tokens.
+
+## 11. Dependency & secret hygiene
 
 - Pinned versions (`package-lock.json`, `requirements*.txt`); `npm audit` + `pip-audit`
   gate `scripts/verify.sh` since Stage 20 (roadmap-21) — the build fails on NEW
@@ -215,7 +237,7 @@ anonymous callers never reach the bucket (401 first).
 - Sentry scrubbing (Stage 24) is a RELEASE BLOCKER: no DSN enabled until `before_send`
   redaction + PII flags are tested.
 
-## 11. Security review checklist (every stage touching auth/data/crypto/upload/AI)
+## 12. Security review checklist (every stage touching auth/data/crypto/upload/AI)
 
 - [ ] Ownership checks + IDOR tests for new `{id}` routes
 - [ ] Schemas cap lengths; errors use envelope with safe messages
@@ -223,7 +245,7 @@ anonymous callers never reach the bucket (401 first).
 - [ ] Rate limit considered for new expensive endpoint
 - [ ] STAGE_STATUS "Security notes" updated
 
-## 12. Database security (IMPLEMENTED Stage 02 — schema layer)
+## 13. Database security (IMPLEMENTED Stage 02 — schema layer)
 
 - **Ownership:** every user-owned row carries `owner_id` (FK `users.id`, CASCADE).
   Endpoints MUST filter by it; cross-user ids return 404 (no existence oracle).

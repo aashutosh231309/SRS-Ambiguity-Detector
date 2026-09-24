@@ -4,6 +4,38 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.24.0] — Stage 23 — Privacy, data lifecycle & account deletion completion — 2026-09-24
+
+### Added
+- `user_preferences` (`0006`) with owner-scoped nullable `history_retention_days`
+  plus `GET/PATCH /settings/privacy`.
+- Privacy export flow: `POST /privacy/export` returns a short-lived signed owner
+  ticket and `GET /privacy/export/{export_id}` returns live allowlisted JSON for
+  the current owner only.
+- `POST /privacy/purge-history` and `python -m app.cli.purge_retention` for owner
+  purge/manual retention enforcement, including orphaned owned document storage
+  cleanup through the storage abstraction.
+- Settings → Privacy UI now has real retention-save, export-link, and purge-now
+  controls with honest copy about included/excluded data.
+- Regression coverage for storage-aware account deletion, retryable storage
+  failures, token/credential cleanup, redacted owner-scoped export, purge/retention
+  isolation, and deleted-document download-token behavior.
+
+### Changed
+- `DELETE /auth/account` now purges every owned document storage object through
+  the storage abstraction before deleting the user row and relying on DB cascades
+  for rows/tokens/provider credentials. Missing storage objects are idempotent;
+  storage backend failures abort before DB deletion and return a generic retryable
+  error.
+- Privacy docs now describe the non-atomic DB/storage boundary honestly: storage
+  first avoids success-with-known-orphans, while DB failure after storage cleanup
+  remains retry/remediation territory.
+
+### Contract
+- API_CONTRACT §4.7, DATABASE_SCHEMA §3.8/§4, SECURITY_SPEC §9/§10,
+  UI_UX_SPEC, ARCHITECTURE ADR-008, FUTURE_ROADMAP, and STAGE_STATUS updated for
+  the as-built Stage 23 lifecycle behavior.
+
 ## [0.23.0] — Stage 22 (as-built) — Turnstile CAPTCHA abuse defense — 2026-09-24
 
 ### Added

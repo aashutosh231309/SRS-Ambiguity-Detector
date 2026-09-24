@@ -31,7 +31,7 @@
 | 20 | AI fallback/error handling | AI_PROVIDER_SPEC §7 | Chain, retry-ai, failure matrix tests, latency/usage recording |
 | 21 | Security hardening | SECURITY_SPEC | CSP, OpenAPI prod posture, audits (npm/pip), secret-scan docs, header review |
 | 22 | CAPTCHA/rate limiting | SECURITY_SPEC §7 | Turnstile verify + buckets on sensitive routes; 429 envelope + tests |
-| 23 | Privacy/data lifecycle | DATABASE_SCHEMA §4 | Retention, purge, export, deletion-cascade verification test |
+| 23 | Privacy/data lifecycle ✅ | DATABASE_SCHEMA §4 | Delivered: retention settings/CLI, purge, signed live export, storage-aware account-deletion cascade regression tests |
 | 24 | Monitoring | SECURITY_SPEC §2.5/§10 | Sentry + scrubbers (BLOCKER-gated), health/metrics, email deliverability view |
 | 25 | Performance | UI_UX_SPEC §6, SEO_SPEC §3 | Bundle audit, code-split, caching, DB indexes review, slow-query log |
 | 26 | SEO foundation | SEO_SPEC §2–3 | Public routes + metadata + OG + robots/sitemap + 404 + JSON-LD core |

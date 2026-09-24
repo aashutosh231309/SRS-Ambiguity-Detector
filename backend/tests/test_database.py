@@ -79,6 +79,7 @@ def test_model_metadata_tables() -> None:
         "requirements",
         "issues",
         "ai_provider_credentials",
+        "user_preferences",
         "refresh_tokens",
         "email_verification_tokens",
         "password_reset_tokens",
@@ -88,7 +89,7 @@ def test_model_metadata_tables() -> None:
 # --- Migrations -------------------------------------------------------------
 
 
-def test_migration_head_is_0005(migrated_db: str) -> None:
+def test_migration_head_is_0006(migrated_db: str) -> None:
     from alembic.migration import MigrationContext
 
     async def _heads() -> tuple[str, ...]:
@@ -103,7 +104,7 @@ def test_migration_head_is_0005(migrated_db: str) -> None:
         finally:
             await _dispose()
 
-    assert run(_heads()) == ("0005",)  # Stage 08: documents.file_type
+    assert run(_heads()) == ("0006",)  # Stage 23: user_preferences privacy settings
 
 
 def test_tables_exist(migrated_db: str) -> None:

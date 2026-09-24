@@ -13,6 +13,7 @@ from app.models.document import Document
 from app.models.issue import Issue
 from app.models.requirement import Requirement
 from app.models.user import User
+from app.models.user_preference import UserPreference
 
 __all__ = [
     "AICredential",
@@ -27,4 +28,5 @@ __all__ = [
     "Requirement",
     "UpdatedMixin",
     "User",
+    "UserPreference",
 ]

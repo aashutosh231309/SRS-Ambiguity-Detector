@@ -13,7 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.dependencies import get_current_verified_user, verified_user_guard
 from app.core.database import get_session
+from app.schemas.privacy import PrivacySettingsResponse, PrivacySettingsUpdateRequest
 from app.schemas.settings import ProfileResponse, ProfileUpdateRequest
+from app.services import privacy as privacy_service
 from app.services import settings as settings_service
 from app.services.auth import UserInfo
 
@@ -53,3 +55,24 @@ async def update_profile(
         session, user_id=user.id, display_name=body.display_name
     )
     return _present(fresh)
+
+
+@router.get("/privacy", response_model=PrivacySettingsResponse)
+async def get_privacy_settings(
+    user: Annotated[UserInfo, Depends(get_current_verified_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> PrivacySettingsResponse:
+    """The caller's enforced privacy lifecycle settings."""
+    return await privacy_service.get_privacy_settings(session, owner_id=user.id)
+
+
+@router.patch("/privacy", response_model=PrivacySettingsResponse)
+async def update_privacy_settings(
+    body: PrivacySettingsUpdateRequest,
+    user: Annotated[UserInfo, Depends(mutate_guard)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> PrivacySettingsResponse:
+    """Set or clear the caller's automatic history-retention window."""
+    return await privacy_service.update_privacy_settings(
+        session, owner_id=user.id, history_retention_days=body.history_retention_days
+    )

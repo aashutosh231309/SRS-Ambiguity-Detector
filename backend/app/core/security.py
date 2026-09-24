@@ -21,6 +21,7 @@ from app.exceptions import InvalidTokenError
 
 ACCESS_TOKEN_TYPE = "access"  # noqa: S105 — JWT type label, not a credential
 DOCUMENT_DOWNLOAD_TOKEN_TYPE = "document_download"  # noqa: S105 — ditto (Stage 19)
+PRIVACY_EXPORT_TOKEN_TYPE = "privacy_export"  # noqa: S105 — ditto (Stage 23)
 _JWT_ALGORITHM = "HS256"
 _TOKEN_BYTES = 32  # 256-bit raw tokens (urlsafe ~43 chars)
 PASSWORD_MIN_LENGTH = 12
@@ -216,3 +217,41 @@ def decode_document_download_token(token: str, document_id: uuid.UUID) -> uuid.U
         return uuid.UUID(raw_sub)
     except ValueError:
         raise InvalidTokenError("This download link is invalid.") from None
+
+
+def create_privacy_export_token(owner_id: uuid.UUID, expires_minutes: int = 15) -> str:
+    """Short-lived HS256 privacy-export ticket (`sub` = owner).
+
+    The token is not sufficient by itself: export download also requires the
+    caller's authenticated session to match `sub`.
+    """
+    now = utcnow()
+    return jwt.encode(
+        {
+            "sub": str(owner_id),
+            "type": PRIVACY_EXPORT_TOKEN_TYPE,
+            "iat": now,
+            "exp": now + timedelta(minutes=expires_minutes),
+        },
+        _jwt_secret(),
+        algorithm=_JWT_ALGORITHM,
+    )
+
+
+def decode_privacy_export_token(token: str) -> uuid.UUID:
+    """Validate a privacy-export ticket → owner id (400 `invalid_token`)."""
+    try:
+        payload = jwt.decode(token, _jwt_secret(), algorithms=[_JWT_ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        raise InvalidTokenError("This export link has expired.") from None
+    except jwt.InvalidTokenError:
+        raise InvalidTokenError("This export link is invalid.") from None
+    if payload.get("type") != PRIVACY_EXPORT_TOKEN_TYPE:
+        raise InvalidTokenError("This export link is invalid.")
+    raw_sub = payload.get("sub")
+    if not isinstance(raw_sub, str):
+        raise InvalidTokenError("This export link is invalid.")
+    try:
+        return uuid.UUID(raw_sub)
+    except ValueError:
+        raise InvalidTokenError("This export link is invalid.") from None

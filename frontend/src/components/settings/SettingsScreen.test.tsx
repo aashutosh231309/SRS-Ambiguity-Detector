@@ -95,9 +95,14 @@ function createStore(initial: ProviderCredential[]) {
     remove?: RouteHandler;
     getProfile?: () => Response | Promise<Response>;
     patchProfile?: RouteHandler;
+    getPrivacy?: () => Response | Promise<Response>;
+    patchPrivacy?: RouteHandler;
+    exportPrivacy?: RouteHandler;
+    purgeHistory?: RouteHandler;
     deleteAccount?: RouteHandler;
   } = {};
   let profileName: string | null = "Ada";
+  let historyRetentionDays: number | null = null;
   let testVerdict: ProviderTestResult = { ok: true, models: ["m"], latency_ms: 7, error: null };
 
   function handler(input: RequestInfo | URL, init?: RequestInit): Response | Promise<Response> {
@@ -117,6 +122,31 @@ function createStore(initial: ProviderCredential[]) {
       const next = body.display_name;
       profileName = typeof next === "string" && next.trim() !== "" ? next.trim() : null;
       return profileResponse(profileName);
+    }
+    if (url.endsWith("/settings/privacy") && method === "GET") {
+      if (overrides.getPrivacy !== undefined) return overrides.getPrivacy();
+      return jsonResponse({ history_retention_days: historyRetentionDays });
+    }
+    if (url.endsWith("/settings/privacy") && method === "PATCH") {
+      if (overrides.patchPrivacy !== undefined) return overrides.patchPrivacy("", body);
+      historyRetentionDays =
+        typeof body.history_retention_days === "number" ? body.history_retention_days : null;
+      return jsonResponse({ history_retention_days: historyRetentionDays });
+    }
+    if (url.endsWith("/privacy/export") && method === "POST") {
+      if (overrides.exportPrivacy !== undefined) return overrides.exportPrivacy("", body);
+      return jsonResponse(
+        {
+          export_id: "export-token",
+          download_url: "/api/v1/privacy/export/export-token",
+          expires_at: "2026-09-24T00:15:00Z",
+        },
+        202,
+      );
+    }
+    if (url.endsWith("/privacy/purge-history") && method === "POST") {
+      if (overrides.purgeHistory !== undefined) return overrides.purgeHistory("", body);
+      return jsonResponse({ deleted_analyses: 2, deleted_documents: 1 });
     }
     if (url.endsWith("/auth/account") && method === "DELETE") {
       if (overrides.deleteAccount !== undefined) return overrides.deleteAccount("", body);
@@ -865,15 +895,51 @@ describe("SettingsScreen account sections (Stage 16)", () => {
     expect(screen.getByRole("form", { name: "Change password" })).toBeDefined();
   });
 
-  it("privacy section states the lifecycle honestly with no fake controls", async () => {
-    createStore([]);
+  it("privacy section wires retention, export, and purge controls to real endpoints", async () => {
+    const user = userEvent.setup();
+    const store = createStore([]);
     renderScreen();
     const section = await screen.findByRole("region", { name: "Privacy" });
-    expect(within(section).getByRole("link", { name: "Manage analyses in History" })).toBeDefined();
-    expect(within(section).queryByRole("button")).toBeNull();
+    expect(within(section).getByRole("link", { name: "History" })).toBeDefined();
+    expect(within(section).getByText(/never includes passwords, session tokens/)).toBeDefined();
+
+    await user.type(within(section).getByLabelText("Automatic history retention"), "30");
+    await user.click(within(section).getByRole("button", { name: "Save retention" }));
+    expect(await within(section).findByText(/set to 30 days/)).toBeDefined();
+
+    await user.click(within(section).getByRole("button", { name: "Create export link" }));
+    const exportLink = await within(section).findByRole("link", {
+      name: "Download privacy export",
+    });
+    expect(exportLink.getAttribute("href")).toContain("/api/v1/privacy/export/export-token");
+
+    await user.clear(within(section).getByLabelText("Purge old history now"));
+    await user.type(within(section).getByLabelText("Purge old history now"), "45");
+    await user.click(within(section).getByRole("button", { name: "Purge old history" }));
     expect(
-      within(section).getByText(/retention controls and a self-serve data export arrive/),
+      await within(section).findByText(/Purged 2 analyses and 1 stored documents/),
     ).toBeDefined();
+
+    expect(
+      store.requests.some(
+        (request) => request.url.endsWith("/settings/privacy") && request.method === "GET",
+      ),
+    ).toBe(true);
+    expect(
+      store.requests.find(
+        (request) => request.url.endsWith("/settings/privacy") && request.method === "PATCH",
+      )?.body,
+    ).toEqual({ history_retention_days: 30 });
+    expect(
+      store.requests.some(
+        (request) => request.url.endsWith("/privacy/export") && request.method === "POST",
+      ),
+    ).toBe(true);
+    expect(
+      store.requests.find(
+        (request) => request.url.endsWith("/privacy/purge-history") && request.method === "POST",
+      )?.body,
+    ).toEqual({ older_than_days: 45 });
   });
 
   it("deletes the account only after typing DELETE, then shows the farewell", async () => {

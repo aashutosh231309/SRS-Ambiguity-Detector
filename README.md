@@ -117,7 +117,8 @@ PostgreSQL 16+ via SQLAlchemy 2.0 (async) + Alembic. Schema: `users`, `analyses`
 `0002`) + analysis `status`/`source_text`, NULL-until-scored `score`/`band`,
 requirement `section`/`segmentation` (revision `0003`) + the
 `segmented|analyzed|failed` status CHECK (revision `0004`) +
-`documents.file_type` + CHECK (revision `0005`) — fully documented in
+`documents.file_type` + CHECK (revision `0005`), and privacy preferences
+(`user_preferences`, revision `0006`) — fully documented in
 [`docs/DATABASE_SCHEMA.md`](docs/DATABASE_SCHEMA.md).
 
 Flow: configure `DATABASE_URL` → `alembic upgrade head` → start backend.
@@ -136,16 +137,19 @@ auth API (`POST /api/v1/auth/register|login|logout|refresh|verify-email|resend-v
 nested issues + breakdown; `GET` detail (incl. a `document` display pointer —
 filename + type, no storage keys) + paged newest-first list with
 `sort`/`band`/`source_type`; `DELETE` → `204` cascade; verified-user guard,
-per-user 20/min; missing/foreign ids → identical `404`).
+per-user 20/min; missing/foreign ids → identical `404`). Settings/privacy APIs
+include profile, privacy retention settings, signed live export tickets, and
+history purge/retention enforcement seams.
 
 ## Security model (summary)
 
 Cookie sessions (httpOnly, rotating refresh) · argon2id passwords · email verification ·
 ownership checks on every resource (cross-user IDs → 404) · user AI keys Fernet-encrypted
-at rest, never returned/logged · uploads validated (type/size/magic-bytes) · rate limits +
-Cloudflare Turnstile on public high-abuse auth ops · audits/secret scan. Details:
-[`docs/SECURITY_SPEC.md`](docs/SECURITY_SPEC.md). Distributed limiter storage,
-privacy lifecycle, and monitoring remain future hardening work.
+at rest, never returned/logged · uploads validated (type/size/magic-bytes) · account
+deletion purges owned storage via the storage abstraction before DB cascade · privacy
+export is owner-scoped and redacted · rate limits + Cloudflare Turnstile on public
+high-abuse auth ops · audits/secret scan. Details: [`docs/SECURITY_SPEC.md`](docs/SECURITY_SPEC.md).
+Distributed limiter storage and monitoring remain future hardening work.
 
 ## Current limitations
 
@@ -153,10 +157,10 @@ Backend auth + auth UI are done, and so are the analysis spine (SRS text
 input + document upload/extraction + deterministic segmentation +
 11-detector ambiguity analysis + transparent scoring + persistence), history,
 dashboard, settings, AI providers/enhancement/retry, report experience, document
-list/download/delete, and Turnstile on sensitive public auth ops. Still
-intentionally NOT implemented yet: distributed limiter storage, privacy lifecycle,
-monitoring/Sentry, performance/SEO polish, responsive/a11y final pass, production
-deployment, screenshots/docs finalization. Scores are heuristic triage aids, not validated measurements
+list/download/delete, Turnstile on sensitive public auth ops, and privacy lifecycle
+controls (retention/export/purge/storage-aware account deletion). Still intentionally
+NOT implemented yet: distributed limiter storage, monitoring/Sentry, performance/SEO
+polish, responsive/a11y final pass, production deployment, screenshots/docs finalization. Scores are heuristic triage aids, not validated measurements
 (see [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) §4.3 honest limits).
 Post-auth landing is still the temporary fixed `/`; the home page is an
 honest placeholder (replaced by the marketing stage), and `ApiStatus` needs

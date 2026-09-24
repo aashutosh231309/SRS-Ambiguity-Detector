@@ -23,6 +23,7 @@ if TYPE_CHECKING:  # runtime resolution is by registry name (no import cycle)
         RefreshToken,
     )
     from app.models.document import Document
+    from app.models.user_preference import UserPreference
 
 
 class User(Base, CreatedMixin, UpdatedMixin):
@@ -68,5 +69,8 @@ class User(Base, CreatedMixin, UpdatedMixin):
         back_populates="owner", passive_deletes=True
     )
     password_reset_tokens: Mapped[list["PasswordResetToken"]] = relationship(
+        back_populates="owner", passive_deletes=True
+    )
+    preferences: Mapped["UserPreference | None"] = relationship(
         back_populates="owner", passive_deletes=True
     )
