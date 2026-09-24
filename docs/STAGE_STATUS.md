@@ -923,18 +923,104 @@ empty list.
   editing and `fallback_rank` are intentionally unsurfaced (no
   user-meaningful effect until Stage 19 fallback).
 
-**Next stage:** Stage 14 (as-built) — document list/download endpoints
-(roadmap-09 remainder: no download/list/purge-by-id surface yet) and/or
-Settings remainder (roadmap-16: profile/password/privacy sections).
+**Next stage:** Stage 14 (as-built) — live AI enhancement (adapters +
+chain + report UI; the roadmap-18/19/20 slice).
+
+### Stage 14 — Live AI Enhancement (adapters + chain + report UI) ✅ (2026-09-24)
+Optional AI enhancement goes live on TEXT + upload analyses with the
+deterministic pipeline authoritative throughout (commits first; AI can
+never block or alter it; no transaction spans provider network I/O).
+`options.ai_enhance` (live — was accepted-and-ignored through Stage 13):
+`false` → `skipped` without touching providers; `true` + no enabled
+credential → `unconfigured`; enabled-but-adapterless → `failed` +
+"<Label> integration isn't available yet."; overview success → `ok`
+(overview + winning-provider id + ≤10 `suggestion_source: "ai"` rewrites
+on requirements WITH issues, originals immutable); exhaustion → `failed`
++ FIRST (default-first) provider error ≤300 chars. Chain = default →
+fallbacks in rank order, max 3, failover on overview failure only.
+Details:
+
+**Completed:**
+- `app/ai/adapters/` (shared httpx core + OpenAI-compat base + 3
+  subclasses + Gemini; stateless singletons in `BUILTIN_ADAPTERS`),
+  `app/ai/models.py` (model-id SSOT), `app/ai/prompts/` (`overview_v1` +
+  `improvement_v1`, delimited + injection-framed), `app/ai/sanitize.py`
+  (≤8000 chars, honest truncation marker), `registry.resolve_adapter`
+  (fake → builtin → None; `get_adapter` stays fake-only),
+  `services/ai_enhancement.py` (post-commit orchestration + short outcome
+  txn), repo seams (`list_enabled_chain`, `record_ai_result`,
+  `set_suggested_rewrites`), dataclass/schema/presenter `ai_*` mapping
+  (4-value `ai_status` literal, drift-500s), `AI_DEFAULT_TIMEOUT_S` (25)
+  + `AI_MAX_TIMEOUT_S` (60) boot-validated settings, upload `ai_enhance`
+  form field, TEST live for the four (cheap probe + curated list).
+- Frontend: `aiEnhance` through `CreateAnalysisInput`/`UploadDocumentInput`
+  (`options` body / explicit FormData field), opt-in checkbox + Settings
+  link on both analyzer forms, `AiOverviewSection` (4 states, provider
+  attribution, verbatim error with NO retry button, plain-text render),
+  `RequirementCard` rewrite block (AI-labeled, additive-only). History/
+  dashboard untouched (no summary AI fields — no contract churn).
+- 50 backend tests (34 mocked-HTTP adapter/prompt/sanitize/model-table +
+  16 fake-adapter enhancement endpoint/chain/cap/security) + 15 frontend
+  tests (lib bodies, checkboxes + FormData flags, 4 AI states, XSS-inert
+  render, rewrite labeling, full-view integration). Updated: the
+  groq-unavailable TEST test → anthropic (deferred), the raw-seam
+  registry test → builtins/deferred/shadow contract, the
+  accepted-and-ignored `ai_enhance` test → `unconfigured`.
+
+**Verification:** 470/470 pytest + 356/356 vitest, ruff + `tsc` + eslint +
+prettier + mypy clean, `./scripts/verify.sh` green. Live journeys:
+register → verify → login → `ai_enhance:false` (skipped) →
+`ai_enhance:true` with NO provider (unconfigured, deterministic intact,
+GET-after identical) → upload with `ai_enhance` on/off parity → deferred
+(anthropic) credential → `failed` with guidance (no network attempted) →
+bogus-key groq TEST (live transport path confirmed: blocked egress →
+normalized `unavailable` + verdict recorded, no key material involved).
+No provider keys exist in any test or journey (fakes/MockTransport/bogus
+only).
+
+**Security notes (SECURITY_SPEC §4/§6):**
+- Keys decrypt per chain attempt into adapter-call locals only (headers,
+  never URLs — Gemini uses `x-goog-api-key`); never persisted, logged,
+  returned, or attached to exceptions (asserted: key absent from every
+  enhancement/TEST response body).
+- Logs carry provider ids + error codes + latency + model only (no
+  prompts/outputs/keys/exception text — crashes log the exception TYPE,
+  no traceback); raw provider bodies never propagate (`ProviderError`
+  user-messages are adapter-curated).
+- AI text sanitized pre-persist AND React-escaped at render (defense in
+  depth, plain text only); prompts delimit payloads as data with
+  ignore-instructions framing (injection strings stay inert — tested).
+- Egress minimized: finding summaries / one requirement at a time, to the
+  user's OWN provider over HTTPS; no cross-user batching/caching.
+
+**Known limitations (accepted, not bugs):**
+- Anthropic + Hugging Face adapters DEFERRED (distinct REST shapes;
+  re-entry = adapter + model row + flip the deferral tests); their TEST
+  stays deterministically unavailable and enhancement reports `failed`
+  with guidance. `POST /analysis/{id}/retry-ai` still future (no Retry
+  button ships until it exists); creation-time live key proof still
+  future (creation stays shape-only); per-run what-was-sent disclosure
+  copy still future (model disclosed in logs only).
+- NO browser in this sandbox (as in Stages 05–13) — checkbox, AI block
+  states, rewrite styling, and responsive widths NOT pixel-verified, NO
+  screenshots ship (`screenshots/` still empty). First browsed
+  environment must capture `stage14-*` at 390/768/1440 + the pending sets.
+- `docker-compose.yml` STILL unvalidated (no Docker in sandbox).
+- Worst-case sync latency is uncapped beyond per-call timeouts
+  (1 overview + ≤10 improvements at concurrency 4, each ≤60 s + retries
+  × up to 3 chain attempts) — a future async/job stage owns budgets.
+
+**Next stage:** Stage 15 (as-built) — document list/download endpoints
+(roadmap-09 remainder) and/or Settings remainder (roadmap-16:
+profile/password/privacy sections) and/or the `retry-ai` endpoint.
 
 ## Current stage
-None active — Stage 13 complete; all success conditions hold (provider
-settings UI on the Stage 12 API, secrets never displayed/persisted,
-server truth after every mutation, code-mapped errors, existing auth/
-analyzer/report/history/dashboard intact, 418/418 + 341/341 tests,
-journey green, docs match).
-Next: **Stage 14 (as-built) — document list/download and/or Settings
-remainder (profile/password/privacy)**.
+None active — Stage 14 complete; all success conditions hold (optional AI
+enhancement live with deterministic authoritative, fail-open everywhere,
+4 adapters + chain + report UI, secrets never persisted/logged/returned,
+470/470 + 356/356 tests, journeys green, docs match).
+Next: **Stage 15 (as-built) — document list/download and/or Settings
+remainder (profile/password/privacy) and/or `retry-ai`**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 Database → backend → auth backend → auth frontend → SRS input/segmentation/preview ✅ →
@@ -987,8 +1073,9 @@ responsive/a11y → QA → deploy → docs/shots → audit.
 1. IMPLEMENTED: `app/{models,schemas,services,repositories,exceptions}/`
    (Stages 02–03), `app/analysis/` (Stage 07), `app/email/` (Stage 04),
    `app/documents/` + `app/storage/` (Stage 08), `app/ai/` ABC + registry
-   + `app/core/vault.py` (Stage 12 — adapters still future, Stage 18).
-   No docstring-only seams remain under `app/`.
+   + `app/core/vault.py` (Stage 12) + 4 adapters + prompts + sanitizer +
+   `services/ai_enhancement.py` (Stage 14 — anthropic/HF deferred,
+   `retry-ai` future). No docstring-only seams remain under `app/`.
 2. Never rename `owner_id`, envelope shapes, env names, or `docs/` files without ADR + CHANGELOG.
 3. Never `npm install` a dependency the stage doesn't import (recharts: dashboard/report stages).
 4. Frontend placeholder `/` page must be REPLACED in the SEO/marketing stage, not extended.

@@ -8,7 +8,7 @@ from functools import lru_cache
 from typing import Literal
 
 from cryptography.fernet import Fernet
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -89,6 +89,12 @@ class Settings(BaseSettings):
     # Credential-test budget: per-user tests per minute (tests can trigger
     # external provider calls — tighter than the auth default).
     RATE_LIMIT_AI_TEST_PER_MINUTE: int = 10
+    # --- Stage 14: AI enhancement budgets (AI_PROVIDER_SPEC §2) ---
+    # Per-call provider timeout (seconds); adapters clamp every `timeout_s`
+    # into [1, AI_MAX_TIMEOUT_S]. DEFAULT > MAX is operator misconfig and
+    # fails boot loudly (the model validator below) rather than silently.
+    AI_DEFAULT_TIMEOUT_S: int = 25
+    AI_MAX_TIMEOUT_S: int = 60
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
@@ -121,6 +127,14 @@ class Settings(BaseSettings):
                 "Generate one per backend/.env.example."
             ) from None
         return value
+
+    @model_validator(mode="after")
+    def _ai_timeout_budget_coherent(self) -> "Settings":
+        if self.AI_MAX_TIMEOUT_S < 1:
+            raise ValueError("AI_MAX_TIMEOUT_S must be at least 1.")
+        if not 1 <= self.AI_DEFAULT_TIMEOUT_S <= self.AI_MAX_TIMEOUT_S:
+            raise ValueError("AI_DEFAULT_TIMEOUT_S must be within [1, AI_MAX_TIMEOUT_S].")
+        return self
 
     @property
     def is_production(self) -> bool:

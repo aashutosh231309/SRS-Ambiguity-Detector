@@ -199,11 +199,13 @@ async def upload_and_analyze(
     content_type: object,
     read: Callable[[int], Awaitable[bytes]],
     title: str | None,
+    ai_enhance: bool = False,
 ) -> tuple[DocumentDetail, AnalysisDetail]:
     """Full pipeline: stream → validate → extract → analyze → persist.
     Raises AppError (safe codes); any failure leaves no rows, no objects, no
     temp files. NOT @transactional itself — `_persist_upload` owns the (short)
-    commit window after all slow work is done."""
+    commit window after all slow work is done; the OPTIONAL AI step (Stage 14)
+    runs after that commit, same as the TEXT path (shared enhancement call)."""
     settings = get_settings()
     backend = get_storage_backend()
     staged, byte_size, sha256_hex = await _stage_upload(
@@ -256,6 +258,13 @@ async def upload_and_analyze(
         analysis.requirements_count,
         analysis.issues_count,
         analysis.score,
+    )
+    # Same post-commit AI step as the TEXT path (lazy import matches the
+    # TEXT orchestrator — provider-adjacent imports stay out of module scope).
+    from app.services.ai_enhancement import enhance_analysis
+
+    analysis = await enhance_analysis(
+        session, owner_id=owner_id, detail=analysis, ai_enhance=ai_enhance
     )
     return document, analysis
 

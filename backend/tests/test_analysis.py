@@ -255,8 +255,11 @@ def test_explicit_null_document_id_and_ai_enhance_accepted(analysis_client: Test
         analysis_client,
         {"text": SAMPLE_SRS, "document_id": None, "options": {"ai_enhance": True}},
     )
-    assert resp.status_code == 201  # ai_enhance accepted-and-ignored until Stage 19
-    assert resp.json()["ai_status"] == "skipped"
+    assert resp.status_code == 201  # ai_enhance live since Stage 14 (no key → unconfigured)
+    body = resp.json()
+    assert body["ai_status"] == "unconfigured"
+    assert body["ai_overview"] is None and body["ai_error"] is None
+    assert body["status"] == "analyzed" and body["score"] is not None  # deterministic intact
 
 
 def test_repeated_submits_create_distinct_analyses(analysis_client: TestClient) -> None:

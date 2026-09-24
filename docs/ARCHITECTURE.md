@@ -41,7 +41,7 @@ SRS-Ambiguity-Detector/
 │   │   ├── repositories/      # Data access — SQLAlchemy lives here only
 │   │   ├── exceptions/        # AppError → envelope mapping
 │   │   ├── analysis/          # Deterministic NLP/rule engine (Stage 06+)
-│   │   ├── ai/                # ABC + registry (Stage 12 ✅); adapters Stage 18+
+│   │   ├── ai/                # ABC + registry (12 ✅); 4 adapters + prompts + enhancement (14 ✅)
 │   │   ├── email/             # Email port + Resend/console adapters (Stage 04 ✅)
 │   │   └── storage/           # StorageBackend ABC + local adapter (Stage 08 ✅)
 │   ├── alembic.ini            # Migration config (no DSN — env.py reads app config)
@@ -125,10 +125,13 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
   configurable rule packs; emits findings with evidence offsets. MUST have zero network
   calls and zero LLM calls. Its Stage 06 precursor, `services/segmentation.py`, already
   honors that rule: pure segmentation over normalized text, no I/O, no scores.
-- `app/ai/` (Stage 12 ✅) — provider abstraction (`AIProvider` ABC) + metadata
-  registry (no adapters until Stage 18). Called ONLY from an enhancement step that can
-  fail open (deterministic result is always returned). `app/core/vault.py` (Stage 12 ✅)
-  owns the Fernet envelope for per-user keys (env-only master key, lazy validation).
+- `app/ai/` (Stage 12 ✅ + Stage 14 ✅) — provider abstraction (`AIProvider` ABC) +
+  metadata registry + four adapters (`adapters/`: shared httpx core, OpenAI-compat
+  base, gemini/groq/openai/openrouter) + versioned prompts + sanitizer + model
+  table. Called ONLY from `services/ai_enhancement.py`, which runs post-commit
+  and fails open (deterministic result is always returned). `app/core/vault.py`
+  (Stage 12 ✅) owns the Fernet envelope for per-user keys (env-only master key,
+  lazy validation).
 - `app/email/` (Stage 04 ✅) — port (`EmailMessage` + templates + `EmailService` ABC)
   with Resend (prod) and console/file-outbox (dev-only, refused in prod) adapters;
   sends are best-effort post-commit background work.
@@ -204,18 +207,23 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
 
 ## 6. Canonical request flows
 
-**Analyze text (Stage 07 ✅):** `POST /api/v1/analysis` → verified-user guard
-(authn + CSRF + 20/min per-user bucket) → validate → normalize → deterministic
-segment → detect → score → transactional persist (`analyses` + `requirements` +
-`issues`) → `201` ANALYZED detail (scores, nested issues, `score_breakdown`,
-`ai_status` `skipped`). AI enhancement joins the same flow in later stages.
+**Analyze text (Stage 07 ✅ + AI Stage 14 ✅):** `POST /api/v1/analysis` →
+verified-user guard (authn + CSRF + 20/min per-user bucket) → validate →
+normalize → deterministic segment → detect → score → transactional persist
+(`analyses` + `requirements` + `issues`) → OPTIONAL AI step (only when
+`options.ai_enhance` is true: credential chain → provider calls OUTSIDE any
+transaction → one short follow-up txn stamps ONLY `ai_*` columns + rewrites)
+→ `201` ANALYZED detail (scores, nested issues, `score_breakdown`, honest
+`ai_status`). AI can never block or alter the deterministic result.
 
 **Upload (Stage 08 ✅):** `POST /api/v1/documents/upload` → verified-user guard
 (authn + CSRF + 10/min upload bucket) → stream to 0600 temp (byte budget on
 the TRUE count) → validate+extract in a worker thread + 60 s timeout → SAME
 segment → detect → score pipeline as pasted text → one transaction (document
 row + FULL analysis graph) → move temp into storage → `201`
-`{document, analysis}`. Any failure: no rows, no objects, no temp files.
+`{document, analysis}` (+ the SAME post-commit AI step when the `ai_enhance`
+form field is true — Stage 14: one shared enhancement call, identical
+vocabulary). Any failure: no rows, no objects, no temp files.
 
 **Auth (backend ✅ Stage 04; UI ✅ Stage 05):** register → unverified (+ verify email) →
 verify link → verified + auto-login; login issues short-lived access JWT + rotating
@@ -234,6 +242,7 @@ Backend reads env via `app/core/config.py` (see `backend/.env.example` for the f
 | `DATABASE_URL` | staging/prod (Stage 02+) | `postgresql+asyncpg://…` (pooled/app connection) |
 | `DIRECT_DATABASE_URL` | staging/prod (Stage 02+) | Direct connection for Alembic migrations (bypasses pooler) |
 | `ENCRYPTION_MASTER_KEY` | staging/prod (Stage 12 ✅) | Fernet key encrypting provider API keys at rest (absent legal — AI optional; malformed fails boot) |
+| `AI_DEFAULT_TIMEOUT_S` (25) + `AI_MAX_TIMEOUT_S` (60) | all (Stage 14 ✅) | Per-call provider timeout + hard clamp (adapters clamp every `timeout_s` into `[1, MAX]`; DEFAULT > MAX fails boot) |
 | `JWT_SECRET`, `ACCESS_TOKEN_MINUTES`, `REFRESH_TOKEN_DAYS` (+ verify/reset TTLs) | all (Stage 04 ✅) | Access/refresh signing — secret REQUIRED, fail-closed |
 | `EMAIL_PROVIDER`, `RESEND_API_KEY`, `EMAIL_FROM`, `APP_BASE_URL`, `DEV_OUTBOX_DIR` | all (Stage 04 ✅) | Transactional email (console dev-only, refused in prod) |
 | `RATE_LIMIT_*` | all (Stage 04 ✅ + Stage 06 ✅ + Stage 08 ✅ + Stage 12 ✅) | Auth buckets + per-user analysis bucket (`RATE_LIMIT_ANALYSIS_PER_MINUTE`, default 20) + per-user upload bucket (`RATE_LIMIT_UPLOADS_PER_MINUTE`, default 10) + per-user AI-test bucket (`RATE_LIMIT_AI_TEST_PER_MINUTE`, default 10), single-process (distributed Stage 22) |

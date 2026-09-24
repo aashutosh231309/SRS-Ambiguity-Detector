@@ -242,4 +242,34 @@ describe("AnalyzerForm", () => {
     expect((screen.getByLabelText("Title (optional)") as HTMLInputElement).value).toBe("Draft");
     expect((screen.getByLabelText("SRS text") as HTMLTextAreaElement).value).toBe("FR-1: resumed");
   });
+
+  it("sends ai_enhance false by default, true when the checkbox is checked", async () => {
+    const user = userEvent.setup();
+    const bodies: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        bodies.push(JSON.parse(String(init?.body)));
+        return jsonResponse(analysisResult());
+      }),
+    );
+    render(<AnalyzerForm onResult={() => {}} />);
+    const checkbox = screen.getByRole("checkbox", { name: "Enhance with AI" });
+    expect((checkbox as HTMLInputElement).checked).toBe(false);
+    fireEvent.change(screen.getByLabelText("SRS text"), { target: { value: "FR-1: hi" } });
+    await user.click(screen.getByRole("button", { name: "Analyze requirements" }));
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]).toMatchObject({ options: { ai_enhance: false } });
+    await user.click(checkbox);
+    await user.click(screen.getByRole("button", { name: "Analyze requirements" }));
+    await waitFor(() => expect(bodies).toHaveLength(2));
+    expect(bodies[1]).toMatchObject({ options: { ai_enhance: true } });
+  });
+
+  it("links to Settings for provider management", () => {
+    render(<AnalyzerForm onResult={() => {}} />);
+    expect(
+      screen.getByRole("link", { name: "Manage providers in Settings" }).getAttribute("href"),
+    ).toBe("/settings");
+  });
 });

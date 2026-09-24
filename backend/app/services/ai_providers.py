@@ -22,7 +22,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.providers import ProviderError
-from app.ai.registry import PROVIDER_ORDER, get_adapter, is_supported_provider
+from app.ai.registry import PROVIDER_ORDER, is_supported_provider, resolve_adapter
 from app.core.logging import get_logger
 from app.core.security import utcnow
 from app.core.vault import (
@@ -328,7 +328,7 @@ async def test_credential(
     """Live-check a credential OUTSIDE any transaction (no txn may span
     network I/O) and record the verdict in a short follow-up transaction.
 
-    Until Stage 18 ships adapters, every provider deterministically reports
+    Deferred providers (no adapter yet) deterministically report
     unavailable: 200 `{ok: false}` with a ship-date message, `last_test_*`
     untouched. A missing master key / broken vault is OUR outage → 500; a
     disabled credential tests fine (the check validates key material, not
@@ -338,7 +338,7 @@ async def test_credential(
     )
     if row is None:
         raise _not_found()
-    adapter = get_adapter(row.provider)
+    adapter = resolve_adapter(row.provider)
     if adapter is None:
         logger.info(
             "credential test unavailable credential_id=%s owner_id=%s provider=%s",

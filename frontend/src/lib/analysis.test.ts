@@ -91,7 +91,11 @@ describe("analysis api layer", () => {
         return jsonResponse(analysisResult());
       }),
     );
-    const result = await createAnalysis({ title: "Login SRS", text: "FR-001: hi" });
+    const result = await createAnalysis({
+      title: "Login SRS",
+      text: "FR-001: hi",
+      aiEnhance: false,
+    });
     expect(result).toEqual(analysisResult());
     expect(urls).toHaveLength(1);
     expect(urls[0]).toMatch(/\/analysis$/);
@@ -99,6 +103,24 @@ describe("analysis api layer", () => {
     expect(JSON.parse(String(inits[0]?.body))).toEqual({
       title: "Login SRS",
       text: "FR-001: hi",
+      options: { ai_enhance: false },
+    });
+  });
+
+  it("sends options.ai_enhance true when the AI step is requested", async () => {
+    const inits: Array<RequestInit | undefined> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        inits.push(init);
+        return jsonResponse(analysisResult());
+      }),
+    );
+    await createAnalysis({ title: "t", text: "FR-001: hi", aiEnhance: true });
+    expect(JSON.parse(String(inits[0]?.body))).toEqual({
+      title: "t",
+      text: "FR-001: hi",
+      options: { ai_enhance: true },
     });
   });
 
@@ -111,8 +133,12 @@ describe("analysis api layer", () => {
         return jsonResponse(analysisResult());
       }),
     );
-    await createAnalysis({ title: "", text: "FR-001: hi" });
-    expect(JSON.parse(String(inits[0]?.body))).toEqual({ title: "", text: "FR-001: hi" });
+    await createAnalysis({ title: "", text: "FR-001: hi", aiEnhance: false });
+    expect(JSON.parse(String(inits[0]?.body))).toEqual({
+      title: "",
+      text: "FR-001: hi",
+      options: { ai_enhance: false },
+    });
   });
 
   it("silently refreshes once on 401, then retries the creation", async () => {
@@ -131,7 +157,7 @@ describe("analysis api layer", () => {
         return jsonResponse(analysisResult());
       }),
     );
-    const result = await createAnalysis({ title: "t", text: "FR-001: hi" });
+    const result = await createAnalysis({ title: "t", text: "FR-001: hi", aiEnhance: false });
     expect(result.id).toBe("analysis-1");
     expect(paths.filter((p) => p.endsWith("/analysis"))).toHaveLength(2);
     expect(paths.filter((p) => p.includes("/auth/refresh"))).toHaveLength(1);
@@ -149,9 +175,11 @@ describe("analysis api layer", () => {
           : envelope("unauthenticated", 401);
       }),
     );
-    const failure = await createAnalysis({ title: "t", text: "FR-001: hi" }).catch(
-      (err: unknown) => err,
-    );
+    const failure = await createAnalysis({
+      title: "t",
+      text: "FR-001: hi",
+      aiEnhance: false,
+    }).catch((err: unknown) => err);
     expect(failure).toBeInstanceOf(ApiRequestError);
     expect((failure as ApiRequestError).code).toBe("unauthenticated");
     expect(paths.filter((p) => p.endsWith("/analysis"))).toHaveLength(1);
@@ -160,7 +188,9 @@ describe("analysis api layer", () => {
   it("does not retry non-401 failures", async () => {
     const fetchMock = vi.fn(async () => envelope("no_requirements_detected", 400));
     vi.stubGlobal("fetch", fetchMock);
-    await expect(createAnalysis({ title: "t", text: "prose" })).rejects.toMatchObject({
+    await expect(
+      createAnalysis({ title: "t", text: "prose", aiEnhance: false }),
+    ).rejects.toMatchObject({
       code: "no_requirements_detected",
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);

@@ -70,6 +70,22 @@ class AICredentialRepository:
         )
         return list(result.scalars().all())
 
+    async def list_enabled_chain(self, *, owner_id: uuid.UUID) -> list[AICredential]:
+        """Owned ENABLED rows in enhancement-chain order (Stage 14): the
+        default first, then `fallback_rank` ascending, then oldest — the
+        service tries them in this order (AI_PROVIDER_SPEC §5/§7)."""
+        result = await self._session.execute(
+            select(AICredential)
+            .where(AICredential.owner_id == owner_id, AICredential.is_enabled)
+            .order_by(
+                AICredential.is_default.desc(),
+                AICredential.fallback_rank.asc(),
+                AICredential.created_at.asc(),
+                AICredential.id.asc(),
+            )
+        )
+        return list(result.scalars().all())
+
     async def get_enabled(
         self, *, owner_id: uuid.UUID, provider: str, exclude_id: uuid.UUID | None = None
     ) -> AICredential | None:

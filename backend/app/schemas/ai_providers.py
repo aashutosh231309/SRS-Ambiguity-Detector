@@ -22,7 +22,8 @@ ApiKey = Annotated[str, StringConstraints(strip_whitespace=True, min_length=4, m
 
 class ProviderCreateRequest(BaseModel):
     """Store a credential: always enabled, never default (explicit PATCH opts
-    into default). No live proof-of-key yet — Stage 18 adapters light that up."""
+    into default). No live proof-of-key yet — adapters exist (Stage 14) but
+    the creation-proof flow is a future hardening slice."""
 
     provider: ProviderId
     label: str | None = Field(default=None, max_length=80)

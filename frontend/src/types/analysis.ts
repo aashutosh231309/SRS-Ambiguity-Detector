@@ -48,7 +48,7 @@ export interface SegmentedRequirement {
   severity: RequirementSeverity | null;
   issues_count: number;
   suggested_rewrite: string | null;
-  suggestion_source: string | null;
+  suggestion_source: "rule" | "ai" | null;
   segmentation: SegmentationMeta;
   issues: AnalysisIssue[];
 }
@@ -87,6 +87,11 @@ export interface AnalysisDocumentRef {
   file_type: "pdf" | "docx" | "txt";
 }
 
+/** AI enhancement outcome (Stage 14): `ok` = overview (+ rewrites) generated;
+ * `failed` = attempted, user-safe `ai_error` explains; `skipped` = not
+ * requested; `unconfigured` = requested but no usable provider. */
+export type AiStatus = "ok" | "failed" | "skipped" | "unconfigured";
+
 export interface AnalysisResult {
   id: string;
   title: string;
@@ -101,7 +106,7 @@ export interface AnalysisResult {
   health: HealthDimensions | null;
   ai_overview: string | null;
   ai_provider: string | null;
-  ai_status: "skipped";
+  ai_status: AiStatus;
   ai_error: string | null;
   requirements: SegmentedRequirement[];
   created_at: string;
@@ -140,4 +145,7 @@ export interface ListAnalysesParams {
 export interface CreateAnalysisInput {
   title: string;
   text: string;
+  /** Opt into the post-commit AI step (Stage 14): overview + per-requirement
+   * rewrites via the user's own provider; false = deterministic-only. */
+  aiEnhance: boolean;
 }

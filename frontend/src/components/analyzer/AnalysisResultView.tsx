@@ -2,11 +2,13 @@
 
 /**
  * Analysis result report (Stage 09): overall score + heuristic band, severity
- * stats, category + requirement-health overviews, and the filterable /
- * sortable requirement list with collapsible explainable issues. Shared by
- * the fresh workspace result (`context="fresh"`) and the saved-report route
- * (`context="saved"` — the footer `actions` differ, the report never does).
- * Everything rendered is the persisted backend record — no recalculation.
+ * stats, the AI enhancement outcome block (Stage 14 — overview / error /
+ * empty state / skipped note), category + requirement-health overviews, and
+ * the filterable / sortable requirement list with collapsible explainable
+ * issues. Shared by the fresh workspace result (`context="fresh"`) and the
+ * saved-report route (`context="saved"` — the footer `actions` differ, the
+ * report never does). Everything rendered is the persisted backend record —
+ * no recalculation.
  */
 
 import { useMemo, useState } from "react";
@@ -22,6 +24,7 @@ import {
   type SortMode,
 } from "@/lib/reporting";
 
+import { AiOverviewSection } from "./AiOverviewSection";
 import { CategoryBars } from "./CategoryBars";
 import { HealthBars } from "./HealthBars";
 import { RequirementCard } from "./RequirementCard";
@@ -202,6 +205,13 @@ export function AnalysisResultView({
           not a scientifically validated measurement of requirement quality.
         </p>
       </div>
+
+      <AiOverviewSection
+        status={result.ai_status}
+        overview={result.ai_overview}
+        provider={result.ai_provider}
+        error={result.ai_error}
+      />
 
       {result.status === "segmented" ? (
         <div

@@ -276,4 +276,34 @@ describe("DocumentUploadForm", () => {
     await user.click(screen.getByRole("button", { name: "Upload and analyze" }));
     expect(await screen.findByText(/larger than 10 MB/)).toBeDefined();
   });
+
+  it("sends ai_enhance explicitly (false by default, true when checked)", async () => {
+    const user = userEvent.setup();
+    const flags: Array<string | null> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        flags.push((init?.body as FormData).get("ai_enhance") as string | null);
+        return jsonResponse({ document: documentMetadata(), analysis: analysisResult() });
+      }),
+    );
+    render(<DocumentUploadForm onResult={() => {}} />);
+    fireEvent.change(screen.getByLabelText("SRS file"), { target: { files: [textFile()] } });
+    const checkbox = screen.getByRole("checkbox", { name: "Enhance with AI" });
+    expect((checkbox as HTMLInputElement).checked).toBe(false);
+    await user.click(screen.getByRole("button", { name: "Upload and analyze" }));
+    await waitFor(() => expect(flags).toHaveLength(1));
+    expect(flags[0]).toBe("false");
+    await user.click(checkbox);
+    await user.click(screen.getByRole("button", { name: "Upload and analyze" }));
+    await waitFor(() => expect(flags).toHaveLength(2));
+    expect(flags[1]).toBe("true");
+  });
+
+  it("links to Settings for provider management", () => {
+    render(<DocumentUploadForm onResult={() => {}} />);
+    expect(
+      screen.getByRole("link", { name: "Manage providers in Settings" }).getAttribute("href"),
+    ).toBe("/settings");
+  });
 });

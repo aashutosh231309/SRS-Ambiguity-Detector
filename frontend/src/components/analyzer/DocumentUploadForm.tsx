@@ -3,10 +3,11 @@
 /**
  * SRS file upload + analysis submit (Stage 08: uploading runs the SAME
  * pipeline as pasted text — validate, extract, segment, detect, score).
- * Dropzone + file picker for exactly one PDF/DOCX/TXT file, title field,
- * client mirrors of server validation (instant feedback only — the server
- * rules), an honest pending state, and server-error mapping by backend
- * `code`.
+ * Dropzone + file picker for exactly one PDF/DOCX/TXT file, title field, an
+ * opt-in AI enhancement checkbox (Stage 14 — same shared step as pasted
+ * text, your own provider key, Settings-linked), client mirrors of server
+ * validation (instant feedback only — the server rules), an honest pending
+ * state, and server-error mapping by backend `code`.
  *
  * Progress honesty: `fetch` exposes no upload-progress events, so the form
  * shows ONE indeterminate state ("Uploading and analyzing…") with a caption
@@ -14,6 +15,7 @@
  */
 
 import { useId, useState } from "react";
+import Link from "next/link";
 import { FileText, Loader2, Upload, X } from "lucide-react";
 
 import type { AnalysisResult } from "@/types/analysis";
@@ -50,6 +52,7 @@ export function DocumentUploadForm({
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
   const [title, setTitle] = useState(initial?.title ?? "");
+  const [aiEnhance, setAiEnhance] = useState(false);
   const [pending, setPending] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ file?: string; title?: string }>({});
@@ -57,6 +60,7 @@ export function DocumentUploadForm({
   const inputId = useId();
   const fileErrorId = `${inputId}-error`;
   const hintId = `${inputId}-hint`;
+  const aiEnhanceId = useId();
 
   const titleTooLong = title.length > UPLOAD_LIMITS.maxTitle;
   // Length violations surface LIVE (derived, not submit-gated): the submit
@@ -103,7 +107,7 @@ export function DocumentUploadForm({
     setFormError(null);
     setFieldErrors({});
     try {
-      const { analysis } = await uploadDocument({ file, title });
+      const { analysis } = await uploadDocument({ file, title, aiEnhance });
       onResult(analysis, { title });
     } catch (err: unknown) {
       // The server's verdict reads as form-level copy (the file row carries
@@ -229,6 +233,33 @@ export function DocumentUploadForm({
             {fileError}
           </p>
         ) : null}
+      </div>
+
+      <div className="flex items-start gap-3 rounded-card border border-line bg-paper p-4">
+        <input
+          id={aiEnhanceId}
+          type="checkbox"
+          checked={aiEnhance}
+          onChange={(event) => setAiEnhance(event.target.checked)}
+          disabled={pending}
+          className="mt-1 size-4 shrink-0 accent-signal"
+        />
+        <div>
+          <label htmlFor={aiEnhanceId} className="text-[15px] font-medium text-ink">
+            Enhance with AI
+          </label>
+          <p className="mt-1 text-[13px] leading-relaxed text-ink-faint">
+            Adds an AI-written overview plus per-requirement rewrites, generated with your own
+            provider key. Deterministic scores and issues are unaffected either way.{" "}
+            <Link
+              href="/settings"
+              className="font-medium text-signal underline decoration-signal/40 underline-offset-2 transition hover:decoration-signal"
+            >
+              Manage providers in Settings
+            </Link>
+            .
+          </p>
+        </div>
       </div>
 
       {formError ? <FormAlert kind="error">{formError}</FormAlert> : null}

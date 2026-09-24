@@ -2,11 +2,13 @@
 `analyze_text`).
 
 Pure of HTTP: takes a session + plain values, returns plain dataclasses (the
-router maps them to response schemas). Creation is one transaction: validate →
-normalize → segment → run the deterministic engine → persist analysis +
-requirements + issues → commit. Reads are owner-scoped (missing and foreign
-ids are indistinguishable — the IDOR rule). Nothing here calls AI: `ai_status`
-stays `skipped` until the enhancement stages.
+router maps them to response schemas). Creation is one deterministic
+transaction: validate → normalize → segment → run the engine → persist
+analysis + requirements + issues → commit; the TEXT entry point then runs
+the OPTIONAL AI step outside any transaction (Stage 14 — the enhancement
+service owns that call, this module never touches providers directly).
+Reads are owner-scoped (missing and foreign ids are indistinguishable —
+the IDOR rule).
 
 Logs carry ids + counts only — raw SRS text is NEVER logged (SECURITY_SPEC
 §2.5: requirement text is sensitive content).
@@ -61,8 +63,9 @@ SOURCE_EXCERPT_CHARS = 500
 
 @dataclass(frozen=True)
 class IssueDetail:
-    """One persisted finding, JSON-safe. `ai_explanation` is always None
-    until the Stage 19 enhancement fills it (never fabricated)."""
+    """One persisted finding, JSON-safe. `ai_explanation` is always None —
+    no ABC method produces per-issue explanations yet (the Stage 14
+    enhancement fills overviews + rewrites only; never fabricated)."""
 
     id: uuid.UUID
     requirement_id: uuid.UUID
@@ -80,8 +83,9 @@ class IssueDetail:
 @dataclass(frozen=True)
 class RequirementDetail:
     """One persisted requirement with its nested issues in span order.
-    `suggested_rewrite` stays None in Stage 07 (per-issue recommendations
-    carry the guidance; rewrite templates are a later refinement)."""
+    `suggested_rewrite` is None until the Stage 14 AI enhancement stamps one
+    (`suggestion_source='ai'`); rule rewrites would use `'rule'` — the
+    original `text` is never modified, rewrites are additive-only."""
 
     id: uuid.UUID
     position: int
@@ -92,8 +96,8 @@ class RequirementDetail:
     score: int | None
     severity: str | None
     issues_count: int
-    suggested_rewrite: None = None
-    suggestion_source: None = None
+    suggested_rewrite: str | None = None
+    suggestion_source: str | None = None
     issues: tuple[IssueDetail, ...] = ()
 
 
@@ -108,7 +112,12 @@ class DocumentRef:
 
 @dataclass(frozen=True)
 class AnalysisDetail:
-    """One persisted analysis with its requirements (+ nested issues)."""
+    """One persisted analysis with its requirements (+ nested issues).
+
+    `ai_*` mirror the row's enhancement outcome (Stage 14): fresh
+    deterministic details read the `skipped`/NULL defaults; `replace` stamps
+    real outcomes after the AI step (the enhancement service owns that).
+    """
 
     id: uuid.UUID
     title: str
@@ -124,6 +133,10 @@ class AnalysisDetail:
     updated_at: datetime
     requirements: tuple[RequirementDetail, ...]
     document: DocumentRef | None = None
+    ai_overview: str | None = None
+    ai_provider: str | None = None
+    ai_status: str = "skipped"
+    ai_error: str | None = None
 
 
 @dataclass(frozen=True)
@@ -145,7 +158,6 @@ class AnalysisSummary:
     document: DocumentRef | None = None
 
 
-@transactional
 async def create_text_analysis(
     session: AsyncSession,
     *,
@@ -155,11 +167,35 @@ async def create_text_analysis(
     document_id: uuid.UUID | None,
     ai_enhance: bool,
 ) -> AnalysisDetail:
-    """TEXT entry point: reject by-id analysis, then run the shared pipeline
-    (same transaction — partial analyses are impossible)."""
-    _ = ai_enhance  # accepted-and-ignored until Stage 19 (no AI in Stage 07)
+    """TEXT entry point: reject by-id analysis, persist the deterministic
+    pipeline in ONE transaction (partial analyses are impossible), THEN run
+    the optional AI step outside any transaction (Stage 14: no txn may span
+    provider network I/O — the AI outcome commits in its own short txn)."""
     if document_id is not None:
         raise DocumentAnalysisUnavailableError()
+    detail = await _persist_text_analysis(
+        session,
+        owner_id=owner_id,
+        title=title,
+        text=text,
+    )
+    # Lazy import: ai_enhancement owns AnalysisDetail from THIS module — a
+    # top-level import would cycle. The seam stays one function call.
+    from app.services.ai_enhancement import enhance_analysis
+
+    return await enhance_analysis(session, owner_id=owner_id, detail=detail, ai_enhance=ai_enhance)
+
+
+@transactional
+async def _persist_text_analysis(
+    session: AsyncSession,
+    *,
+    owner_id: uuid.UUID,
+    title: str | None,
+    text: str,
+) -> AnalysisDetail:
+    """Deterministic TEXT persist (the commit `create_text_analysis` returns
+    from before any provider call runs)."""
     return await analyze_text(
         session,
         owner_id=owner_id,
@@ -393,11 +429,17 @@ async def get_analysis_detail(
                 score=row.score,
                 severity=row.severity,
                 issues_count=row.issues_count,
+                suggested_rewrite=row.suggested_rewrite,
+                suggestion_source=row.suggestion_source,
                 issues=tuple(by_requirement[row.id]),
             )
             for row in requirements
         ),
         document=document,
+        ai_overview=analysis.ai_overview,
+        ai_provider=analysis.ai_provider,
+        ai_status=analysis.ai_status,
+        ai_error=analysis.ai_error,
     )
 
 

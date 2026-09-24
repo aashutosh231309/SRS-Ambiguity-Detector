@@ -71,9 +71,20 @@ their own keys; we disclose what is sent — see `AI_PROVIDER_SPEC.md` §Privacy
   never logged, never attached to exceptions, never returned by any endpoint (only
   `masked_key` = 12 bullets + `last4`). `GET /ai/providers` response shape is
   allowlist-serialized; `VaultError` messages name the failure category only and map
-  to `500 internal_error` with a generic message.
+  to `500 internal_error` with a generic message. Stage 14 (enhancement): ciphertext
+  decrypts per chain attempt into a local handed to the adapter in-process (headers
+  only — Gemini uses `x-goog-api-key`, never `?key=` URLs); a vault failure inside
+  enhancement fails OPEN (`failed` + generic message, deterministic intact) since
+  the analysis already persisted. Enhancement logs carry provider ids + error
+  codes + latency + model ONLY — never prompts, outputs, keys, or exception text
+  (unexpected crashes log the exception TYPE, no traceback).
 - Deletion: row delete on provider removal AND account deletion; no soft-delete, no backups
   exemption documented (managed-DB PITR window is disclosed in Privacy UI copy, Stage 23).
+- Provider egress (Stage 14): enhancement sends ONLY finding summaries (overview) or one
+  requirement + its findings (improvement) to the user's OWN configured provider over
+  HTTPS — never credentials, never other users' data, never full documents when excerpts
+  do (AI_PROVIDER_SPEC §1.4/§8). No batching across users, no cross-user cache; the
+  provider host allowlist is server-side constants (user-supplied hosts never accepted).
 
 ## 5. Upload pipeline (IMPLEMENTED Stage 08 — contract: API_CONTRACT §4.4)
 
@@ -108,7 +119,10 @@ their own keys; we disclose what is sent — see `AI_PROVIDER_SPEC.md` §Privacy
 - Stored XSS: requirement text, filenames, AI text are UNTRUSTED. Frontend renders via
   React escaping by default; highlight rendering (marking ambiguous phrases) MUST build
   ranges from offsets programmatically — never `dangerouslySetInnerHTML` on raw text.
-  Markdown from AI (if any) → sanitized renderer (allowlist tags, no raw HTML) in Stage 19.
+  AI text (Stage 14): backend-sanitized BEFORE persist (endings normalized,
+  control chars stripped, ≤8000 chars with `…[truncated]` marker) AND
+  React-escaped at render — defense in depth, plain text ONLY (no markdown
+  renderer ships; if one ever does it allowlists tags with no raw HTML).
 - SQLi: SQLAlchemy parameterized queries ONLY; no f-string SQL; `text()` with bound params
   only. Dependency: keep `asyncpg`/SQLAlchemy patched.
 - Open redirects: no `?next=`/return-URL params; post-login landing is a fixed allowlist

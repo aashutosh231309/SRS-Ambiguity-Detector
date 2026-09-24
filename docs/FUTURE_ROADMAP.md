@@ -79,6 +79,15 @@
 > replace/remove on the Stage 12 API; no backend changes) — roadmap-16's
 > remainder (profile, password, privacy, DELETE-typed account deletion)
 > slots into the same route as future sections.
+> Actual Stage 14 (2026-09-24) absorbed roadmap-18 + roadmap-19 + the
+> roadmap-20 chain/matrix slice EARLY as live AI enhancement: 4 of 6
+> adapters (gemini/groq/openai/openrouter over mocked-HTTP tests),
+> versioned prompts + sanitizer + model table, the post-commit
+> default→fallback chain (max 3, first-error-wins), overview + capped
+> rewrites on TEXT and upload paths, TEST gone live for the four, and the
+> analyzer checkbox + four-state report block. Open remainders: anthropic
+> + huggingface adapters, `POST /analysis/{id}/retry-ai`, creation-time
+> live key proof, per-run what-was-sent disclosure copy.
 > The table above keeps its original numbers; STAGE_STATUS.md records the
 > as-built mapping.
 

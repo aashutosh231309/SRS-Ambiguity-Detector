@@ -27,7 +27,7 @@ to this baseline — never a replacement:
 | 3 | Ambiguity detection | Stage 06–07 |
 | 4 | Ambiguity categories | Stage 06 |
 | 5 | Explanation of detected ambiguity | Stage 06–07, UI Stage 13 |
-| 6 | Suggested improvements for unclear requirements | Stage 06–07 (+ AI Stage 19) |
+| 6 | Suggested improvements for unclear requirements | Stage 06–07 (+ AI Stage 14 as-built: overview + rewrites via user providers) |
 | 7 | Ambiguity score | Stage 06–07 |
 | 8 | User authentication | Stage 04–05 |
 | 9 | Database storage (PostgreSQL) | Stage 02–03 |

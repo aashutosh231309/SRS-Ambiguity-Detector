@@ -4,8 +4,9 @@ The vault is the trust root for every stored key, so these tests pin its
 failure semantics exactly: roundtrip, non-determinism, wrong-key / tampered /
 malformed ciphertext, missing-vs-malformed master key, fingerprint shape, and
 the hard rule that NO failure mode ever echoes secret material. Registry
-tests pin the six-provider table, order, and the adapter seam (empty until
-Stage 18 — fakes register/unregister cleanly).
+tests pin the six-provider table, order, the fake-only raw seam, and
+`resolve_adapter` (builtins for 4 of 6, None for deferred providers —
+fakes shadow builtins by id).
 """
 
 from collections.abc import Generator
@@ -29,6 +30,7 @@ from app.ai.registry import (
     get_adapter,
     is_supported_provider,
     register_adapter,
+    resolve_adapter,
     unregister_adapter,
 )
 from app.core.config import get_settings
@@ -177,9 +179,46 @@ def test_registry_metadata_is_public_and_https() -> None:
     assert not is_supported_provider("openal")
 
 
-def test_registry_has_no_adapters_until_stage_18() -> None:
+def test_raw_adapter_seam_holds_fakes_only() -> None:
+    # Stage 14: `get_adapter` is the fake-only seam (builtins resolve via
+    # `resolve_adapter`, never here) — nothing registers builtins globally,
+    # so suites stay hermetic whatever ran before.
+    saved = {provider_id: get_adapter(provider_id) for provider_id in PROVIDER_IDS}
     for provider_id in PROVIDER_IDS:
-        assert get_adapter(provider_id) is None
+        unregister_adapter(provider_id)
+    try:
+        for provider_id in PROVIDER_IDS:
+            assert get_adapter(provider_id) is None
+    finally:
+        for fake in saved.values():
+            if fake is not None:
+                register_adapter(fake)
+
+
+def test_resolve_adapter_serves_builtins_and_none_for_deferred() -> None:
+    saved = {provider_id: get_adapter(provider_id) for provider_id in PROVIDER_IDS}
+    for provider_id in PROVIDER_IDS:
+        unregister_adapter(provider_id)
+    try:
+        for provider_id in ("gemini", "groq", "openai", "openrouter"):
+            adapter = resolve_adapter(provider_id)
+            assert adapter is not None
+            assert adapter.id == provider_id
+        assert resolve_adapter("anthropic") is None
+        assert resolve_adapter("huggingface") is None
+    finally:
+        for fake in saved.values():
+            if fake is not None:
+                register_adapter(fake)
+
+
+def test_resolve_adapter_prefers_registered_fake() -> None:
+    fake = _FakeAdapter()
+    try:
+        register_adapter(fake)
+        assert resolve_adapter("groq") is fake  # tests shadow builtins by id
+    finally:
+        unregister_adapter("groq")
 
 
 class _FakeAdapter(AIProvider):

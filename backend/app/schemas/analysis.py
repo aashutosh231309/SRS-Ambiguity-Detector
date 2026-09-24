@@ -4,10 +4,11 @@ TEXT posts here; FILE uploads go to POST /documents/upload (which reuses the
 same pipeline and returns this same detail shape with `source_type` set
 accordingly and `document` populated). `document_id` stays
 accepted-but-rejected (400 — re-analyzing a stored document BY ID has no
-pipeline yet) and `options.ai_enhance` stays
-accepted-and-ignored until Stage 19. POST scores every requirement with the
-deterministic engine (`analyzed`); pre-Stage-07 `segmented` rows still read
-back with NULL scores.
+pipeline yet); `options.ai_enhance` is LIVE since Stage 14 (false =
+deterministic-only `skipped`; true = deterministic + optional AI with an
+honest `ai_status`). POST scores every requirement with the deterministic
+engine (`analyzed`); pre-Stage-07 `segmented` rows still read back with
+NULL scores.
 """
 
 import uuid
@@ -78,8 +79,8 @@ class IssueResponse(BaseModel):
 
 class RequirementResponse(BaseModel):
     """One scored requirement: `score` 0–100, `severity` = highest issue
-    severity (None when clean), `suggested_rewrite` None until rewrite
-    templates land (per-issue recommendations carry the guidance)."""
+    severity (None when clean), `suggested_rewrite` None until the AI
+    enhancement stamps one (`suggestion_source='ai'`; `'rule'` reserved)."""
 
     id: uuid.UUID
     position: int
@@ -124,7 +125,7 @@ class AnalysisDetailResponse(BaseModel):
     health: dict[str, Any] | None = None
     ai_overview: str | None = None
     ai_provider: str | None = None
-    ai_status: Literal["skipped"] = "skipped"
+    ai_status: Literal["ok", "failed", "skipped", "unconfigured"] = "skipped"
     ai_error: str | None = None
     requirements: list[RequirementResponse] = Field(default_factory=list)
     created_at: datetime

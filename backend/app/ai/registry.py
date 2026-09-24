@@ -2,11 +2,13 @@
 
 Metadata is trusted server-side data — `base_url` values are allowlisted
 constants (never user input: SSRF rule) and display names live here so API
-responses can stay on stable machine ids. Live adapters register in Stage 18;
-until then `get_adapter` returns None and credential checks deterministically
-report unavailable (the service seam + tests exercise this path via fakes).
-Adding provider #7 = adapter + metadata row + docs + tests — no router,
-service, or rendering changes.
+responses can stay on stable machine ids. Production adapters ship in
+`app.ai.adapters` (Stage 14: gemini/groq/openai/openrouter; anthropic +
+huggingface deferred). Runtime code resolves via `resolve_adapter`
+(registered fake wins, else the builtin singleton, else None for deferred
+providers); `get_adapter` stays the RAW seam (fakes/tests only) so suites
+never depend on builtins. Adding provider #7 = adapter + metadata row +
+model-table row + docs + tests — no router, service, or rendering changes.
 """
 
 from dataclasses import dataclass
@@ -72,5 +74,22 @@ def unregister_adapter(provider_id: str) -> None:
 
 
 def get_adapter(provider_id: str) -> AIProvider | None:
-    """Live adapter iff one registered (None until Stage 18 adapters land)."""
+    """RAW seam: the registered fake/test double iff one exists (None unless
+    `register_adapter` ran — production builtins are NOT in this map)."""
     return _adapters.get(provider_id)
+
+
+def resolve_adapter(provider_id: str) -> AIProvider | None:
+    """Runtime adapter resolution: registered fake first (tests shadow
+    builtins by id), else the production builtin singleton, else None for
+    deferred providers (anthropic/huggingface — callers report unavailable).
+
+    The adapters import is LAZY (function body): adapter modules read
+    `PROVIDER_METADATA` from this file, so a top-level import would cycle.
+    """
+    fake = _adapters.get(provider_id)
+    if fake is not None:
+        return fake
+    from app.ai.adapters import BUILTIN_ADAPTERS
+
+    return BUILTIN_ADAPTERS.get(provider_id)

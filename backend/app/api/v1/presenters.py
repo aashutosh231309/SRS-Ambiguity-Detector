@@ -38,6 +38,7 @@ from app.services.dashboard import DashboardData
 
 _VALID_STATUSES = ("segmented", "analyzed", "failed")
 _VALID_SOURCE_TYPES = ("text", "document")
+_VALID_AI_STATUSES = ("ok", "failed", "skipped", "unconfigured")
 
 
 def _document_response(doc: DocumentRef | None) -> DocumentRefResponse | None:
@@ -99,6 +100,8 @@ def detail_response(detail: AnalysisDetail) -> AnalysisDetailResponse:
         raise ValueError(f"unexpected analysis status: {detail.status!r}")
     if detail.source_type not in _VALID_SOURCE_TYPES:
         raise ValueError(f"unexpected source type: {detail.source_type!r}")
+    if detail.ai_status not in _VALID_AI_STATUSES:
+        raise ValueError(f"unexpected AI status: {detail.ai_status!r}")
     document = _document_response(detail.document)
     return AnalysisDetailResponse(
         id=detail.id,
@@ -112,6 +115,10 @@ def detail_response(detail: AnalysisDetail) -> AnalysisDetailResponse:
         requirements_count=detail.requirements_count,
         issues_count=detail.issues_count,
         health=detail.health,
+        ai_overview=detail.ai_overview,
+        ai_provider=detail.ai_provider,
+        ai_status=detail.ai_status,  # type: ignore[arg-type]  # narrowed above
+        ai_error=detail.ai_error,
         requirements=[requirement_response(item) for item in detail.requirements],
         created_at=detail.created_at,
         updated_at=detail.updated_at,

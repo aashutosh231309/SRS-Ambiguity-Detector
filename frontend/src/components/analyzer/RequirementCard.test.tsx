@@ -142,4 +142,33 @@ describe("RequirementCard", () => {
     expect(marks.item(0)?.textContent).toBe("The");
     expect(container.textContent).toContain("The service should be fast.");
   });
+
+  it("renders the AI rewrite labeled, with the original untouched", () => {
+    const { container } = render(
+      <RequirementCard
+        requirement={requirement({
+          suggested_rewrite: "The service shall respond within 200 ms.",
+          suggestion_source: "ai",
+        })}
+      />,
+    );
+    expect(screen.getByText("AI-suggested rewrite")).toBeDefined();
+    expect(screen.getByText("The service shall respond within 200 ms.")).toBeDefined();
+    expect(container.textContent).toContain("The service should be fast.");
+  });
+
+  it("labels non-AI rewrites generically and hides the block when null", () => {
+    const { rerender } = render(
+      <RequirementCard
+        requirement={requirement({
+          suggested_rewrite: "A rule-based rewrite.",
+          suggestion_source: "rule",
+        })}
+      />,
+    );
+    expect(screen.getByText("Suggested rewrite")).toBeDefined();
+    expect(screen.queryByText("AI-suggested rewrite")).toBeNull();
+    rerender(<RequirementCard requirement={requirement()} />);
+    expect(screen.queryByText("Suggested rewrite")).toBeNull();
+  });
 });

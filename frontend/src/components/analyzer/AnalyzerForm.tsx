@@ -2,14 +2,16 @@
 
 /**
  * SRS text input + analysis submit (Stage 07: submit segments, detects, scores).
- * Large editor with live character/word counts, title field, client mirrors of
- * server validation
+ * Large editor with live character/word counts, title field, an opt-in AI
+ * enhancement checkbox (Stage 14 — your own provider key, Settings-linked),
+ * client mirrors of server validation
  * (instant feedback only — the server rules), pending/disabled states, and
  * server-error mapping by backend `code`. Counts are plain string math, NOT
  * segmentation — no per-keystroke analysis happens here, ever.
  */
 
 import { useId, useState } from "react";
+import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
 import type { AnalysisResult } from "@/types/analysis";
@@ -39,6 +41,7 @@ export function AnalyzerForm({
 }) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [text, setText] = useState(initial?.text ?? "");
+  const [aiEnhance, setAiEnhance] = useState(false);
   const [pending, setPending] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ title?: string; text?: string }>({});
@@ -46,6 +49,7 @@ export function AnalyzerForm({
   const textareaId = useId();
   const textErrorId = `${textareaId}-error`;
   const countsId = `${textareaId}-counts`;
+  const aiEnhanceId = useId();
 
   const charCount = text.length;
   const wordCount = countWords(text);
@@ -81,7 +85,7 @@ export function AnalyzerForm({
     setFormError(null);
     setFieldErrors({});
     try {
-      const result = await createAnalysis({ title, text });
+      const result = await createAnalysis({ title, text, aiEnhance });
       onResult(result, { title, text });
     } catch (err: unknown) {
       const fields = analysisFieldErrors(err);
@@ -176,6 +180,33 @@ export function AnalyzerForm({
             {textError}
           </p>
         ) : null}
+      </div>
+
+      <div className="flex items-start gap-3 rounded-card border border-line bg-paper p-4">
+        <input
+          id={aiEnhanceId}
+          type="checkbox"
+          checked={aiEnhance}
+          onChange={(event) => setAiEnhance(event.target.checked)}
+          disabled={pending}
+          className="mt-1 size-4 shrink-0 accent-signal"
+        />
+        <div>
+          <label htmlFor={aiEnhanceId} className="text-[15px] font-medium text-ink">
+            Enhance with AI
+          </label>
+          <p className="mt-1 text-[13px] leading-relaxed text-ink-faint">
+            Adds an AI-written overview plus per-requirement rewrites, generated with your own
+            provider key. Deterministic scores and issues are unaffected either way.{" "}
+            <Link
+              href="/settings"
+              className="font-medium text-signal underline decoration-signal/40 underline-offset-2 transition hover:decoration-signal"
+            >
+              Manage providers in Settings
+            </Link>
+            .
+          </p>
+        </div>
       </div>
 
       {formError ? <FormAlert kind="error">{formError}</FormAlert> : null}

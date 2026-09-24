@@ -10,7 +10,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.analysis import Analysis
@@ -191,6 +191,37 @@ class AnalysisRepository:
         await self._session.delete(row)
         await self._session.flush()
 
+    async def record_ai_result(
+        self,
+        *,
+        owner_id: uuid.UUID,
+        analysis_id: uuid.UUID,
+        ai_overview: str | None,
+        ai_provider: str | None,
+        ai_status: str,
+        ai_error: str | None,
+    ) -> int:
+        """Stamp the AI-enhancement outcome on an owned analysis (Stage 14:
+        the deterministic row exists already; this UPDATE touches ONLY the
+        `ai_*` columns). Returns the affected row count — 0 means the row
+        vanished mid-run (concurrent delete); the caller logs, never crashes.
+        """
+        result = await self._session.execute(
+            update(Analysis)
+            .where(Analysis.id == analysis_id, Analysis.owner_id == owner_id)
+            .values(
+                ai_overview=ai_overview,
+                ai_provider=ai_provider,
+                ai_status=ai_status,
+                ai_error=ai_error,
+            )
+        )
+        await self._session.flush()
+        # DML `execute()` yields a CursorResult at runtime (SQLAlchemy docs
+        # sanction `.rowcount`); the declared `Result` type just doesn't admit it.
+        rowcount: int = result.rowcount  # type: ignore[attr-defined]
+        return rowcount
+
 
 class RequirementRepository:
     """`requirements` rows in extraction order (position 0-based, unique)."""
@@ -231,6 +262,24 @@ class RequirementRepository:
             .order_by(Requirement.position.asc())
         )
         return list(result.scalars().all())
+
+    async def set_suggested_rewrites(
+        self, *, analysis_id: uuid.UUID, rewrites: dict[uuid.UUID, str]
+    ) -> None:
+        """Stamp AI rewrites on owned-analysis requirements (Stage 14: one
+        UPDATE per improved requirement — the caller caps the count, so the
+        loop stays bounded; analysis-scoped so a stale id can't cross rows).
+        """
+        for requirement_id, text in rewrites.items():
+            await self._session.execute(
+                update(Requirement)
+                .where(
+                    Requirement.id == requirement_id,
+                    Requirement.analysis_id == analysis_id,
+                )
+                .values(suggested_rewrite=text, suggestion_source="ai")
+            )
+        await self._session.flush()
 
 
 class IssueRepository:

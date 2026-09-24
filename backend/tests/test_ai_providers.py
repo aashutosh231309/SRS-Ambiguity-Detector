@@ -50,6 +50,7 @@ KEY_GROQ = "gsk_live_groq_key_for_stage12_tests_aaa1"
 KEY_GROQ_2 = "gsk_live_groq_key_for_stage12_tests_bbb2"
 KEY_OPENAI = "sk-test-openai-key-stage12-ccc3"
 KEY_GEMINI = "AIza-test-gemini-key-stage12-ddd4"
+KEY_ANTHROPIC = "sk-ant-test-anthropic-key-stage14-eee5"
 
 
 @pytest.fixture(autouse=True)
@@ -632,8 +633,10 @@ def test_deleting_the_default_leaves_no_default(ai_client: TestClient) -> None:
 
 
 def test_without_adapters_reports_unavailable(ai_client: TestClient) -> None:
+    # Deferred provider (Stage 14 ships 4 of 6 adapters): anthropic still has
+    # no adapter, so TEST stays deterministically unavailable for it.
     _login_verified(ai_client, "unavail")
-    row = _create(ai_client, "groq", KEY_GROQ)
+    row = _create(ai_client, "anthropic", KEY_ANTHROPIC)
     response = ai_client.post(f"/api/v1/ai/providers/{row['id']}/test")
     assert response.status_code == 200, response.text
     body = response.json()
@@ -641,7 +644,7 @@ def test_without_adapters_reports_unavailable(ai_client: TestClient) -> None:
     assert body["models"] == []
     assert body["latency_ms"] == 0
     assert "not available yet" in (body["error"] or "")
-    assert KEY_GROQ not in response.text
+    assert KEY_ANTHROPIC not in response.text
     listed = _list(ai_client)[0]  # no attempt ran: verdict stays untouched
     assert listed["last_tested_at"] is None
     assert listed["last_test_status"] is None

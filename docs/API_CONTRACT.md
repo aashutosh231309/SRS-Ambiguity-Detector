@@ -131,11 +131,15 @@ POST /analysis/{id}/retry-ai    Re-run ONLY the AI enhancement step → 200 {ai_
 ```
 - Exactly one of `text` / `document_id`. Limits: `text` ≤ 200 000 chars; requirements cap
   enforced after segmentation (excess → `400 text_too_large` with counts).
-- `ai_enhance:false` skips AI even if configured (deterministic-only run).
+- `ai_enhance:false` skips AI even if configured (deterministic-only run —
+  `ai_status: "skipped"`); `true` runs the shared post-commit AI step
+  (deterministic commits first, AI can never block it) and reports honestly
+  — `ok` / `failed` + user-safe `ai_error` / `unconfigured` (Stage 14
+  amendment below).
 - Stage 07 reality (TEXT ONLY): `text` is required, 1–200 000 chars after app-side
   normalization (empty/whitespace-only → `400 validation_error`); non-null
   `document_id` → `400 document_analysis_unavailable`; `options.ai_enhance` is
-  accepted and ignored (`ai_status` is always `skipped` — no AI call exists yet).
+  LIVE since Stage 14 (was accepted-and-ignored through Stage 13 — see the amendment below).
   No `user_id` is accepted — the analysis belongs to the session user.
   Segmentable text that yields zero requirements → `400
   no_requirements_detected`; nothing is persisted on any 4xx. On success the
@@ -173,8 +177,9 @@ deductions[{issue_id, severity, points}], counts{low, medium, high, critical}}`
 carries `severity` (worst issue severity, `null` when clean), `issues_count`,
 `section`, and a `segmentation` evidence block (`strategy`, `confidence`,
 `start/end_offset`, `line_start/line_end`). Nested issues additionally carry
-`ai_explanation` (`null` until AI enhancement, Stage 17+); `suggested_rewrite`
-is `null` until rule rewrites land (post-Stage 07). There is NO top-level
+`ai_explanation` (`null` — no provider call produces per-issue explanations
+yet); `suggested_rewrite` is `null` until the Stage 14 AI enhancement stamps
+one (`suggestion_source: "ai"`; `"rule"` reserved for future rule rewrites). There is NO top-level
 `issues` (nested-only — PROJECT_SPEC §7's `issues[]` shorthand materializes
 inside each requirement, not beside `requirements[]`) and NO `overall_severity`
 (the band already interprets the score). Issue offsets are
@@ -191,6 +196,25 @@ read back with `score`/`band`/`health` `null`, `score_breakdown` `{}`, and an
 empty `requirements[]`; pre-Stage-07 `"segmented"` rows list requirements
 without scores. If the linked document row is absent, `document` degrades to
 `null` (never a 500, never a filename leak).
+
+**Stage 14 amendment (AI enhancement live — roadmap-18/19/20 slice):**
+`options.ai_enhance: true` runs the shared post-commit AI step on TEXT and
+upload analyses alike (deterministic row commits FIRST; provider calls run
+outside any transaction; the AI outcome lands in one short follow-up txn —
+`POST` returns `201` with the deterministic detail whatever AI does).
+`ai_status` vocabulary: `skipped` (not requested — no credential read);
+`unconfigured` (requested, no ENABLED credential — `ai_error` stays `null`,
+it is not an error); `ok` (`ai_overview` + `ai_provider` id + up to 10
+`suggested_rewrite`/`"ai"` stamps on requirements WITH issues — originals
+immutable); `failed` (attempted — user-safe `ai_error` ≤300 chars,
+deterministic scores/issues intact, `ai_overview`/`ai_provider` null).
+Chain: default → fallbacks in rank order, max 3 attempts, failover on
+overview failure only (improvements are best-effort on the winning
+provider — attribution never mixes). Stored credentials WITHOUT an
+adapter yet (anthropic, huggingface — deferred, AI_PROVIDER_SPEC §4)
+report `failed` with "<Label> integration isn't available yet." (a key IS
+stored, so `unconfigured` would lie). `POST /analysis/{id}/retry-ai` stays
+future (no Retry button ships until it exists).
 
 **Scoring (deterministic — PROJECT_SPEC §6):** base 100; Low −5, Medium −10,
 High −15, Critical −20; requirement score clamped 0–100; analysis score =
@@ -273,8 +297,10 @@ use short-lived signed URLs.
 Request parts: `files` (exactly one; more → `400 too_many_files` with
 `{max_files: 1}` — extra parts are rejected, never silently dropped) +
 optional `title` form field (≤200 chars; blank/missing falls back to the
-sanitized filename). Verified-user + CSRF guarded with its own 10/min
-per-user bucket.
+sanitized filename) + optional `ai_enhance` form field (`true`/`false`,
+default `false` — Stage 14: opts the shared post-commit AI step in, same
+vocabulary as the text path). Verified-user + CSRF guarded with its own
+10/min per-user bucket.
 
 Validation pipeline (all 4xx, nothing persisted on rejection): streamed byte
 budget on the TRUE count → filename sanitization (traversal, absolute

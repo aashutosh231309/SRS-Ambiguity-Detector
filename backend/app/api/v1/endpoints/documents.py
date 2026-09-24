@@ -57,9 +57,11 @@ async def upload_document(
     user: Annotated[UserInfo, Depends(upload_guard)],
     session: Annotated[AsyncSession, Depends(get_session)],
     title: Annotated[str | None, Form(max_length=TITLE_MAX_LENGTH)] = None,
+    ai_enhance: Annotated[bool, Form()] = False,
 ) -> DocumentUploadResponse:
     """Upload one SRS file (pdf/docx/txt) → validate → extract → run the SAME
-    deterministic pipeline as pasted text → 201 `{document, analysis}`."""
+    deterministic pipeline as pasted text → 201 `{document, analysis}`.
+    `ai_enhance` (Stage 14) opts the shared post-commit AI step in."""
     max_files = get_settings().MAX_FILES_PER_REQUEST
     if len(files) > max_files:
         raise TooManyFilesError(max_files)
@@ -77,6 +79,7 @@ async def upload_document(
             content_type=upload.content_type,
             read=upload.read,
             title=title,
+            ai_enhance=ai_enhance,
         )
     finally:
         await upload.close()  # releases the multipart spool file, always

@@ -77,11 +77,13 @@ function MarkedText({ text, issues }: { text: string; issues: AnalysisIssue[] })
 
 /**
  * One scored requirement: score + worst severity + highlighted text +
- * collapsible issues + segmentation provenance. The text stays visible;
- * issues start collapsed behind a toggle so long reports stay scannable
- * (UI_UX_SPEC §30). Parent-owned `expanded`/`onToggle` enable Expand-all;
- * standalone usage stays uncontrolled. Clean requirements say so instead
- * of rendering an empty issues block.
+ * collapsible issues + optional suggested rewrite (Stage 14 — AI-labeled,
+ * additive-only: the original text above is never modified) +
+ * segmentation provenance. The text stays visible; issues start collapsed
+ * behind a toggle so long reports stay scannable (UI_UX_SPEC §30).
+ * Parent-owned `expanded`/`onToggle` enable Expand-all; standalone usage
+ * stays uncontrolled. Clean requirements say so instead of rendering an
+ * empty issues block.
  */
 export function RequirementCard({
   requirement,
@@ -178,6 +180,17 @@ export function RequirementCard({
           ) : null}
         </div>
       )}
+
+      {requirement.suggested_rewrite ? (
+        <div className="mt-3 rounded-lg border border-dashed border-line bg-white p-3">
+          <p className="font-mono text-[11px] tracking-[0.12em] text-ink-faint uppercase">
+            {requirement.suggestion_source === "ai" ? "AI-suggested rewrite" : "Suggested rewrite"}
+          </p>
+          <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-wrap text-ink-soft">
+            {requirement.suggested_rewrite}
+          </p>
+        </div>
+      ) : null}
 
       <p className="mt-3 font-mono text-xs text-ink-faint">
         {`${STRATEGY_LABELS[requirement.segmentation.strategy]} · ${requirement.segmentation.confidence.toFixed(2)} · L${requirement.segmentation.line_start}–${requirement.segmentation.line_end}`}

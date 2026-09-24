@@ -32,6 +32,9 @@ export const UPLOAD_TIMEOUT_MS = 180_000;
 export interface UploadDocumentInput {
   file: File;
   title: string;
+  /** Opt into the shared post-commit AI step (Stage 14 — same vocabulary as
+   * the text path). Sent explicitly: the server defaults to false. */
+  aiEnhance: boolean;
 }
 
 /**
@@ -44,6 +47,7 @@ export function uploadDocument(input: UploadDocumentInput): Promise<DocumentUplo
   form.append("files", input.file, input.file.name);
   const title = input.title.trim();
   if (title !== "") form.append("title", title.slice(0, UPLOAD_LIMITS.maxTitle));
+  form.append("ai_enhance", input.aiEnhance ? "true" : "false");
   return withSessionRetry(() =>
     apiForm<DocumentUploadResponse>("/documents/upload", form, {
       timeoutMs: UPLOAD_TIMEOUT_MS,

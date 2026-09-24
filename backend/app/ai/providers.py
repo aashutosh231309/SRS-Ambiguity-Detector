@@ -1,10 +1,10 @@
 """Provider abstraction (AI_PROVIDER_SPEC §2–§3 — binding interface).
 
-No adapters ship in Stage 12 (Stage 18 owns them): this file fixes the
-vocabulary every adapter, test fake, and service seam speaks. Payload models
-carry the §3 SHAPES (ids, caps, finding summaries) — prompts, generation,
-and persistence arrive in their own stages. All provider failures normalize
-to `ProviderError` (raw provider bodies are NEVER propagated).
+Stage 12 shipped this vocabulary (adapters arrived in Stage 14): payload
+models carry the §3 SHAPES (ids, caps, finding summaries) for the versioned
+prompts (`app.ai.prompts`) and the enhancement service. All provider
+failures normalize to `ProviderError` (raw provider bodies are NEVER
+propagated).
 """
 
 from abc import ABC, abstractmethod
@@ -54,7 +54,7 @@ class FindingSummary(BaseModel):
 
 class OverviewPayload(BaseModel):
     """Deterministic context for an analysis overview (§3) — summaries, NOT
-    full raw text by default. Consumed by Stage 19 generation."""
+    full raw text by default. Consumed by the enhancement service."""
 
     analysis_id: UUID
     score: int | None = None
@@ -108,12 +108,12 @@ class AIProvider(ABC):
     async def generate_overview(
         self, api_key: str, payload: OverviewPayload, *, timeout_s: int
     ) -> AITextResult:
-        """Analysis overview text (Stage 19 wires this; ABC fixed now)."""
+        """Analysis overview text (the enhancement service calls this)."""
         raise NotImplementedError
 
     @abstractmethod
     async def generate_improvement(
         self, api_key: str, payload: ImprovementPayload, *, timeout_s: int
     ) -> AITextResult:
-        """Per-requirement rewrite suggestion (Stage 19; ABC fixed now)."""
+        """Per-requirement rewrite suggestion (the enhancement service calls this)."""
         raise NotImplementedError

@@ -22,12 +22,17 @@ import { withSessionRetry } from "./auth";
 /** Server limits mirrored for instant client feedback (server authoritative). */
 export const ANALYZER_LIMITS = { maxChars: 200_000, maxTitle: 200 } as const;
 
-/** Analyze pasted SRS text: segment + detect + score, persisted (Stage 07). */
+/** Analyze pasted SRS text: segment + detect + score, persisted (Stage 07).
+ * `aiEnhance` (Stage 14) opts the shared post-commit AI step in. */
 export async function createAnalysis(input: CreateAnalysisInput): Promise<AnalysisResult> {
   return withSessionRetry(() =>
     api<AnalysisResult>("/analysis", {
       method: "POST",
-      body: { title: input.title, text: input.text },
+      body: {
+        title: input.title,
+        text: input.text,
+        options: { ai_enhance: input.aiEnhance },
+      },
     }),
   );
 }
