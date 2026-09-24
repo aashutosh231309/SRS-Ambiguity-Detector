@@ -112,6 +112,10 @@ transform/opacity; no continuous heavy blur; lazy/code-split below-fold + charts
   run your first analysis") instead of hollow charts.
 - Every chart: title, plain-language caption, accessible table/`aria-label` alternative
   where practical (Stage 28 audits).
+- (Stage 09: the analysis report implements this section as-built — `ScoreRing`
+  gauge + slim `HealthBars` + horizontal `CategoryBars` + stacked `sev-*`
+  severity bar, each with title + caption + text/`aria-label` alternative;
+  clean/failed/segmented states explain instead of hollow charts.)
 
 ## 8. Explainability UX (binding)
 
@@ -125,9 +129,10 @@ reasoning (+ optional AI explanation when available). No black boxes.
 - [ ] Primitives: Button, Input, Textarea, Select, Badge/Chip, Card, Dialog, Disclosure, Toast, Tooltip, Tabs, Table, EmptyState, Skeleton (Stage 05/08 — Stage 05 shipped auth-scoped fields/alerts only; shared primitives still pending)
 - [x] Product: AuthCard+Blade (Stage 05)
 - [x] Product: AnalyzerForm + SegmentPreview (Stage 06 — requirements + segmentation evidence only; superseded by the scored result view in Stage 07)
-- [x] Product: AnalysisResultView + ScoreRing + RequirementCard + IssueCard + SeverityBadge (Stage 07 — overall score/band + per-requirement scores, severities, `<mark>` highlighting, and "Why was this flagged?" disclosures per §8; slim HealthBars/CategoryBars/ScoreGauge-polish stay with the report/dashboard stages)
+- [x] Product: AnalysisResultView + ScoreRing + RequirementCard + IssueCard + SeverityBadge (Stage 07 — overall score/band + per-requirement scores, severities, `<mark>` highlighting, and "Why was this flagged?" disclosures per §8; Stage 09 report polish: saved `/analysis/[id]` route + CategoryBars/HealthBars overviews, search/filter/sort toolbar, collapsed-by-default issues, copy actions, failed/segmented/clean states)
 - [x] Product: AnalyzerWorkspace tabs + DocumentUploadForm dropzone (Stage 08 — feature-local input-method tabs with arrow-key nav; dropzone + picker for exactly one PDF/DOCX/TXT with honest indeterminate progress; shared Tabs/Dropzone primitives still pending)
-- [ ] Product: Navbar, HealthBars, CategoryBars, TrendChart, HistoryTable, SettingsForms, ProviderCard, DeleteConfirm (`DELETE` typing) (owning stages)
+- [x] Product: HealthBars, CategoryBars, DeleteConfirm dialog (Stage 09 — explicit-confirm delete on the report route; `DELETE`-typing variant still future)
+- [ ] Product: Navbar, TrendChart, HistoryTable, SettingsForms, ProviderCard (owning stages)
 - [ ] Marketing: Hero, FeatureGrid, HowItWorks steps, CTA, Footer, Breadcrumbs (Stage 26+)
 
 Rules: no fake buttons (every control does something or doesn't ship); no placeholder

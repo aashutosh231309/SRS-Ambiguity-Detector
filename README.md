@@ -5,8 +5,9 @@ documents and requirement text, detects ambiguity with a **deterministic NLP/rul
 explains every finding, scores requirement quality, and — optionally, with the user's own
 AI provider keys — adds AI-generated overviews and improvements.
 
-> **Status: under staged development.** Analysis spine + document upload
-> (Stage 08) are in place; product features land stage by stage. See
+> **Status: under staged development.** Analysis spine + document upload +
+> saved-report route (Stage 09) are in place; product features land stage by
+> stage. See
 > [`docs/STAGE_STATUS.md`](docs/STAGE_STATUS.md) for progress and
 > [`docs/FUTURE_ROADMAP.md`](docs/FUTURE_ROADMAP.md) for the plan.
 
@@ -115,7 +116,8 @@ PostgreSQL 16+ via SQLAlchemy 2.0 (async) + Alembic. Schema: `users`, `analyses`
 `refresh_tokens`, `email_verification_tokens`, `password_reset_tokens` (revision
 `0002`) + analysis `status`/`source_text`, NULL-until-scored `score`/`band`,
 requirement `section`/`segmentation` (revision `0003`) + the
-`segmented|analyzed|failed` status CHECK (revision `0004`) — fully documented in
+`segmented|analyzed|failed` status CHECK (revision `0004`) +
+`documents.file_type` + CHECK (revision `0005`) — fully documented in
 [`docs/DATABASE_SCHEMA.md`](docs/DATABASE_SCHEMA.md).
 
 Flow: configure `DATABASE_URL` → `alembic upgrade head` → start backend.
@@ -131,7 +133,8 @@ binding contract (envelopes, pagination, error codes). Interactive docs (non-pro
 auth API (`POST /api/v1/auth/register|login|logout|refresh|verify-email|resend-verification|forgot-password|reset-password|change-password`,
 `GET /api/v1/auth/me`, `DELETE /api/v1/auth/account`), and the analysis API
 (`POST /api/v1/analysis` TEXT-only → `201` ANALYZED detail with scores +
-nested issues + breakdown; `GET` detail + paged newest-first list with
+nested issues + breakdown; `GET` detail (incl. a `document` display pointer —
+filename + type, no storage keys) + paged newest-first list with
 `sort`/`band`/`source_type`; `DELETE` → `204` cascade; verified-user guard,
 per-user 20/min; missing/foreign ids → identical `404`).
 
@@ -146,15 +149,16 @@ dedicated security stages do that later.
 
 ## Current limitations
 
-Backend auth + auth UI are done, and so is the analysis spine: SRS text input +
-deterministic segmentation + 11-detector ambiguity analysis + transparent
-scoring + persistence + scored result UI (`/analyzer`, verified users; `POST
-/api/v1/analysis` TEXT-only → `201` ANALYZED detail with scores + nested
-issues + breakdown; `GET` detail/list + `DELETE` included) — intentionally
-NOT implemented yet: document upload/extraction, history UI, dashboard,
-settings, AI providers, CAPTCHA/distributed rate limits, Sentry. Scores are
-heuristic triage aids, not validated measurements (see
-[`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) §4.3 honest limits).
+Backend auth + auth UI are done, and so are the analysis spine (SRS text
+input + document upload/extraction + deterministic segmentation +
+11-detector ambiguity analysis + transparent scoring + persistence) and the
+report experience (scored result UI inline in `/analyzer` + a saved-report
+route `/analysis/[id]`, verified users; `POST /api/v1/analysis` TEXT-only →
+`201` ANALYZED detail with scores + nested issues + breakdown; `GET`
+detail/list + `DELETE` included) — intentionally NOT implemented yet:
+history UI, dashboard, settings, AI providers, CAPTCHA/distributed rate
+limits, Sentry. Scores are heuristic triage aids, not validated measurements
+(see [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) §4.3 honest limits).
 Post-auth landing is still the temporary fixed `/`; the home page is an
 honest placeholder (replaced by the marketing stage), and `ApiStatus` needs
 the backend running. Full plan:

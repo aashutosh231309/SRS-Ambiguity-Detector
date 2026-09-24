@@ -27,7 +27,7 @@ import os
 import tempfile
 import uuid
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
 
@@ -48,7 +48,7 @@ from app.exceptions import (
 )
 from app.repositories.documents import DocumentRepository
 from app.schemas.analysis import TITLE_MAX_LENGTH
-from app.services.analysis import AnalysisDetail, analyze_text
+from app.services.analysis import AnalysisDetail, DocumentRef, analyze_text
 from app.services.transactions import transactional
 from app.storage import get_storage_backend, storage_key_for_document
 
@@ -168,6 +168,12 @@ async def _persist_upload(
         text=extracted.text,
         source_type="document",
         document_id=document_id,
+    )
+    # Upload/GET parity: the analysis half carries the same source pointer a
+    # later GET resolves from the row (filename/type already validated here).
+    analysis = replace(
+        analysis,
+        document=DocumentRef(filename=validated.filename, file_type=validated.file_type),
     )
     return (
         DocumentDetail(

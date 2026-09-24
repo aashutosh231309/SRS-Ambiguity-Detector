@@ -1,11 +1,16 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useId, useState } from "react";
 
 import { motion } from "motion/react";
+import { ChevronDown } from "lucide-react";
 
 import type { AnalysisIssue, SegmentedRequirement, SegmentationStrategy } from "@/types/analysis";
+import { requirementHealth } from "@/lib/reporting";
+import { cn } from "@/lib/utils";
 
+import { CopyButton } from "./CopyButton";
 import { IssueCard } from "./IssueCard";
 import { SeverityBadge } from "./SeverityBadge";
 
@@ -72,18 +77,35 @@ function MarkedText({ text, issues }: { text: string; issues: AnalysisIssue[] })
 
 /**
  * One scored requirement: score + worst severity + highlighted text +
- * expandable issues + segmentation provenance. Clean requirements say so
- * instead of rendering an empty issues block.
+ * collapsible issues + segmentation provenance. The text stays visible;
+ * issues start collapsed behind a toggle so long reports stay scannable
+ * (UI_UX_SPEC §30). Parent-owned `expanded`/`onToggle` enable Expand-all;
+ * standalone usage stays uncontrolled. Clean requirements say so instead
+ * of rendering an empty issues block.
  */
 export function RequirementCard({
   requirement,
   index = 0,
+  expanded,
+  onToggle,
 }: {
   requirement: SegmentedRequirement;
   /** Position in the list — drives the capped stagger delay. */
   index?: number;
+  /** Controlled open state (parent-owned for Expand-all). Omit for uncontrolled. */
+  expanded?: boolean;
+  onToggle?: () => void;
 }) {
   const count = requirement.issues.length;
+  const [uncontrolled, setUncontrolled] = useState(false);
+  const regionId = useId();
+  const isOpen = expanded ?? uncontrolled;
+  const health = requirementHealth(requirement);
+
+  function toggle() {
+    onToggle?.();
+    if (expanded === undefined) setUncontrolled((open) => !open);
+  }
   return (
     <motion.li
       initial={{ opacity: 0, y: 16 }}
@@ -115,22 +137,45 @@ export function RequirementCard({
         </span>
       </div>
 
-      <p className="mt-3 text-[15px] leading-[1.65] whitespace-pre-wrap">
-        <MarkedText text={requirement.text} issues={requirement.issues} />
-      </p>
+      <div className="mt-3 flex items-start justify-between gap-3">
+        <p className="min-w-0 flex-1 text-[15px] leading-[1.65] whitespace-pre-wrap">
+          <MarkedText text={requirement.text} issues={requirement.issues} />
+        </p>
+        <CopyButton text={requirement.text} label="Copy" className="mt-0.5" />
+      </div>
 
       {count === 0 ? (
         <p className="mt-3 font-mono text-xs text-signal">No issues — reads clearly.</p>
       ) : (
-        <div className="mt-3">
-          <p className="font-mono text-[11px] tracking-[0.14em] text-ink-faint uppercase">
-            {count === 1 ? "1 issue" : `${count} issues`}
-          </p>
-          <div className="mt-1">
-            {requirement.issues.map((issue) => (
-              <IssueCard key={issue.id} issue={issue} />
-            ))}
-          </div>
+        <div className="mt-3 border-t border-line pt-1">
+          <button
+            type="button"
+            onClick={toggle}
+            aria-expanded={isOpen}
+            aria-controls={regionId}
+            className="flex w-full items-center justify-between gap-2 rounded-md py-1.5 text-left font-mono text-xs text-ink-soft transition outline-none hover:text-ink focus-visible:ring-2 focus-visible:ring-signal/50"
+          >
+            <span>
+              {count === 1 ? "1 issue" : `${count} issues`} · {health.label}
+            </span>
+            <ChevronDown
+              aria-hidden
+              className={cn("size-4 shrink-0 transition-transform", isOpen && "rotate-180")}
+            />
+          </button>
+          {isOpen ? (
+            <div
+              id={regionId}
+              role="region"
+              aria-label={`Detected issues for requirement ${requirement.position + 1}`}
+            >
+              <div className="mt-1">
+                {requirement.issues.map((issue) => (
+                  <IssueCard key={issue.id} issue={issue} />
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
 

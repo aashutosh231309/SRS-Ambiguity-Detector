@@ -180,6 +180,17 @@ inside each requirement, not beside `requirements[]`) and NO `overall_severity`
 **requirement-relative** (index into the requirement's own `text`, not the
 source). `requirements_count` always equals `len(requirements)`.
 
+**Stage 09 amendment (report polish):** detail gains a `document` pointer —
+`{filename, file_type}` (`file_type` ∈ `pdf | docx | txt`, server-validated)
+when `source_type` is `"document"`, `null` for pasted-text analyses. Display
+metadata ONLY: no document id, no storage key/path, no binary, ever. The
+upload endpoint's analysis-half is byte-identical to `GET /analysis/{id}` for
+the same row (asserted in tests). `status: "failed"` rows (never completed)
+read back with `score`/`band`/`health` `null`, `score_breakdown` `{}`, and an
+empty `requirements[]`; pre-Stage-07 `"segmented"` rows list requirements
+without scores. If the linked document row is absent, `document` degrades to
+`null` (never a 500, never a filename leak).
+
 **Scoring (deterministic — PROJECT_SPEC §6):** base 100; Low −5, Medium −10,
 High −15, Critical −20; requirement score clamped 0–100; analysis score =
 arithmetic mean of requirement scores (half-up rounding); bands 80–100 low ·
@@ -236,7 +247,9 @@ analysis_not_found` (no existence oracle, §5 IDOR rule). GET returns the full
 detail; DELETE removes the analysis with requirements + issues cascading
 (verified by row-count, not just status) and returns `204` with no body. GETs
 are identity-authed only; DELETE additionally requires the CSRF double-submit
-(like every state-changing route).
+(like every state-changing route). Malformed ids (non-UUID) fail closed with
+`400 validation_error` — the report UI maps them to the same not-found panel
+as a 404, so no existence signal leaks through copy or status.
 
 ### 4.4 Documents — Stage 08 ✅ (upload+analyze + metadata read)
 

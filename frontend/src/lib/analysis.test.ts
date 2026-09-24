@@ -53,6 +53,7 @@ function analysisResult(): AnalysisResult {
     title: "Login SRS",
     status: "analyzed",
     source_type: "text",
+    document: null,
     score: 100,
     band: "low",
     score_breakdown: {

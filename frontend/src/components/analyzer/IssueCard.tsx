@@ -7,6 +7,7 @@ import { ChevronDown } from "lucide-react";
 
 import type { AnalysisIssue } from "@/types/analysis";
 
+import { CopyButton } from "./CopyButton";
 import { SeverityBadge } from "./SeverityBadge";
 
 /**
@@ -59,6 +60,7 @@ export function IssueCard({ issue }: { issue: AnalysisIssue }) {
             Suggested fix
           </p>
           <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">{issue.recommendation}</p>
+          <CopyButton text={issue.recommendation} label="Copy suggestion" className="mt-3" />
         </motion.div>
       ) : null}
     </div>

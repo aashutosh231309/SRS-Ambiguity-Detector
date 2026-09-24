@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import type { AnalysisIssue, SegmentedRequirement } from "@/types/analysis";
 
@@ -52,7 +53,8 @@ afterEach(() => {
 });
 
 describe("RequirementCard", () => {
-  it("renders header (position, id, section, score, severity) + provenance", () => {
+  it("renders header (position, id, section, score, severity) + provenance", async () => {
+    const user = userEvent.setup();
     render(
       <RequirementCard
         requirement={requirement({
@@ -64,9 +66,18 @@ describe("RequirementCard", () => {
     expect(screen.getByText("FR-001")).toBeDefined();
     expect(screen.getByText("§ Performance")).toBeDefined();
     expect(screen.getByText("70")).toBeDefined();
+    // Issues start collapsed: only the requirement-level badge renders.
+    expect(screen.getAllByText("High")).toHaveLength(1);
+    const toggle = screen.getByRole("button", { name: /1 issue/ });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("region")).toBeNull();
+    expect(screen.getByText("ID-tagged · 0.95 · L1–1")).toBeDefined();
+
+    await user.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
     // Requirement badge + the nested issue's badge.
     expect(screen.getAllByText("High")).toHaveLength(2);
-    expect(screen.getByText("ID-tagged · 0.95 · L1–1")).toBeDefined();
+    expect(screen.getByRole("region", { name: "Detected issues for requirement 1" })).toBeDefined();
   });
 
   it("says clean requirements read clearly instead of an empty issues block", () => {
@@ -91,7 +102,7 @@ describe("RequirementCard", () => {
         })}
       />,
     );
-    expect(screen.getByText("2 issues")).toBeDefined();
+    expect(screen.getByRole("button", { name: /2 issues/ })).toBeDefined();
     const marks = container.querySelectorAll("mark");
     expect(marks).toHaveLength(2);
     expect(marks.item(0)?.textContent).toBe("should");

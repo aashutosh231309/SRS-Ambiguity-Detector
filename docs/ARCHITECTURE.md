@@ -176,7 +176,7 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
   `jsdom` + Testing Library (`vitest.config.ts` mirrors the `@/*` alias; node env
   default, `jsdom` per-file pragma, no globals; `vitest.setup.ts` stubs
   IntersectionObserver for motion's `whileInView`).
-- Analyzer (Stage 06 input → Stage 07 scored results → Stage 08 upload):
+- Analyzer (Stage 06 input → Stage 07 scored results → Stage 08 upload → Stage 09 report):
   `/analyzer` (verified-guard + `noindex,nofollow`) — `components/analyzer/`
   (`AnalyzerWorkspace` input→result orchestration with Paste-text/Upload-file
   tabs; `AnalyzerForm` paste input/validation; `DocumentUploadForm`
@@ -189,7 +189,16 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
   the ONLY `/documents` caller, multipart via `apiForm`) with
   `types/analysis.ts` + `types/documents.ts` mirroring contract §4.3/§4.4
   exactly; `lib/analysis-errors.ts` maps backend `code` → UI copy (never
-  server strings; reuses the auth param table for field errors).
+  server strings; reuses the auth param table for field errors). Stage 09
+  adds the saved-report route `/analysis/[id]` (verified-guard +
+  `noindex,nofollow`) — `AnalysisReportScreen` (load/not-found/session/
+  retry states over `getAnalysis`) rendering the SAME `AnalysisResultView`
+  as the workspace (`context` + footer `actions` differ, never the report:
+  overviews, search/filter/sort toolbar, collapsed-by-default issues,
+  `failed`/`segmented`/clean states) with `AnalysisReportScreen` footer
+  `DeleteAnalysisButton` (explicit confirm dialog) + `CategoryBars` /
+  `HealthBars` / `CopyButton` atoms on `lib/reporting.ts` (client-side
+  counts/filters/sorts over the persisted record — zero recalculation).
 
 ## 6. Canonical request flows
 

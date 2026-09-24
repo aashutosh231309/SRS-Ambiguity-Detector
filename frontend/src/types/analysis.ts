@@ -5,8 +5,8 @@
  * Same names, same optionality.
  */
 
-/** Pipeline stage. POST returns `analyzed`; `segmented` is legacy. */
-export type AnalysisStatus = "segmented" | "analyzed";
+/** Pipeline stage. POST returns `analyzed`; `segmented` is legacy; `failed` reserved (nothing writes it yet — the report renders a failure state if one ever reads back). */
+export type AnalysisStatus = "segmented" | "analyzed" | "failed";
 
 /** How one requirement was detected (segmentation evidence, not a score). */
 export type SegmentationStrategy =
@@ -81,11 +81,18 @@ export interface HealthDimensions {
  * requirement; there is no top-level `issues` and no `source_excerpt`
  * (summary-only) in the detail.
  */
+/** Source-document display pointer (`document` analyses only, else null). */
+export interface AnalysisDocumentRef {
+  filename: string;
+  file_type: "pdf" | "docx" | "txt";
+}
+
 export interface AnalysisResult {
   id: string;
   title: string;
   status: AnalysisStatus;
   source_type: "text" | "document";
+  document: AnalysisDocumentRef | null;
   score: number | null;
   band: AnalysisBand | null;
   score_breakdown: ScoreBreakdown;

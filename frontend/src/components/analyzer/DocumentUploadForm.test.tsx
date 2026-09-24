@@ -39,6 +39,7 @@ function analysisResult(): AnalysisResult {
     title: "srs.txt",
     status: "analyzed",
     source_type: "document",
+    document: { filename: "srs.txt", file_type: "txt" },
     score: 100,
     band: "low",
     score_breakdown: {

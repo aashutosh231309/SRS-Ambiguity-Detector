@@ -4,6 +4,43 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.10.0] — Stage 09 — Polished Analysis Report (`/analysis/[id]`) — 2026-09-24
+
+### Added
+- Saved-report route `/analysis/[id]` (verified-users-only, `noindex`):
+  `AnalysisReportScreen` with loading skeleton, one honest not-found panel
+  for missing/foreign/malformed ids (no existence oracle), session-expired
+  sign-in nudge, retryable load failure, and Back navigation top + footer.
+- Report sections per UI_UX_SPEC §7: score gauge + persisted-stats grid +
+  stacked severity bar + heuristic footnote; `CategoryBars` (this-analysis
+  counts) + `HealthBars` (persisted dimensions); distinct designed clean /
+  `failed` / `segmented` states instead of hollow charts.
+- Requirement list toolbar: search (text + identifier), status/severity
+  filters, sort (original order default), live "Showing X of Y", no-match
+  empty state + reset; issues collapsed by default with per-requirement
+  toggles + Expand-all/Collapse-all; `CopyButton` on requirement text and
+  every suggested fix (clipboard denial reads inline, never silent).
+- `DeleteAnalysisButton`: explicit confirm dialog (focus to safe default,
+  Tab-trapped, Esc cancels, focus returns); 404-at-confirm resolves like a
+  success; other errors stay open with the honest message.
+- 15 backend tests (`test_analysis_report.py`) + 39 frontend tests
+  (reporting helpers, copy, summary bars, result view, delete dialog,
+  report screen).
+
+### Changed
+- One shared `AnalysisResultView` serves the fresh workspace result and the
+  saved route (`context` + footer `actions` slot; `Start over` moved to the
+  workspace) so the two can never drift; zero frontend recalculation —
+  `lib/reporting.ts` only counts/filters/sorts the persisted record.
+- History UI deferred to Stage 10 (the report its rows link to ships first).
+
+### Contract (Stage 09 amendment to §4.3, all asserted in tests)
+- Detail gains `document: {filename, file_type} | null` (display-only —
+  no id, no storage key/path, no binary); upload analysis-half ==
+  `GET /analysis/{id}`; `failed` rows read back null-scored with `{}`
+  breakdown + empty requirements; absent documents degrade to `null`;
+  malformed ids → `400 validation_error` (mapped UI-side to not-found).
+
 ## [0.9.0] — Stage 08 — Secure Document Upload + Extraction + Upload UI — 2026-09-24
 
 ### Added

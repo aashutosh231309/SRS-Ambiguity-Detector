@@ -181,6 +181,12 @@ verified-user guard — anonymous callers never reach the bucket (401 first).
 - **Deletion:** account cleanup = FK cascades (DB) + storage-object purge (app).
   `documents.storage_path` deletion is application-level — the DB cannot reach object
   storage. Stage 23 adds the zero-rows verification test.
+- **Display pointers (Stage 09):** the analysis detail's `document` pointer
+  exposes the sanitized filename + validated `file_type` ONLY — no document
+  id, no `storage_path`, no binary, ever (asserted: foreign GET 404s leak no
+  filename; an absent document row degrades to `document: null`, never a
+  500). The report UI maps 404 + `400 validation_error` (malformed id) to one
+  not-found panel — no existence oracle through copy or status.
 - **Migration safety:** DDL is reviewed, transactional (`alembic upgrade` runs in a
   transaction), and reproducible (`alembic check` in the workflow); destructive
   changes need backup + CHANGELOG + STAGE_STATUS treatment.

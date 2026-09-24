@@ -9,13 +9,14 @@ re-validates every value on the way out: service/DB drift 500s, never lies.
 from app.schemas.analysis import (
     AnalysisDetailResponse,
     AnalysisSummaryResponse,
+    DocumentRefResponse,
     IssueResponse,
     RequirementResponse,
     SegmentationMetaResponse,
 )
 from app.services.analysis import AnalysisDetail, AnalysisSummary, IssueDetail, RequirementDetail
 
-_VALID_STATUSES = ("segmented", "analyzed")
+_VALID_STATUSES = ("segmented", "analyzed", "failed")
 _VALID_SOURCE_TYPES = ("text", "document")
 
 
@@ -65,9 +66,18 @@ def detail_response(detail: AnalysisDetail) -> AnalysisDetailResponse:
         raise ValueError(f"unexpected analysis status: {detail.status!r}")
     if detail.source_type not in _VALID_SOURCE_TYPES:
         raise ValueError(f"unexpected source type: {detail.source_type!r}")
+    document = None
+    if detail.document is not None:
+        if detail.document.file_type not in ("pdf", "docx", "txt"):
+            raise ValueError(f"unexpected file type: {detail.document.file_type!r}")
+        document = DocumentRefResponse(
+            filename=detail.document.filename,
+            file_type=detail.document.file_type,  # type: ignore[arg-type]  # narrowed above
+        )
     return AnalysisDetailResponse(
         id=detail.id,
         title=detail.title,
+        document=document,
         status=detail.status,  # type: ignore[arg-type]  # narrowed above
         source_type=detail.source_type,  # type: ignore[arg-type]  # narrowed above
         score=detail.score,

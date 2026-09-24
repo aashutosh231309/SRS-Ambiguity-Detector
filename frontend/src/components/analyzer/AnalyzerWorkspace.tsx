@@ -12,6 +12,8 @@
 
 import { useRef, useState } from "react";
 
+import { ArrowLeft } from "lucide-react";
+
 import type { AnalysisResult } from "@/types/analysis";
 import { Container } from "@/components/layout/Container";
 import { Reveal } from "@/components/Reveal";
@@ -122,7 +124,19 @@ export function AnalyzerWorkspace() {
             </div>
           </>
         ) : (
-          <AnalysisResultView result={result} onReset={() => setResult(null)} />
+          <AnalysisResultView
+            result={result}
+            actions={
+              <button
+                type="button"
+                onClick={() => setResult(null)}
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-line px-5 py-2.5 text-[15px] font-medium text-ink-soft transition hover:bg-paper-deep"
+              >
+                <ArrowLeft className="size-4" aria-hidden />
+                Start over
+              </button>
+            }
+          />
         )}
       </Container>
     </ProtectedRoute>

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -24,6 +24,7 @@ function issue(): AnalysisIssue {
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 });
 
 describe("IssueCard", () => {
@@ -57,5 +58,17 @@ describe("IssueCard", () => {
     await user.click(toggle);
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
     expect(screen.queryByRole("region")).toBeNull();
+  });
+
+  it("copies only the suggestion text (never detector internals)", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    render(<IssueCard issue={issue()} />);
+    await user.click(screen.getByRole("button", { name: /Vague quantifier/ }));
+    await user.click(screen.getByRole("button", { name: "Copy suggestion" }));
+    expect(writeText).toHaveBeenCalledWith(
+      "Replace “several” with the exact number or an explicit range.",
+    );
   });
 });

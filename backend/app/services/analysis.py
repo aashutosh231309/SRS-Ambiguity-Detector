@@ -98,6 +98,15 @@ class RequirementDetail:
 
 
 @dataclass(frozen=True)
+class DocumentRef:
+    """Source-document display pointer (Stage 09): filename + validated type
+    for `source_type == "document"` details. No id (no UI link needs it)."""
+
+    filename: str
+    file_type: str
+
+
+@dataclass(frozen=True)
 class AnalysisDetail:
     """One persisted analysis with its requirements (+ nested issues)."""
 
@@ -114,6 +123,7 @@ class AnalysisDetail:
     created_at: datetime
     updated_at: datetime
     requirements: tuple[RequirementDetail, ...]
+    document: DocumentRef | None = None
 
 
 @dataclass(frozen=True)
@@ -331,6 +341,16 @@ async def get_analysis_detail(
         raise NotFoundError("analysis")
     requirements = await RequirementRepository(session).list_for_analysis(analysis_id=analysis.id)
     issues = await IssueRepository(session).list_for_analysis(analysis_id=analysis.id)
+    document: DocumentRef | None = None
+    if analysis.document_id is not None:
+        # Fourth query ONLY for document analyses (text details cost nothing
+        # extra): owner-scoped, so a forged link reads as missing, never leaks.
+        doc = await DocumentRepository(session).get_owned(
+            owner_id=owner_id, document_id=analysis.document_id
+        )
+        if doc is not None:
+            assert doc.file_type is not None  # Stage 08 writes it NOT NULL
+            document = DocumentRef(filename=doc.filename, file_type=doc.file_type)
     by_requirement: dict[uuid.UUID, list[IssueDetail]] = {row.id: [] for row in requirements}
     for issue in issues:
         by_requirement[issue.requirement_id].append(
@@ -375,6 +395,7 @@ async def get_analysis_detail(
             )
             for row in requirements
         ),
+        document=document,
     )
 
 

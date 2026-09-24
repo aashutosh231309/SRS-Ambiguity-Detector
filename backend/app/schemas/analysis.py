@@ -2,8 +2,9 @@
 
 TEXT posts here; FILE uploads go to POST /documents/upload (which reuses the
 same pipeline and returns this same detail shape with `source_type` set
-accordingly). `document_id` stays accepted-but-rejected (400 — re-analyzing a
-stored document BY ID has no pipeline yet) and `options.ai_enhance` stays
+accordingly and `document` populated). `document_id` stays
+accepted-but-rejected (400 — re-analyzing a stored document BY ID has no
+pipeline yet) and `options.ai_enhance` stays
 accepted-and-ignored until Stage 19. POST scores every requirement with the
 deterministic engine (`analyzed`); pre-Stage-07 `segmented` rows still read
 back with NULL scores.
@@ -94,6 +95,15 @@ class RequirementResponse(BaseModel):
     issues: list[IssueResponse] = Field(default_factory=list)
 
 
+class DocumentRefResponse(BaseModel):
+    """Source-document pointer for `source_type == "document"` (Stage 09):
+    display metadata ONLY — filename + validated type. No document id (the
+    UI needs no document link yet), no storage key, no binary, ever."""
+
+    filename: str
+    file_type: Literal["pdf", "docx", "txt"]
+
+
 class AnalysisDetailResponse(BaseModel):
     """Analysis detail (contract §4.3, Stage 07 amendment: `status` is
     `analyzed` for engine-scored rows (`segmented` only for pre-Stage-07
@@ -103,8 +113,9 @@ class AnalysisDetailResponse(BaseModel):
 
     id: uuid.UUID
     title: str
-    status: Literal["segmented", "analyzed"]
+    status: Literal["segmented", "analyzed", "failed"]
     source_type: Literal["text", "document"]
+    document: DocumentRefResponse | None = None
     score: int | None = None
     band: str | None = None
     score_breakdown: dict[str, Any] = Field(default_factory=dict)
@@ -125,7 +136,7 @@ class AnalysisSummaryResponse(BaseModel):
 
     id: uuid.UUID
     title: str
-    status: Literal["segmented", "analyzed"]
+    status: Literal["segmented", "analyzed", "failed"]
     source_type: Literal["text", "document"]
     source_excerpt: str | None = None
     score: int | None = None

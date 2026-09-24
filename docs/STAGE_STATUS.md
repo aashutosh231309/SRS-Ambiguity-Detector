@@ -575,13 +575,95 @@ list filter total=3, binary-as-txt → 400, cascade → 0 rows + purged storage.
 API (search/filter/sort/paginate/delete, ownership-scoped, responsive
 table→cards); document list/download endpoints can ride along or follow.
 
+### Stage 09 — Polished Analysis Report (`/analysis/[id]`) ✅ (2026-09-24)
+Shipped the dedicated saved-report experience instead of the planned history
+UI (sequencing change: the report the history will link to comes first;
+history moves to Stage 10). One shared `AnalysisResultView` serves the fresh
+workspace result AND the saved route — context + footer actions differ, the
+report never does. Details:
+
+**Completed:**
+- Backend (contract §4.3 amendment): detail gains a `document` pointer
+  (`{filename, file_type}`, display-only — no document id, no storage
+  key/path, no binary) for `source_type: "document"`, `null` for text; the
+  upload endpoint's analysis-half is byte-identical to `GET /analysis/{id}`
+  (asserted); `status: "failed"` rows read back with null scores, `{}`
+  breakdown, and empty requirements; absent document rows degrade to
+  `document: null` (never a 500); foreign GETs 404 with zero filename leak;
+  malformed ids fail closed with `400 validation_error`.
+- Saved-report route `/analysis/[id]` (verified-guard + `noindex,nofollow`):
+  `AnalysisReportScreen` with loading skeleton, ONE honest not-found panel
+  for missing/foreign/malformed ids (no existence oracle), session-expired
+  sign-in nudge, and retryable load-failure state; top + footer Back links.
+- Report sections per UI_UX_SPEC §7: `ScoreRing` gauge + persisted-stats `dl`
+  (order pinned) + stacked `sev-*` severity bar + heuristic footnote;
+  `CategoryBars` (this-analysis-only counts) + `HealthBars` (persisted
+  partitioned dimensions, never competing with the gauge); clean analyses get
+  an honest "no patterns detected" banner, `failed` an explicit did-not-
+  complete panel, `segmented` an older-version notice — never hollow charts.
+- Requirement list: search (text + identifier) + status/severity filters +
+  sort (original order default, lowest-score, most-issues) with a live
+  "Showing X of Y" line, honest no-match empty state + reset, toolbar hidden
+  for single-requirement reports; issues collapsed by default behind
+  per-requirement toggles with Expand-all/Collapse-all; requirement text and
+  suggestions copyable via `CopyButton` (clipboard failures read inline).
+- Delete: footer `DeleteAnalysisButton` with an explicit confirm dialog
+  (focus to the safe default, Tab-trapped, Esc cancels, focus returns,
+  destructive red reserved for this action); 404-at-confirm resolves to the
+  Analyzer like a success; other errors stay open with the honest message.
+- Full keyboard + screen-reader support: labelled controls, `aria-expanded` /
+  `aria-controls` accordions, named regions, `role=img` chart labels, live
+  count announcements, visible focus rings, reduced-motion-safe (no new
+  motion beyond existing reveal tokens).
+
+**Architectural decisions:**
+- One view, two contexts: the workspace and the route share `AnalysisResultView`
+  so the fresh result and the saved report can never drift (props: `result` +
+  `context` + footer `actions` slot; `onReset` moved to the workspace).
+- Zero recalculation: `lib/reporting.ts` only counts/filters/sorts the
+  persisted record (header stats stay persisted counts; row status/sort use
+  the rendered nested issues); scores, bands, severities, health are rendered
+  verbatim from the API.
+- Display pointers, not links: the `document` field carries no id because the
+  UI needs no document destination yet — a future download/list stage adds
+  one without reshaping the detail.
+- Failure honesty over coverage: failed/segmented/clean are distinct designed
+  states with explicit copy, not edge cases squeezed into the scored layout.
+
+**Tests:** `verify.sh` ALL GREEN — pytest 325/325 (15 new in
+`test_analysis_report.py`: pointer presence/absence, upload↔GET parity,
+foreign-404 without leak, absent-document degradation, failed/segmented
+read-back, score-consistency, presenter validation), vitest 236/236 (39 new:
+10 reporting helpers incl. no-phantom-categories + original-order default, 2
+copy button incl. clipboard-denied, 3 summary bars, 1 issue copy, 11 result
+view incl. filters/sort/expand-all/failed/segmented/clean/saved-context, 6
+delete dialog incl. focus-trap + 404-as-deleted + error-stays-open, 6 report
+screen incl. not-found/session/retry), eslint, `tsc`, prettier, `next build`.
+Live journey: text + upload → saved route renders identical numbers,
+foreign id → shared not-found panel, delete → confirm → Analyzer.
+
+**Known limitations (accepted, not bugs):**
+- NO browser in this sandbox (as in Stages 05–08) — report route, toolbar,
+  accordions, dialog, and responsive widths NOT pixel-verified, NO
+  screenshots ship (`screenshots/` still empty). First browsed environment
+  must capture `stage09-*` at 390/768/1440 + the pending
+  `stage05/06/07/08-*` sets.
+- History UI still absent (Stage 10): saved reports are reachable only via
+  the workspace result and direct `/analysis/[id]` URLs — no list, no
+  permalinks in-product yet.
+- `docker-compose.yml` STILL unvalidated (no Docker in sandbox) — recurring warning.
+
+**Next stage:** Stage 10 (as-built) — Analysis history UI on the ready list
+API (search/filter/sort/paginate/delete, ownership-scoped, responsive
+table→cards, linking each row to its Stage 09 report); document
+list/download endpoints can ride along or follow.
+
 ## Current stage
-None active — Stage 08 complete; all success conditions hold (exactly-one
-upload+analyze through the shared pipeline with equivalence, validation +
-bounded extraction, local storage adapter, orphan-purging delete, metadata
-read with IDOR-identity, tabs + dropzone upload UI, 310/310 + 197/197 tests,
-real-file journey green, docs match).
-Next: **Stage 09 (as-built) — Analysis history UI**.
+None active — Stage 09 complete; all success conditions hold (saved-report
+route with ownership-safe states, shared polished result view with
+overviews/filters/copy/delete, backend `document` pointer + failed-row
+semantics, 325/325 + 236/236 tests, journey green, docs match).
+Next: **Stage 10 (as-built) — Analysis history UI**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 Database → backend → auth backend → auth frontend → SRS input/segmentation/preview ✅ →
