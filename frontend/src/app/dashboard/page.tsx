@@ -1,12 +1,8 @@
-import type { Metadata } from "next";
-
 import { DashboardScreen } from "@/components/dashboard/DashboardScreen";
+import { privatePageMetadata } from "@/lib/seo";
 
 /** Private product surface — never indexed (docs/SEO_SPEC.md). */
-export const metadata: Metadata = {
-  title: "Dashboard",
-  robots: { index: false, follow: false },
-};
+export const metadata = privatePageMetadata("Dashboard", "Private analysis quality dashboard.");
 
 export default function DashboardPage() {
   return <DashboardScreen />;

@@ -17,9 +17,11 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
+  applicationName: SITE.name,
   title: { default: `${SITE.name} — ${SITE.tagline}`, template: `%s · ${SITE.name}` },
   description: SITE.description,
-  icons: { icon: "/favicon.svg" },
+  icons: { icon: "/favicon.svg", apple: "/favicon.svg" },
+  manifest: undefined,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

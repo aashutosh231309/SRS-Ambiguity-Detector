@@ -1,12 +1,8 @@
-import type { Metadata } from "next";
-
 import { AnalyzerWorkspace } from "@/components/analyzer/AnalyzerWorkspace";
+import { privatePageMetadata } from "@/lib/seo";
 
 /** Private product surface — never indexed (docs/SEO_SPEC.md). */
-export const metadata: Metadata = {
-  title: "Analyzer",
-  robots: { index: false, follow: false },
-};
+export const metadata = privatePageMetadata("Analyzer", "Analyze private SRS text or uploads.");
 
 export default function AnalyzerPage() {
   return <AnalyzerWorkspace />;

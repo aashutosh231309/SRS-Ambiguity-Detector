@@ -1,11 +1,11 @@
-import type { Metadata } from "next";
+import { PRIVATE_ROBOTS } from "@/lib/seo";
 
 /**
- * Auth route group — private pages, never indexed (docs/SEO_SPEC.md).
+ * Auth route group — utility pages, never indexed (docs/SEO_SPEC.md).
  * The `m-auto` child centers without clipping tall cards on short viewports.
  */
-export const metadata: Metadata = {
-  robots: { index: false, follow: false },
+export const metadata = {
+  robots: PRIVATE_ROBOTS,
 };
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {

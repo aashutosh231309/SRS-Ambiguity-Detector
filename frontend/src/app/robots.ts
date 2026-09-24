@@ -1,12 +1,8 @@
 import type { MetadataRoute } from "next";
 
-import { SITE } from "@/lib/site";
+import { robotsPolicy } from "@/lib/seo";
 
-/** Crawler surface stub (docs/SEO_SPEC.md). Private app routes + APIs stay excluded. */
+/** Public crawler policy. Page-level noindex remains the protection for private routes. */
 export default function robots(): MetadataRoute.Robots {
-  return {
-    rules: [{ userAgent: "*", allow: "/", disallow: ["/api/"] }],
-    sitemap: `${SITE.url}/sitemap.xml`,
-    host: SITE.url,
-  };
+  return robotsPolicy();
 }

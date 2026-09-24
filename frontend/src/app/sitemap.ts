@@ -1,8 +1,8 @@
 import type { MetadataRoute } from "next";
 
-import { SITE } from "@/lib/site";
+import { sitemapEntries } from "@/lib/seo";
 
-/** Sitemap stub — public routes only. Stage 26 expands this per docs/SEO_SPEC.md. */
+/** Public routes only. Never include auth, private app, token, or analysis-detail URLs. */
 export default function sitemap(): MetadataRoute.Sitemap {
-  return [{ url: SITE.url, lastModified: new Date(), priority: 1 }];
+  return sitemapEntries();
 }

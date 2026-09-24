@@ -1,8 +1,14 @@
 import Link from "next/link";
 
 import { Container } from "@/components/layout/Container";
+import { privatePageMetadata } from "@/lib/seo";
 
-/** Minimal branded 404 (SEO_SPEC: correct noindex 404 behavior; enriched later). */
+export const metadata = privatePageMetadata(
+  "Page not found",
+  "The requested page could not be found.",
+);
+
+/** Branded 404 for unknown app routes; safe copy only, no IDs or diagnostics. */
 export default function NotFound() {
   return (
     <Container className="flex min-h-dvh max-w-2xl flex-col items-start justify-center">

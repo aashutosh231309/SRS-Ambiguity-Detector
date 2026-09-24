@@ -1,12 +1,8 @@
-import type { Metadata } from "next";
-
 import { HistoryScreen } from "@/components/history/HistoryScreen";
+import { privatePageMetadata } from "@/lib/seo";
 
 /** Private product surface — never indexed (docs/SEO_SPEC.md). */
-export const metadata: Metadata = {
-  title: "History",
-  robots: { index: false, follow: false },
-};
+export const metadata = privatePageMetadata("History", "Private analysis history.");
 
 export default function HistoryPage() {
   return <HistoryScreen />;

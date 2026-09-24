@@ -1,11 +1,18 @@
-/** Canonical site metadata. Single source for layout, SEO stubs, and footer copy. */
+/** Canonical site metadata. Single source for layout, SEO, and footer copy. */
+
+function normalizeSiteUrl(raw: string | undefined): string {
+  const candidate = raw?.trim() || "http://localhost:3000";
+  try {
+    return new URL(candidate).origin;
+  } catch {
+    return "http://localhost:3000";
+  }
+}
 
 export const SITE = {
   name: "SRS Ambiguity Detector",
-  tagline: "Precision instrument for requirements quality.",
+  tagline: "Requirements ambiguity analysis for software teams.",
   description:
-    "Analyze software requirements with a deterministic ambiguity engine: find vague, " +
-    "incomplete, and unmeasurable requirements, understand every finding, and improve " +
-    "your SRS with confidence.",
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+    "Find vague, incomplete, and unmeasurable software requirements with a deterministic SRS ambiguity analyzer. Keep private history and explain every finding.",
+  url: normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL),
 } as const;

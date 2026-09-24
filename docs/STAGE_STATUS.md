@@ -6,6 +6,7 @@
 ## Completed stages
 
 ### Stage 00 — Project contract and architecture ✅ (2026-09-23)
+
 - Wrote the binding contract: all 12 `docs/*.md` (see map in `ARCHITECTURE.md` §1).
 - Locked: monorepo layout, `/api/v1` versioning, cookie sessions, Tailwind v4 CSS-first
   theming, async SQLAlchemy 2.0 + Alembic direction, Fernet vault direction, Fontsource
@@ -13,9 +14,11 @@
 - Recorded ADR-001…ADR-007 in `ARCHITECTURE.md` §11.
 
 ### Stage 01 — Repository / development foundation ✅ (2026-09-23)
+
 Runnable skeletons + verification gate. Details:
 
 **Files/components created:**
+
 - Root: `README.md` (rewritten), `.gitignore`, `.editorconfig`, `docker-compose.yml`
   (Postgres 16, `db` service), `scripts/verify.sh` (executable gate), `screenshots/README.md`.
 - Backend (`backend/`): `app/main.py` (factory, middleware, envelope handlers),
@@ -30,6 +33,7 @@ Runnable skeletons + verification gate. Details:
   `tsconfig.json` (Next-canonical), `.prettierrc` + `.prettierignore`, `.env.example`.
 
 **Architectural decisions (beyond the ADRs):**
+
 - TypeScript pinned to v6 line (`^6.0.3`): `typescript-eslint` (via `eslint-config-next`)
   does not support TS 7. Revisit when upstream supports TS ≥ 7.1.
 - ESLint pinned to v9 (`^9.39.5`): `eslint-config-next@16`'s bundled `eslint-plugin-react@7`
@@ -55,6 +59,7 @@ infra alias `GET /health` (same live payload, OpenAPI-excluded). Contract for al
 endpoints frozen in `API_CONTRACT.md`.
 
 **Tests performed (all green):**
+
 - `scripts/verify.sh`: ruff check + format, mypy strict (17 files), pytest (5 tests),
   eslint, `tsc --noEmit`, prettier, `next build` (5 static routes) — ALL PASSED.
 - Live E2E: uvicorn `:8000` + `next start` `:3000` — `/health` alias, live/ready shapes,
@@ -62,6 +67,7 @@ endpoints frozen in `API_CONTRACT.md`.
   with content, `/robots.txt` + `/sitemap.xml` 200, unknown route 404 — verified via curl.
 
 **Known limitations (accepted, not bugs):**
+
 - No auth/DB/engine/upload/history/dashboard/settings/AI — each has an owning stage.
 - `docker-compose.yml` is untested here (no Docker in this environment) — the database
   stage must validate it when Postgres becomes required.
@@ -70,8 +76,10 @@ endpoints frozen in `API_CONTRACT.md`.
   dashboard/report stages add it when first imported.
 
 ### Stage 00 (formal) reconciliation ✅ (2026-09-23)
+
 The formal Stage 00 prompt arrived after the foundation was built; the repo was inspected
 (no rebuild) and reconciled. Deltas applied in this pass:
+
 - Removed `recharts` (was declared-but-unused) per dependency discipline (§24).
 - Added root `.env.example` (master inventory + compose reference) per §7.
 - Aligned env names to the prompt: `NEXT_PUBLIC_API_URL`, `JWT_SECRET`,
@@ -83,11 +91,13 @@ The formal Stage 00 prompt arrived after the foundation was built; the repo was 
 - Re-verified: `verify.sh` green + live curl of all health paths + homepage.
 
 ### Stage 01 (formal) — Repository & Development Foundation ✅ (2026-09-23)
+
 Inspection-first: the tree already held a complete runnable foundation, so nothing was
 rebuilt — only genuine Stage 01 gaps were closed (layout primitive, loading/error
 conventions, client timeout, frontend tests, redaction hardening, workflow docs).
 
 **Completed:**
+
 - `Container` layout primitive (`components/layout/`) adopted by `/` and the 404 page —
   the single source of horizontal rhythm for later screens.
 - App-shell conventions: `loading.tsx` (route-transition fallback) and `error.tsx`
@@ -135,6 +145,7 @@ wiring, real `/ready` DB check).
 ### Stage 02 — Database Foundation ✅ (2026-09-23)
 
 **Completed:**
+
 - Async PG stack pinned: SQLAlchemy 2.0.54 + asyncpg 0.31.0 + Alembic 1.20.0
   (+ greenlet 3.5.6, Mako 1.4.3 for `alembic revision`).
 - `app/core/database.py`: lazy engine (`pool_pre_ping`), session factory
@@ -183,6 +194,7 @@ ready); auth-token tables = Stage 04; no `updated_at` on immutable tables (by de
 ### Stage 03 — Backend Foundation / Service Layer ✅ (2026-09-23)
 
 **Completed:**
+
 - Layered architecture live: routers → `services/` → `repositories/` → models, with
   `schemas/` (Pydantic boundaries) + `exceptions/` (`AppError` → envelope mapping).
   Canonical minimal path: `/ready` → `services/readiness.py` → `SystemRepository.ping()`.
@@ -227,6 +239,7 @@ design (documented infrastructure exception, not a request transaction).
 ### Stage 04 — Authentication Backend ✅ (2026-09-23)
 
 **Completed:**
+
 - Sessions: argon2id (`argon2-cffi`, env-tunable, off-loop) + access JWT 15 min
   (HS256, `JWT_SECRET` fail-closed) + rotating refresh 30 d with reuse detection
   (re-presenting a ROTATED token revokes its whole family — committed BEFORE the
@@ -283,6 +296,7 @@ recurring warning.
 ### Stage 05 — Authentication Frontend ✅ (2026-09-24)
 
 **Completed:**
+
 - Routes (`app/(auth)/`, all `noindex, nofollow`): `/login` + `/signup` (one `AuthCard`,
   `initialMode`), `/forgot-password`, `/reset-password?token=…`, `/verify-email?token=…`.
   Root layout wraps everything in `AuthProvider`; home page untouched.
@@ -306,6 +320,7 @@ recurring warning.
   `?next=` (fixed `/` landing until the dashboard stage — documented temp).
 
 **Architectural decisions:**
+
 - `register` sets NO cookies (contract §4.2 "register never logs in" — caught live
   when the journey probe assumed otherwise): `signup()` performs no identity
   refresh; the session starts at verify-email or login.
@@ -329,6 +344,7 @@ reset→logout-everywhere→change→validation-shape→logout→DELETE — gree
 left, cookie attrs (`HttpOnly`, `SameSite=Lax`) asserted.
 
 **Known limitations (accepted, not bugs):**
+
 - NO browser in this sandbox (no Chromium/Firefox; Playwright CDN + Debian mirrors
   blocked) — the blade sweep, responsive widths, and visual polish were NOT
   pixel-verified and NO screenshots ship (`screenshots/` still empty). The first
@@ -343,10 +359,12 @@ left, cookie attrs (`HttpOnly`, `SameSite=Lax`) asserted.
 `requireVerified` nudge + `ProtectedRoute` are ready for its future private UI).
 
 ### Stage 06 — SRS Input + Segmentation + Preview ✅ (2026-09-24)
+
 Shipped input-first (absorbing roadmap-11 segmentation + the input halves of
 roadmap-07/08); detectors + scoring move to actual Stage 07. Details:
 
 **Completed:**
+
 - `POST /api/v1/analysis` (TEXT-only → `201` SEGMENTED detail): verified-user
   guard (identity + CSRF + per-user 20/min bucket) → schema validation (title
   ≤200, text 1–200 000 chars) → conservative normalization → deterministic
@@ -372,6 +390,7 @@ roadmap-07/08); detectors + scoring move to actual Stage 07. Details:
   `document_id` before Stage 09); `options.ai_enhance` accepted + ignored.
 
 **Architectural decisions:**
+
 - Input-first sequencing (roadmap as-built note): a persisted SEGMENTED analysis
   is the honest substrate detectors score in Stage 07; roadmap numbers stay,
   STAGE_STATUS records the mapping.
@@ -398,6 +417,7 @@ after): register→verify→login→paste-SRS→submit→201 SEGMENTED→preview
 anon-401→logout→DELETE — green, 0 users left.
 
 **Known limitations (accepted, not bugs):**
+
 - NO browser in this sandbox (as in Stage 05) — editor/preview responsive
   widths + visual polish NOT pixel-verified, NO screenshots ship (`screenshots/`
   still empty). First browsed environment must capture `stage06-*` at
@@ -412,11 +432,13 @@ anon-401→logout→DELETE — green, 0 users left.
 nested `issues[]`, breakdown; extends the `status` CHECK; keeps the §4.3 shape).
 
 ### Stage 07 — Detection + Scoring + Analysis CRUD + Result UI ✅ (2026-09-24)
+
 Shipped the full detection stage AND absorbed the roadmap-07/08 remainders
 (GET/list/delete + scored-results UI) — the analysis spine is closed through
 scoring + CRUD + basic results. Details:
 
 **Completed:**
+
 - Deterministic engine (`analysis/detectors.py` + `engine.py`, pure, zero
   I/O/network/LLM): 11 detectors → span-sorted dedup (exact-dupe collapse +
   identical-span cross-detector merge to higher severity, registry-order
@@ -430,7 +452,7 @@ scoring + CRUD + basic results. Details:
 - `POST /api/v1/analysis` runs segment → detect → score → transactional
   persist (`analyses` + `requirements` + `issues`) and returns `201` ANALYZED
   detail; `GET /analysis/{id}` returns the byte-identical detail; `GET
-  /analysis` pages newest-first (`sort`/`band`/`source_type`, unknown params
+/analysis` pages newest-first (`sort`/`band`/`source_type`, unknown params
   ignored); `DELETE /analysis/{id}` cascades (row-count verified) → `204`.
   Missing AND foreign ids → identical `404 analysis_not_found`; GETs
   identity-authed, DELETE CSRF-guarded; verified-gate + 20/min bucket kept.
@@ -444,6 +466,7 @@ scoring + CRUD + basic results. Details:
   honest false-positive limits, list/detail/delete semantics).
 
 **Architectural decisions:**
+
 - Detectors are lexical heuristics BY DESIGN — severity reflects pattern
   fixity, not validated impact; the contract + UI footnote say scores are
   triage aids, not measurements (no inflated claims anywhere).
@@ -470,6 +493,7 @@ offset-slicing asserted)→GET-detail-equality→list+filters→IDOR-404s→owne
 DELETE→anon-401→account-deletion — green, 0 users/analyses left.
 
 **Known limitations (accepted, not bugs):**
+
 - NO browser in this sandbox (as in Stage 05/06) — result UI (ring, marks,
   disclosures) responsive widths + visual polish NOT pixel-verified, NO
   screenshots ship (`screenshots/` still empty). First browsed environment
@@ -486,12 +510,14 @@ DELETE→anon-401→account-deletion — green, 0 users/analyses left.
 (roadmap-09/10); history UI can follow on the ready list API anytime.
 
 ### Stage 08 — Secure Document Upload + Extraction + Upload UI ✅ (2026-09-24)
+
 Shipped upload+analyze AND absorbed roadmap-09 (except signed-URL downloads
 and document list/delete-by-id — no download/list/purge-by-id surface yet)
 plus roadmap-10 fully — files run the SAME Stage 07 pipeline as pasted text
 (equivalence guarantee, asserted in tests). Details:
 
 **Completed:**
+
 - `POST /api/v1/documents/upload` (multipart, EXACTLY one file; extras → 400
   `too_many_files`, never silently dropped) → stream to 0600 temp (byte
   budget on the TRUE count) → validate+extract in a worker thread + 60 s
@@ -509,7 +535,7 @@ plus roadmap-10 fully — files run the SAME Stage 07 pipeline as pasted text
   each document belongs to exactly one analysis, so nothing else can dangle).
 - Bounded extraction (`documents/extraction.py`): pypdf (≤500 pages, blank-
   line joins), python-docx (≤2000 members / ≤50 MB inflated, TRUE document
-  order incl. headings, ` | ` table joins), TXT (utf-8-sig → windows-1252 →
+  order incl. headings, `|` table joins), TXT (utf-8-sig → windows-1252 →
   latin-1, total); 200 000-char budget enforced DURING accumulation; NUL
   stripped for Postgres; `422 extraction_failed` (internals server-side) /
   `no_extractable_text` (parsed-but-textless — OCR honestly absent).
@@ -529,6 +555,7 @@ plus roadmap-10 fully — files run the SAME Stage 07 pipeline as pasted text
   400s, not 413/415; real 422 codes).
 
 **Architectural decisions:**
+
 - Equivalence over re-implementation: uploads reuse `analyze_text` unchanged
   (no parallel pipeline to drift) — proven by a canonical-comparison test.
 - Exactly-one-file: the sync pipeline bounds one request to one analysis;
@@ -556,6 +583,7 @@ docx → 7 reqs/11 issues/score 86, txt-upload == pasted-text equivalence,
 list filter total=3, binary-as-txt → 400, cascade → 0 rows + purged storage.
 
 **Known limitations (accepted, not bugs):**
+
 - NO browser in this sandbox (as in Stages 05–07) — upload tabs/dropzone +
   responsive widths NOT pixel-verified, NO screenshots ship (`screenshots/`
   still empty). First browsed environment must capture `stage08-*` at
@@ -578,6 +606,7 @@ API (search/filter/sort/paginate/delete, ownership-scoped, responsive
 table→cards); document list/download endpoints can ride along or follow.
 
 ### Stage 09 — Polished Analysis Report (`/analysis/[id]`) ✅ (2026-09-24)
+
 Shipped the dedicated saved-report experience instead of the planned history
 UI (sequencing change: the report the history will link to comes first;
 history moves to Stage 10). One shared `AnalysisResultView` serves the fresh
@@ -585,6 +614,7 @@ workspace result AND the saved route — context + footer actions differ, the
 report never does. Details:
 
 **Completed:**
+
 - Backend (contract §4.3 amendment): detail gains a `document` pointer
   (`{filename, file_type}`, display-only — no document id, no storage
   key/path, no binary) for `source_type: "document"`, `null` for text; the
@@ -619,6 +649,7 @@ report never does. Details:
   motion beyond existing reveal tokens).
 
 **Architectural decisions:**
+
 - One view, two contexts: the workspace and the route share `AnalysisResultView`
   so the fresh result and the saved report can never drift (props: `result` +
   `context` + footer `actions` slot; `onReset` moved to the workspace).
@@ -645,6 +676,7 @@ Live journey: text + upload → saved route renders identical numbers,
 foreign id → shared not-found panel, delete → confirm → Analyzer.
 
 **Known limitations (accepted, not bugs):**
+
 - NO browser in this sandbox (as in Stages 05–08) — report route, toolbar,
   accordions, dialog, and responsive widths NOT pixel-verified, NO
   screenshots ship (`screenshots/` still empty). First browsed environment
@@ -661,6 +693,7 @@ table→cards, linking each row to its Stage 09 report); document
 list/download endpoints can ride along or follow.
 
 ### Stage 10 — Analysis History UI (`/history`) ✅ (2026-09-24)
+
 Authenticated, verified-users-only history page on the ready list API —
 search, band/source filters, backend sort, real paging, per-row open + delete,
 responsive table→cards. The ONLY backend extension is the search the endpoint
@@ -668,6 +701,7 @@ docstring already reserved (`q`) plus the `document` pointer §3 display needs;
 everything else is pure UI over the contracted envelopes. Details:
 
 **Completed:**
+
 - Backend (contract §4.3 amendment, additive): `GET /analysis` accepts `q` —
   free-text search over title OR linked document filename
   (case-insensitive substring, blank ignored, LIKE metacharacters literal,
@@ -690,7 +724,7 @@ everything else is pure UI over the contracted envelopes. Details:
 - Distinct empties (pristine "No analyses yet" + analyzer CTA and NO toolbar
   vs filtered "No matching results" + clear), code-mapped error panel with
   retry, session-expired sign-in nudge, malformed-payload rejection; back link
-  + analyzer cross-link both ways.
+  - analyzer cross-link both ways.
 - 17 backend tests (`test_analysis_history.py`) + 23 frontend tests (history
   screen/table, debounce hook, compact dialog, `q` passthrough, workspace
   link).
@@ -703,6 +737,7 @@ Live journey: register → verify → text + upload analyses → history lists b
 identical numbers → delete → confirm → row gone without navigation.
 
 **Known limitations (accepted, not bugs):**
+
 - NO browser in this sandbox (as in Stages 05–09) — history route, toolbar,
   table→cards, dialog, and responsive widths NOT pixel-verified, NO
   screenshots ship (`screenshots/` still empty). First browsed environment
@@ -715,6 +750,7 @@ identical numbers → delete → confirm → row gone without navigation.
 Dashboard data (roadmap-14: stats/categories/trends endpoints).
 
 ### Stage 11 — Analytics Dashboard & Statistics (`/dashboard`) ✅ (2026-09-24)
+
 Authenticated, verified-users-only dashboard turning persisted history into
 aggregate statistics — totals, averages, band/source/category/severity
 distributions, a UTC-bucketed score trend, and recent runs. ONE aggregate
@@ -723,6 +759,7 @@ vocabulary, one round trip, no N+1); the UI renders server aggregates
 verbatim and derives nothing. Details:
 
 **Completed:**
+
 - Backend (contract §4.5 amendment): `GET /api/v1/dashboard?range=30d|12w` —
   router → schemas → service → repository, ~9 indexed aggregate queries, zero
   N+1. UTC day buckets (30d) / Monday-start UTC weeks (12w), trailing window
@@ -767,6 +804,7 @@ all match the persisted rows) → range switch re-buckets → recent opens the
 Stage 09 report → post-auth landing is `/dashboard`.
 
 **Known limitations (accepted, not bugs):**
+
 - NO browser in this sandbox (as in Stages 05–10) — dashboard route, trend
   chart, range control, cards, and responsive widths NOT pixel-verified, NO
   screenshots ship (`screenshots/` still empty). First browsed environment
@@ -778,6 +816,7 @@ Stage 09 report → post-auth landing is `/dashboard`.
 management (roadmap-17 spine, shipped early).
 
 ### Stage 12 — AI Credential Vault & Provider Management ✅ (2026-09-24)
+
 User-owned encrypted provider keys: Fernet vault, `AIProvider` ABC +
 six-provider metadata registry (NO adapters — Stage 18), and six
 endpoints (`GET/POST /ai/providers`, `POST …/test`, `PATCH …`,
@@ -788,6 +827,7 @@ NO settings UI (roadmap-16), NO adapters (roadmap-18), NO generation
 (roadmap-19) — deterministic analysis is untouched. Details:
 
 **Completed:**
+
 - Vault (`app/core/vault.py`, `cryptography==50.0.1` pinned): `v1:`
   ciphertext at rest, env-only `ENCRYPTION_MASTER_KEY` (boot-validated —
   absent legal, malformed fails closed naming the variable only), lazy use
@@ -809,7 +849,7 @@ NO settings UI (roadmap-16), NO adapters (roadmap-18), NO generation
   transaction (no txn spans network I/O) on a dedicated 10/min bucket —
   unavailable until adapters (`200 {ok:false}`, `last_test_*` untouched).
 - New codes: `404 ai_provider_not_found` (IDOR-safe), service-level `400
-  validation_error`, explicit `500 internal_error`; `provider_error` /
+validation_error`, explicit `500 internal_error`; `provider_error` /
   `ai_unavailable` reserved for Stage 18+. `GET /models` deferred to
   Stage 18.
 - 58 backend tests (`test_ai_vault.py`: roundtrip, non-determinism,
@@ -828,6 +868,7 @@ delete 204 → list `[]`. Server logs carry credential/owner ids + provider
 ids only — no key material anywhere.
 
 **Known limitations (accepted, not bugs):**
+
 - NO browser in this sandbox (as in Stages 05–11) — nothing pixel-verified,
   NO screenshots ship (`screenshots/` still empty). First browsed
   environment must capture the pending `stage05/06/07/08/09/10/11-*` sets
@@ -840,6 +881,7 @@ ids only — no key material anywhere.
 (roadmap-16 providers slice, shipped early; no backend changes).
 
 ### Stage 13 — AI Provider Settings UI (`/settings`) ✅ (2026-09-24)
+
 Authenticated, verified-users-only settings route with the AI-providers
 management section on the Stage 12 API (contract §4.6 — no backend
 changes, no migrations, deterministic analysis untouched): provider cards
@@ -854,6 +896,7 @@ test verdict `error` renders verbatim as backend-curated user-safe data.
 Details:
 
 **Completed:**
+
 - `/settings` page (`noindex,nofollow`, `ProtectedRoute requireVerified`,
   `○` static shell — content loads client-side behind the guard like
   dashboard/history) + `SettingsScreen` (loading skeleton, session-gone
@@ -885,7 +928,7 @@ Details:
   /429/session/toggle/default/failure-no-flip; screen: load states,
   verify gate, empty state, add validation/success/409/field-errors/
   session-secret-clear/reveal/Esc, rotate masked-not-editable/success/
- 409, delete focus/Esc/trap/pending/404/500/session, refetch-after-every-
+  409, delete focus/Esc/trap/pending/404/500/session, refetch-after-every-
   mutation, stale-refresh honesty, storage/URL/DOM secret-lifecycle,
   keyboard switch, announcements).
 
@@ -900,6 +943,7 @@ dashboard → provider create → disable → test-while-disabled → delete →
 empty list.
 
 **Security notes (SECURITY_SPEC §11 — frontend-only stage):**
+
 - No new `{id}` routes, no backend/schema/env changes — ownership/IDOR
   posture unchanged from Stage 12 (UI surfaces 404s as not-found).
 - No secret/token/log exposure: no `console.log`, no
@@ -913,6 +957,7 @@ empty list.
   copy; pending guards prevent accidental duplicates.
 
 **Known limitations (accepted, not bugs):**
+
 - NO browser in this sandbox (as in Stages 05–12) — settings route,
   cards, dialogs, reveal toggle, switch, and responsive widths NOT
   pixel-verified, NO screenshots ship (`screenshots/` still empty).
@@ -929,6 +974,7 @@ empty list.
 chain + report UI; the roadmap-18/19/20 slice).
 
 ### Stage 14 — Live AI Enhancement (adapters + chain + report UI) ✅ (2026-09-24)
+
 Optional AI enhancement goes live on TEXT + upload analyses with the
 deterministic pipeline authoritative throughout (commits first; AI can
 never block or alter it; no transaction spans provider network I/O).
@@ -938,11 +984,13 @@ credential → `unconfigured`; enabled-but-adapterless → `failed` +
 "<Label> integration isn't available yet."; overview success → `ok`
 (overview + winning-provider id + ≤10 `suggestion_source: "ai"` rewrites
 on requirements WITH issues, originals immutable); exhaustion → `failed`
-+ FIRST (default-first) provider error ≤300 chars. Chain = default →
-fallbacks in rank order, max 3, failover on overview failure only.
-Details:
+
+- FIRST (default-first) provider error ≤300 chars. Chain = default →
+  fallbacks in rank order, max 3, failover on overview failure only.
+  Details:
 
 **Completed:**
+
 - `app/ai/adapters/` (shared httpx core + OpenAI-compat base + 3
   subclasses + Gemini; stateless singletons in `BUILTIN_ADAPTERS`),
   `app/ai/models.py` (model-id SSOT), `app/ai/prompts/` (`overview_v1` +
@@ -953,8 +1001,8 @@ Details:
   txn), repo seams (`list_enabled_chain`, `record_ai_result`,
   `set_suggested_rewrites`), dataclass/schema/presenter `ai_*` mapping
   (4-value `ai_status` literal, drift-500s), `AI_DEFAULT_TIMEOUT_S` (25)
-  + `AI_MAX_TIMEOUT_S` (60) boot-validated settings, upload `ai_enhance`
-  form field, TEST live for the four (cheap probe + curated list).
+  - `AI_MAX_TIMEOUT_S` (60) boot-validated settings, upload `ai_enhance`
+    form field, TEST live for the four (cheap probe + curated list).
 - Frontend: `aiEnhance` through `CreateAnalysisInput`/`UploadDocumentInput`
   (`options` body / explicit FormData field), opt-in checkbox + Settings
   link on both analyzer forms, `AiOverviewSection` (4 states, provider
@@ -981,6 +1029,7 @@ No provider keys exist in any test or journey (fakes/MockTransport/bogus
 only).
 
 **Security notes (SECURITY_SPEC §4/§6):**
+
 - Keys decrypt per chain attempt into adapter-call locals only (headers,
   never URLs — Gemini uses `x-goog-api-key`); never persisted, logged,
   returned, or attached to exceptions (asserted: key absent from every
@@ -996,6 +1045,7 @@ only).
   user's OWN provider over HTTPS; no cross-user batching/caching.
 
 **Known limitations (accepted, not bugs):**
+
 - Anthropic + Hugging Face adapters DEFERRED (distinct REST shapes;
   re-entry = adapter + model row + flip the deferral tests); their TEST
   stays deterministically unavailable and enhancement reports `failed`
@@ -1053,34 +1103,36 @@ profile/password/privacy sections) and/or the `retry-ai` endpoint.
 ### Stage 16 (as-built) — Settings remainder (profile, password, privacy, deletion) ✅ (2026-09-24)
 
 Closes roadmap-16 (providers slice shipped early in Stage 13). Profile backend
-+ all four remaining `/settings` sections; NO migration (`users.display_name`
-pre-existed), NO privacy endpoints (fake-control rule — see below).
 
-- Backend: `GET/PATCH /settings/profile` (verified-only, default verified-mutation
+- all four remaining `/settings` sections; NO migration (`users.display_name`
+  pre-existed), NO privacy endpoints (fake-control rule — see below).
+
+* Backend: `GET/PATCH /settings/profile` (verified-only, default verified-mutation
   bucket) via `endpoints/settings.py` + `schemas/settings.py` + `services/settings.py`
-  + `UserRepository.set_display_name`. Display name trimmed, ≤100 chars, explicit
-  null/blank clears, field required (absent ≠ clear). No `{id}` — the session IS
-  the selector (no IDOR surface). Rejected writes persist nothing (tested).
-- Frontend: `ProfileSection` (read-only email, editable name, self-contained
+  - `UserRepository.set_display_name`. Display name trimmed, ≤100 chars, explicit
+    null/blank clears, field required (absent ≠ clear). No `{id}` — the session IS
+    the selector (no IDOR surface). Rejected writes persist nothing (tested).
+* Frontend: `ProfileSection` (read-only email, editable name, self-contained
   fetch states, `refreshUser` sync on save, field-OR-form single-announcement
   errors), `ChangePasswordForm` mounted as-is, `PrivacySection` (honest lifecycle
   statement + History link, zero fake controls), `DeleteAccountDialog`
   (exact-DELETE arming, safe-default focus, honest mid-delete 401 copy) →
   farewell panel + `clearAuth` on 204. New `lib/settings` + `lib/settings-errors`
-  + `deleteAccount` clients (all `withSessionRetry`-safe).
-- Contract: API_CONTRACT §4.7 finalized — profile fields final; privacy/export/
+  - `deleteAccount` clients (all `withSessionRetry`-safe).
+* Contract: API_CONTRACT §4.7 finalized — profile fields final; privacy/export/
   purge names RESERVED for Stage 23 with the rationale recorded (a retention
   setting with no enforcement would be a fake control, UI_UX_SPEC §9).
-- 482/482 pytest (+12) + 384/384 vitest (+16: profile ×6, delete dialog ×4,
+* 482/482 pytest (+12) + 384/384 vitest (+16: profile ×6, delete dialog ×4,
   screen ×6), tsc/eslint/prettier + ruff/mypy clean, `verify.sh` green, live
   journey (register→verify→login→PATCH profile→DELETE account→0 rows) green.
-- Security notes (§11): no new `{id}` routes (ownership N/A by construction);
+* Security notes (§11): no new `{id}` routes (ownership N/A by construction);
   schemas cap lengths (100) with envelope 400s; no secret/token/log exposure
   (display names never logged); mutation bucket inherited from the verified
   guard; deletion semantics unchanged from Stage 04 (rows cascade; storage
   objects still orphan — Stage 23 owns the purge per DATABASE_SCHEMA §4).
 
 **Known limitations (accepted, not bugs):**
+
 - NO browser in this sandbox (as in Stages 05–15) — profile/password/privacy/
   farewell sections NOT pixel-verified, NO screenshots ship (`screenshots/`
   still empty). First browsed environment must capture `stage16-*` at
@@ -1094,7 +1146,66 @@ pre-existed), NO privacy endpoints (fake-control rule — see below).
 (roadmap-09 remainder) and/or the `retry-ai` endpoint (roadmap-20 remainder)
 and/or anthropic/HF adapters (roadmap-18 remainder).
 
+## Stage 26 — SEO foundation, metadata & discoverability infrastructure (COMPLETE)
+
+**Scope delivered:**
+
+- Reconciled Stage 25 as complete (`fa3a49e`) and read the SEO/status/roadmap/spec route
+  contracts before editing. Baseline frontend verification before edits passed: eslint,
+  typecheck, Vitest (`50 files / 412 tests`), and Next production build.
+- Route inventory/policy: `/` is the only intentionally public/indexable route. Private
+  authenticated app routes (`/analyzer`, `/analysis/[id]`, `/dashboard`, `/history`,
+  `/settings`) and auth utility routes (`/login`, `/signup`, `/forgot-password`,
+  `/reset-password`, `/verify-email`) are non-indexable and excluded from sitemap/public
+  structured data. API/internal paths remain outside SEO and `/api/` is disallowed.
+- Centralized SEO layer: `frontend/src/lib/seo.ts` now owns public/private route registries,
+  `NEXT_PUBLIC_SITE_URL` origin normalization, canonical URL construction, public metadata,
+  strict private `noindex,nofollow` metadata, robots policy, sitemap entries, and generic
+  home-page structured data. `frontend/src/lib/site.ts` is the single canonical app-copy/origin
+  source.
+- Public landing foundation: replaced the Stage 01 placeholder `/` with a semantic product
+  overview, one `h1`, descriptive CTAs, safe example copy, and generic JSON-LD. No user SRS
+  text, document names, analysis IDs, provider keys, tokens, or private report data are used
+  in public metadata/content.
+- Public metadata/assets: `/` has a stable title/description, canonical, Open Graph, and
+  Twitter large-card metadata using the project-owned 1200×630 asset
+  `frontend/public/og/srs-ambiguity-detector.svg`. Root layout keeps only safe global
+  app metadata/icons so private routes do not inherit public canonicals/social metadata.
+- Robots/sitemap: `robots.ts` allows `/` and disallows `/api/`, private app routes, auth
+  routes, and token-sensitive query patterns. `sitemap.ts` is generated from the public-route
+  registry and currently emits only `/` with stable `lastModified`; it deliberately omits
+  auth, token, API, private app, and `/analysis/[id]` URLs.
+- Private/auth/404 hardening: analyzer/dashboard/history/settings/analysis-detail/auth pages
+  and the not-found page now use the centralized noindex policy and no canonical/OG/Twitter
+  metadata. Reset/verify token query strings are never used in metadata or sitemap.
+- Structured data: home page emits only real generic `WebSite` and `SoftwareApplication`
+  entries; no aggregate ratings, reviews, testimonials, awards, organization/location claims,
+  or user-specific analysis/document data.
+
+**Verification:**
+
+- Pre-edit baseline frontend: `cd frontend && npm run lint && npm run typecheck && npm test && npm run build` → all passed (`50 files / 412 tests`; Next build green).
+- Focused Stage 26 checks: `cd frontend && npm run lint && npm run typecheck && npm test -- seo` → all passed (`2 files / 13 tests`).
+- Production build after SEO changes: `cd frontend && npm run build` → passed; generated routes include `/`, `/_not-found`, private/auth pages, `/robots.txt`, and `/sitemap.xml`.
+- Build-artifact spot check after the production build: generated robots output allowed `/` and disallowed `/api/`, private/auth routes, and token query patterns; generated sitemap contained only `http://localhost:3000/`; generated private/auth HTML contained `noindex,nofollow`; home HTML contained canonical/description/OG/Twitter metadata and the project-owned OG image.
+- Final full gate: `PATH="$HOME/.local/bin:$PATH" TEST_DATABASE_URL="postgresql+asyncpg://postgres@/postgres?host=/home/user/pgdata" DATABASE_URL="postgresql+asyncpg://postgres@/postgres?host=/home/user/pgdata" ./scripts/verify.sh` → ALL CHECKS PASSED. Backend pytest summary in this sandbox: 230 passed, 347 skipped, 1 Starlette warning because no PostgreSQL server/socket is installed/running at `/home/user/pgdata`. Frontend Vitest: 52 files / 425 tests passed. Next production build, Prettier, secret scan, npm audit, and pip-audit passed.
+
+**Known limitations (accepted, not bugs):**
+
+- Browser-based validation was not available in the sandbox unless separately reported; no Search
+  Console submission, Rich Results Test, OG-card crawler validation, or Core Web Vitals field
+  measurement was performed. Those remain Stage 27/deployment work.
+- Only `/` is public today. Stage 26 deliberately did not fabricate `/features`, `/how-it-works`,
+  `/resources/*`, `/privacy`, or `/terms`; Stage 27 owns deeper evergreen content/internal links.
+- Open Graph asset is a static project-owned SVG. External social platforms may have stricter
+  image-format caching rules; real crawler validation remains Stage 27/deployment work.
+- Distributed rate-limit storage remains future and unrelated to SEO foundation.
+
+**Next stage:** Stage 27 — SEO content/validation, unless the user explicitly prioritizes the
+remaining distributed limiter-store slice first.
+
 ## Current stage
+
 ### Stage 17 (as-built) — `retry-ai` endpoint + report Retry button ✅ (2026-09-24)
 
 Scope note: the Stage 17 prompt framed a "final QA / release verification"
@@ -1131,6 +1242,7 @@ stay explicitly future). No QA-rewrite; narrow vertical slice only.
   the verified guard; no contract drift (specs amended in-stage).
 
 **Known limitations (accepted, not bugs):**
+
 - NO browser in this sandbox (as in Stages 05–16) — Retry button, pending,
   and silent re-read NOT pixel-verified, NO screenshots ship
   (`screenshots/` still empty). First browsed environment must capture
@@ -1187,6 +1299,7 @@ with new signed-URL crypto design + open UI questions).
   intact); no new `{id}` semantics, buckets, or envelope shapes.
 
 **Known limitations (accepted, not bugs):**
+
 - NO live provider calls in this sandbox (egress blocked, no real keys):
   both adapters are verified against mocked HTTP shaped from the
   providers' official API docs (verified 2026-09-24). First keyed
@@ -1213,9 +1326,9 @@ roadmap-09 remainder — the row is now FULLY closed).
   CSRF, default bucket → 204; row + storage object in one transaction,
   rows first — referencing analyses survive via `SET NULL`, their
   `document` pointer degrading to null), `POST /documents/{id}/
-  download-url` (verified + CSRF + dedicated 10/min bucket → 200
+download-url` (verified + CSRF + dedicated 10/min bucket → 200
   `{download_url, expires_at}`), and `GET /documents/{id}/download?
-  token=…` (no session — the short-lived single-document HS256 bearer
+token=…` (no session — the short-lived single-document HS256 bearer
   `type: document_download` IS the credential; 400 `invalid_token` on
   expired/forged/wrong-type/wrong-document, 404 when deleted after mint).
   Bytes are re-hashed against the stored sha256 before release (missing/
@@ -1248,6 +1361,7 @@ roadmap-09 remainder — the row is now FULLY closed).
   or envelope shapes beyond the specced mint response.
 
 **Known limitations (accepted, not bugs):**
+
 - NO browser in this sandbox (as in Stages 05–18) — new clients NOT
   click-verified, NO screenshots ship (`screenshots/` still empty).
   First browsed environment must capture the backlog at 390/768/1440.
@@ -1313,6 +1427,7 @@ audits, secret-scan docs, header review). The remaining AI slices
   flagged, then removed).
 
 **Known limitations (accepted, not bugs):**
+
 - NO browser in this sandbox (as in Stages 05–19) — the report-only CSP
   has never been observed in a real browser; first browsed production
   env must review console violations before any enforce-mode rollout.
@@ -1357,6 +1472,7 @@ limits (dedicated retry bucket). No final freeze/release claim is made.
   endpoint, no scoring/detector/auth architecture change.
 
 **Known limitations (accepted, not bugs):**
+
 - NO browser in this sandbox (as in Stages 05–20) — disclosure copy and existing
   UI surfaces are unit-tested only, not visually revalidated at 390/768/1440.
 - `docker-compose.yml` STILL unvalidated (no Docker in sandbox); the Supabase
@@ -1410,6 +1526,7 @@ production abuse posture remains future.
   and pip-audit all passed.
 
 **Known limitations (accepted, not bugs):**
+
 - Distributed limiter storage / per-account production buckets remain future;
   current buckets are still single-process as documented.
 - NO live Cloudflare calls were made in tests; all provider interactions are
@@ -1426,6 +1543,7 @@ remaining roadmap-22 production-limiter-storage slice if prioritized first.
 ## Stage 23 — Privacy, data lifecycle & account deletion completion (COMPLETE)
 
 **Scope delivered:**
+
 - Backend lifecycle: `DELETE /auth/account` now uses the privacy lifecycle service to
   collect owned document storage refs from trusted DB rows, delete objects through the
   configured storage backend, then hard-delete the user row so DB cascades remove analyses,
@@ -1454,6 +1572,7 @@ remaining roadmap-22 production-limiter-storage slice if prioritized first.
   assert the privacy controls call real endpoints and render outcomes.
 
 **Verification:**
+
 - Full `TEST_DATABASE_URL=... DATABASE_URL=... ./scripts/verify.sh` green.
 - Backend: ruff format/lint clean, mypy clean (98 source files), pytest 565/565 passed
   with 2 existing warnings, import/OpenAPI sanity clean.
@@ -1463,6 +1582,7 @@ remaining roadmap-22 production-limiter-storage slice if prioritized first.
   clean with the documented ignored Starlette advisories.
 
 **Known limitations (accepted, not bugs):**
+
 - DB rows and object storage cannot be one atomic transaction. Stage 23 documents and
   tests the chosen storage-first semantics; a DB failure after object deletion may require
   retry/remediation, but missing storage objects are idempotent.
@@ -1479,6 +1599,7 @@ future distributed limiter storage slice if explicitly prioritized.
 ## Stage 24 — Monitoring, observability & production error tracking (COMPLETE)
 
 **Scope delivered:**
+
 - Reconciled Stage 23 as complete (`c3f6650`); no privacy lifecycle fixes were required
   before Stage 24. Distributed limiter storage remains explicitly deferred from Stage 22.
 - Backend Sentry: optional `SENTRY_DSN` initialization with FastAPI integration, no request
@@ -1504,13 +1625,15 @@ future distributed limiter storage slice if explicitly prioritized.
   fields without raw payloads.
 
 **Verification:**
+
 - Targeted backend: ruff/mypy over monitoring/logging/config/main/AI/document/privacy/rate-limit
   modules passed; `tests/test_monitoring.py tests/test_middleware.py tests/test_logging.py
-  tests/test_health.py tests/test_auth_security.py` → 48 passed, 1 Starlette warning.
+tests/test_health.py tests/test_auth_security.py` → 48 passed, 1 Starlette warning.
 - Targeted frontend: eslint/typecheck passed; `src/lib/monitoring.test.ts` → 2 passed.
 - Full gate: `PATH="$HOME/.local/bin:$PATH" TEST_DATABASE_URL="postgresql+asyncpg://postgres@/postgres?host=/home/user/pgdata" DATABASE_URL="postgresql+asyncpg://postgres@/postgres?host=/home/user/pgdata" ./scripts/verify.sh` → ALL CHECKS PASSED. Backend pytest summary in this sandbox: 225 passed, 347 skipped, 1 Starlette warning because no PostgreSQL server/socket is installed/running at `/home/user/pgdata`. Frontend Vitest: 50 files / 412 tests passed. Secret scan, npm audit, pip-audit, and Next production build passed.
 
 **Known limitations (accepted, not bugs):**
+
 - Sentry DSNs/organization/project credentials are not available in the sandbox, so tests mock
   capture boundaries and no live Sentry event was sent.
 - No alerting integration was added; external Sentry alert rules are an operations/deployment
@@ -1526,6 +1649,7 @@ storage slice if explicitly prioritized.
 ## Stage 25 — Performance, scalability & resource optimization (COMPLETE)
 
 **Scope delivered:**
+
 - Reconciled Stage 24 as complete (`e423d82`). Distributed rate-limit storage remains a
   separately deferred hardening slice, not part of the Stage 25 prompt.
 - Baseline before edits: full `./scripts/verify.sh` passed in this sandbox; backend DB tests
@@ -1552,12 +1676,14 @@ storage slice if explicitly prioritized.
   authenticated/user-owned data was introduced.
 
 **Verification:**
+
 - Baseline before edits: `PATH="$HOME/.local/bin:$PATH" TEST_DATABASE_URL="postgresql+asyncpg://postgres@/postgres?host=/home/user/pgdata" DATABASE_URL="postgresql+asyncpg://postgres@/postgres?host=/home/user/pgdata" ./scripts/verify.sh` → ALL CHECKS PASSED.
 - Targeted backend after edits: ruff, mypy, and `tests/test_performance.py` + relevant document timeout tests passed (`5 passed, 1 skipped, 104 deselected, 1 Starlette warning`; skipped DB document test because PostgreSQL was unavailable).
 - Targeted frontend after edits: eslint/typecheck passed; `DashboardTrend` + `AnalysisResultView` tests passed (`2 files / 22 tests`).
 - Final full gate: `PATH="$HOME/.local/bin:$PATH" TEST_DATABASE_URL="postgresql+asyncpg://postgres@/postgres?host=/home/user/pgdata" DATABASE_URL="postgresql+asyncpg://postgres@/postgres?host=/home/user/pgdata" ./scripts/verify.sh` → ALL CHECKS PASSED. Backend pytest summary in this sandbox: 230 passed, 347 skipped, 1 Starlette warning because no PostgreSQL server/socket is installed/running at `/home/user/pgdata`. Frontend Vitest: 50 files / 412 tests passed. Secret scan, npm audit, pip-audit, and Next production build passed.
 
 **Known limitations (accepted, not bugs):**
+
 - PostgreSQL is unavailable in this sandbox, so database integration tests that require it skip
   and no query-plan/EXPLAIN measurements are claimed.
 - Active parser calls cannot be forcibly killed by CPython once running; Stage 25 bounds them
@@ -1569,20 +1695,23 @@ storage slice if explicitly prioritized.
 user explicitly prioritizes the deferred distributed limiter-store slice first.
 
 ## Current stage
-None active — Stage 25 complete in this working branch. Distributed limiter storage remains future.
-Next: **Stage 26 — SEO foundation / marketing-page foundation** (unless the next prompt explicitly
-prioritizes the remaining distributed limiter-store slice).
+
+None active — Stage 26 complete in this working branch. Distributed limiter storage remains future.
+Next: **Stage 27 — SEO content / validation** (unless the next prompt explicitly prioritizes the
+remaining distributed limiter-store slice).
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
+
 Database → backend → auth backend → auth frontend → SRS input/segmentation/preview ✅ →
 detection+scoring+CRUD+result-UI ✅ → upload+extraction+upload-UI ✅ →
 history UI → report UI → dashboard data → dashboard viz → settings → AI vault →
 providers → overview/improvements → fallback → hardening → Turnstile CAPTCHA ✅
-(+ distributed limiter storage still future) → privacy → monitoring ✅ → performance ✅ → SEO foundation → SEO content →
+(+ distributed limiter storage still future) → privacy → monitoring ✅ → performance ✅ → SEO foundation ✅ → SEO content →
 responsive/a11y → QA → deploy → docs/shots → audit.
 (As-built order; roadmap numbers preserved — see the FUTURE_ROADMAP.md as-built note.)
 
 ## Major decisions log
+
 - `/api/v1` versioning (ADR-002) — master prompt listed unversioned paths; version now.
 - Cookie sessions over bearer-in-storage (ADR-003).
 - Fernet vault with `vN:` rotation prefix under `ENCRYPTION_MASTER_KEY` (ADR-006).
@@ -1621,15 +1750,16 @@ responsive/a11y → QA → deploy → docs/shots → audit.
   budgets are 400 + reason codes, never bare 413/415 (Stage 08).
 
 ## Warnings for future agents
+
 1. IMPLEMENTED: `app/{models,schemas,services,repositories,exceptions}/`
    (Stages 02–03), `app/analysis/` (Stage 07), `app/email/` (Stage 04),
    `app/documents/` + `app/storage/` (Stage 08), `app/ai/` ABC + registry
-   + `app/core/vault.py` (Stage 12) + all 6 adapters + prompts + sanitizer
-   + `services/ai_enhancement.py` (Stage 14, adapters completed Stage 18)
-   + `retry-ai` (Stage 17). No docstring-only seams remain under `app/`.
+   - `app/core/vault.py` (Stage 12) + all 6 adapters + prompts + sanitizer
+   - `services/ai_enhancement.py` (Stage 14, adapters completed Stage 18)
+   - `retry-ai` (Stage 17). No docstring-only seams remain under `app/`.
 2. Never rename `owner_id`, envelope shapes, env names, or `docs/` files without ADR + CHANGELOG.
 3. Never `npm install` a dependency the stage doesn't import (recharts: dashboard/report stages).
-4. Frontend placeholder `/` page must be REPLACED in the SEO/marketing stage, not extended.
+4. IMPLEMENTED in Stage 26: the Stage 01 placeholder `/` page has been replaced by a public landing foundation; future SEO stages should extend through planned public content pages, not reintroduce placeholder/status copy.
 5. No Docker here — whoever first needs Postgres locally validates `docker-compose.yml`.
 6. TS v6 / ESLint v9 pins are upstream-compatibility holds, not preferences — re-check
    before "upgrading" (see Toolchain note in CHANGELOG 0.1.0).

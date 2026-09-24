@@ -69,23 +69,23 @@ cleanly when PostgreSQL is unreachable.
 
 ## Development commands
 
-| Area | Command | Purpose |
-|------|---------|---------|
-| Frontend | `npm install` | Install dependencies |
-| Frontend | `npm run dev` | Dev server on `:3000` |
-| Frontend | `npm run build` / `npm run start` | Production build / serve it |
-| Frontend | `npm run lint` | ESLint (flat config, `react/no-danger`) |
-| Frontend | `npm run typecheck` | `tsc --noEmit` (strict) |
-| Frontend | `npm test` | Vitest unit tests (`*.test.ts`) |
-| Frontend | `npm run format` | Prettier check |
-| Backend | `pip install -r requirements.txt -r requirements-dev.txt` | Install (in venv) |
-| Backend | `uvicorn app.main:app --reload --port 8000` | Dev server on `:8000` |
-| Backend | `python -m pytest -q` | Test suite |
-| Backend | `ruff check app tests alembic` / `ruff format --check app tests alembic` | Lint / format check |
-| Backend | `mypy app` | Strict typecheck (`alembic/` excluded — operational scripts) |
-| Backend | `alembic upgrade head` / `current` / `history` / `check` | Migrate / status / drift check |
-| Backend | `alembic revision -m "…" --autogenerate` | New migration (always REVIEW the diff) |
-| Repo | `./scripts/verify.sh` | Full gate (everything above, in order) |
+| Area     | Command                                                                  | Purpose                                                      |
+| -------- | ------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| Frontend | `npm install`                                                            | Install dependencies                                         |
+| Frontend | `npm run dev`                                                            | Dev server on `:3000`                                        |
+| Frontend | `npm run build` / `npm run start`                                        | Production build / serve it                                  |
+| Frontend | `npm run lint`                                                           | ESLint (flat config, `react/no-danger`)                      |
+| Frontend | `npm run typecheck`                                                      | `tsc --noEmit` (strict)                                      |
+| Frontend | `npm test`                                                               | Vitest unit tests (`*.test.ts`)                              |
+| Frontend | `npm run format`                                                         | Prettier check                                               |
+| Backend  | `pip install -r requirements.txt -r requirements-dev.txt`                | Install (in venv)                                            |
+| Backend  | `uvicorn app.main:app --reload --port 8000`                              | Dev server on `:8000`                                        |
+| Backend  | `python -m pytest -q`                                                    | Test suite                                                   |
+| Backend  | `ruff check app tests alembic` / `ruff format --check app tests alembic` | Lint / format check                                          |
+| Backend  | `mypy app`                                                               | Strict typecheck (`alembic/` excluded — operational scripts) |
+| Backend  | `alembic upgrade head` / `current` / `history` / `check`                 | Migrate / status / drift check                               |
+| Backend  | `alembic revision -m "…" --autogenerate`                                 | New migration (always REVIEW the diff)                       |
+| Repo     | `./scripts/verify.sh`                                                    | Full gate (everything above, in order)                       |
 
 Python dependency strategy: pinned `backend/requirements*.txt` are the install source;
 `backend/pyproject.toml` holds tool configuration only (ruff, mypy, pytest).
@@ -99,18 +99,18 @@ All settings are environment-driven and validated at boot. Copy the examples and
 - Root `.env.example` is the master inventory + `docker compose` reference (documents all
   variables in one place; only `${POSTGRES_*}` is read from the repo root)
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000/api/v1` | Browser → API base URL (the only backend address the browser needs) |
-| `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | Canonical site URL (SEO, emails, OAuth-free callbacks) |
-| `APP_ENV` | `local` | `local` / `staging` / `production` behavior switch |
-| `DATABASE_URL` | *(unset — app boots; `/ready` reports `not_configured`)* | `postgresql+asyncpg://…` app connection |
-| `DIRECT_DATABASE_URL` | *(falls back to `DATABASE_URL`)* | Direct connection for Alembic (bypasses Supabase pooler) |
-| `DATABASE_POOL_SIZE` / `DATABASE_MAX_OVERFLOW` | `5` / `10` | Per-process asyncpg pool tuning; size against DB capacity and worker count |
-| `DOCUMENT_EXTRACTOR_WORKERS` | `2` | Per-process bounded parser workers for PDF/DOCX/TXT validation + extraction |
-| `JWT_SECRET` | *(required for auth)* | 256-bit-minimum HS256 signing secret (fail-closed) |
-| `EMAIL_PROVIDER` | `console` | `console` (local dev outbox) / `resend` (production delivery) |
-| `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` | *(unset — monitoring disabled)* | Optional backend/frontend Sentry projects; scrubbers strip bodies, query strings, tokens, credentials, SRS text, uploads, and AI payloads |
+| Variable                                       | Default                                                  | Purpose                                                                                                                                   |
+| ---------------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_API_URL`                          | `http://localhost:8000/api/v1`                           | Browser → API base URL (the only backend address the browser needs)                                                                       |
+| `NEXT_PUBLIC_SITE_URL`                         | `http://localhost:3000`                                  | Canonical site origin for public metadata, robots, and sitemap (normalized; never put secrets here)                                       |
+| `APP_ENV`                                      | `local`                                                  | `local` / `staging` / `production` behavior switch                                                                                        |
+| `DATABASE_URL`                                 | _(unset — app boots; `/ready` reports `not_configured`)_ | `postgresql+asyncpg://…` app connection                                                                                                   |
+| `DIRECT_DATABASE_URL`                          | _(falls back to `DATABASE_URL`)_                         | Direct connection for Alembic (bypasses Supabase pooler)                                                                                  |
+| `DATABASE_POOL_SIZE` / `DATABASE_MAX_OVERFLOW` | `5` / `10`                                               | Per-process asyncpg pool tuning; size against DB capacity and worker count                                                                |
+| `DOCUMENT_EXTRACTOR_WORKERS`                   | `2`                                                      | Per-process bounded parser workers for PDF/DOCX/TXT validation + extraction                                                               |
+| `JWT_SECRET`                                   | _(required for auth)_                                    | 256-bit-minimum HS256 signing secret (fail-closed)                                                                                        |
+| `EMAIL_PROVIDER`                               | `console`                                                | `console` (local dev outbox) / `resend` (production delivery)                                                                             |
+| `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN`        | _(unset — monitoring disabled)_                          | Optional backend/frontend Sentry projects; scrubbers strip bodies, query strings, tokens, credentials, SRS text, uploads, and AI payloads |
 
 ## Database
 
@@ -164,14 +164,14 @@ input + document upload/extraction + deterministic segmentation +
 dashboard, settings, AI providers/enhancement/retry, report experience, document
 list/download/delete, Turnstile on sensitive public auth ops, and privacy lifecycle
 controls (retention/export/purge/storage-aware account deletion), and monitoring/Sentry
-with privacy scrubbers, and the Stage 25 performance pass (summary-query projections,
+with privacy scrubbers, the Stage 25 performance pass (summary-query projections,
 bounded document parser workers, env-driven DB pool tuning, and frontend derivation
-memoization). Still intentionally NOT implemented yet: distributed limiter storage,
-SEO polish, responsive/a11y final pass, production deployment, screenshots/docs finalization. Scores are heuristic triage aids, not validated measurements
-(see [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) §4.3 honest limits).
-Post-auth landing is still the temporary fixed `/`; the home page is an
-honest placeholder (replaced by the marketing stage), and `ApiStatus` needs
-the backend running. Full plan:
+memoization), and the Stage 26 SEO foundation (public `/` landing, metadata, OG/Twitter,
+robots, sitemap, JSON-LD, and noindex private/auth policy). Still intentionally NOT
+implemented yet: distributed limiter storage, deeper SEO content/validation, responsive/a11y
+final pass, production deployment, screenshots/docs finalization. Scores are heuristic triage
+aids, not validated measurements (see [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) §4.3
+honest limits). Full plan:
 [`docs/FUTURE_ROADMAP.md`](docs/FUTURE_ROADMAP.md) (see the as-built sequencing
 note — the analysis spine shipped input-first, then detection + CRUD).
 

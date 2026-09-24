@@ -6,41 +6,41 @@
 
 ## Stage index
 
-| Stage | Title | Owner spec(s) | Exit criteria (must ALL hold) |
-|-------|-------|---------------|-------------------------------|
-| 00 | Project contract + architecture | PROJECT_SPEC, ARCHITECTURE | All 12 docs exist, mutually consistent; ADRs recorded |
-| 01 | Repository / development foundation | ARCHITECTURE, DEVELOPMENT_RULES | Runnable FE+BE skeletons; `verify.sh` green; compose file; env examples |
-| 02 | Database foundation | DATABASE_SCHEMA, ARCHITECTURE | Models + initial Alembic migration; `ready` DB check; connection pooling |
-| 03 | Backend foundation | API_CONTRACT, SECURITY_SPEC | Error envelope handlers, request-id, CORS, pagination helpers, OpenAPI posture |
-| 04 | Authentication backend | SECURITY_SPEC, API_CONTRACT §4.2 | Register/verify/login/logout/reset/change/delete; argon2id; cookies; email abstraction + Resend |
-| 05 | Authentication frontend | UI_UX_SPEC §4–5, API_CONTRACT §4.2 | AuthCard+blade, guarded routes, session hook, onboarding nudge (Maybe Later) |
-| 06 | Deterministic NLP engine | PROJECT_SPEC §3–6 | ≥13 detectors, configurable packs, offsets+reasons+recommendations, 0 network; unit-tested incl. golden examples |
-| 07 | Analysis API | API_CONTRACT §4.3, DATABASE_SCHEMA | POST/GET/DELETE analysis; scoring + breakdown; IDOR tests; `ai_enhance` flag plumbed (no-op until Stage 19) |
-| 08 | Analyzer UI | UI_UX_SPEC §6/8, API_CONTRACT §4.3 | Text input + run + calm results (no AI sections beyond empty-state CTA) |
-| 09 | Document upload | SECURITY_SPEC §5, API_CONTRACT §4.4 | Size/MIME/magic-byte guards, storage abstraction, cleanup, signed URLs |
-| 10 | PDF/DOCX/TXT extraction | ARCHITECTURE §4 | Timeouts, char caps, zip-bomb/page caps, per-format tests |
-| 11 | Requirement segmentation | PROJECT_SPEC §"segmentation" | FR/NFR/REQ + numbered + heading + bullet strategies; modular registry; tests |
-| 12 | Analysis history | API_CONTRACT §4.3, UI_UX_SPEC | Search/filter/sort/paginate/delete; ownership-scoped; responsive table→cards |
-| 13 | Detailed report UI | UI_UX_SPEC §7–8 | `/analysis/[id]`: gauge, highlighted phrases, issues, "Why flagged?", AI empty states |
-| 14 | Dashboard data | API_CONTRACT §4.5 | stats/categories/trends/severity/activity endpoints, denormalized counts |
-| 15 | Dashboard visualization | UI_UX_SPEC §7 | Gauge, bars, trend, activity; useful empty states; mobile variants — ALREADY ABSORBED by actual Stage 11; slot reused by as-built Stage 15 (AI results integration & trust UX, UI_UX_SPEC §13a, no backend change) |
-| 16 | Settings/profile/security | API_CONTRACT §4.6–4.7, UI_UX_SPEC | Profile, password, providers mgmt UI, privacy, DELETE-typed account deletion |
-| 17 | AI credential architecture | AI_PROVIDER_SPEC §2/5, SECURITY_SPEC §4 | ABC + registry + Fernet vault + rotate + key lifecycle tests |
-| 18 | AI provider integrations | AI_PROVIDER_SPEC §4 | Gemini → Groq → OpenAI → Anthropic → OpenRouter → HF; per-adapter tests (mocked HTTP) |
-| 19 | AI overview/improvements | AI_PROVIDER_SPEC §3/6/8 | Prompts, overview + improvement wiring, sanitized rendering, disclosure copy |
-| 20 | AI fallback/error handling | AI_PROVIDER_SPEC §7 | Chain, retry-ai, failure matrix tests, latency/usage recording |
-| 21 | Security hardening | SECURITY_SPEC | CSP, OpenAPI prod posture, audits (npm/pip), secret-scan docs, header review |
-| 22 | CAPTCHA/rate limiting | SECURITY_SPEC §7 | Turnstile verify + buckets on sensitive routes; 429 envelope + tests |
-| 23 | Privacy/data lifecycle ✅ | DATABASE_SCHEMA §4 | Delivered: retention settings/CLI, purge, signed live export, storage-aware account-deletion cascade regression tests |
-| 24 | Monitoring ✅ | SECURITY_SPEC §2.5/§11 | Delivered: optional Sentry backend/frontend with scrubbers, bounded request IDs, JSON logs, safe health/readiness semantics, AI/storage/email/rate-limit observability |
-| 25 | Performance ✅ | UI_UX_SPEC §6, SEO_SPEC §3 | Delivered: DB pool tuning, summary-query projections, SQL dashboard improved-count, bounded extraction workers, frontend memoized derivations, build/audit verification |
-| 26 | SEO foundation | SEO_SPEC §2–3 | Public routes + metadata + OG + robots/sitemap + 404 + JSON-LD core |
-| 27 | SEO content | SEO_SPEC §4 | Evergreen content, internal links, breadcrumbs, validation (Rich Results) |
-| 28 | Responsive/a11y refinement | UI_UX_SPEC §10–11 | Width matrix 320→2560+, keyboard/SR pass, contrast, motion-reduced |
-| 29 | Testing/QA | DEVELOPMENT_RULES §4 | Coverage review, e2e smoke (auth→analyze→history), contract tests, bug bash |
-| 30 | Production deployment | ARCHITECTURE §3 | Vercel + Supabase topology validated, env runbook, backups, rollback plan |
-| 31 | Documentation/screenshots | PROJECT_SPEC §2 | README final, screenshots full set, API docs, user guide |
-| 32 | Final audit | ALL | Baseline checklist 12/12, security pass, DoD pass, release tag |
+| Stage | Title                               | Owner spec(s)                           | Exit criteria (must ALL hold)                                                                                                                                                                                      |
+| ----- | ----------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 00    | Project contract + architecture     | PROJECT_SPEC, ARCHITECTURE              | All 12 docs exist, mutually consistent; ADRs recorded                                                                                                                                                              |
+| 01    | Repository / development foundation | ARCHITECTURE, DEVELOPMENT_RULES         | Runnable FE+BE skeletons; `verify.sh` green; compose file; env examples                                                                                                                                            |
+| 02    | Database foundation                 | DATABASE_SCHEMA, ARCHITECTURE           | Models + initial Alembic migration; `ready` DB check; connection pooling                                                                                                                                           |
+| 03    | Backend foundation                  | API_CONTRACT, SECURITY_SPEC             | Error envelope handlers, request-id, CORS, pagination helpers, OpenAPI posture                                                                                                                                     |
+| 04    | Authentication backend              | SECURITY_SPEC, API_CONTRACT §4.2        | Register/verify/login/logout/reset/change/delete; argon2id; cookies; email abstraction + Resend                                                                                                                    |
+| 05    | Authentication frontend             | UI_UX_SPEC §4–5, API_CONTRACT §4.2      | AuthCard+blade, guarded routes, session hook, onboarding nudge (Maybe Later)                                                                                                                                       |
+| 06    | Deterministic NLP engine            | PROJECT_SPEC §3–6                       | ≥13 detectors, configurable packs, offsets+reasons+recommendations, 0 network; unit-tested incl. golden examples                                                                                                   |
+| 07    | Analysis API                        | API_CONTRACT §4.3, DATABASE_SCHEMA      | POST/GET/DELETE analysis; scoring + breakdown; IDOR tests; `ai_enhance` flag plumbed (no-op until Stage 19)                                                                                                        |
+| 08    | Analyzer UI                         | UI_UX_SPEC §6/8, API_CONTRACT §4.3      | Text input + run + calm results (no AI sections beyond empty-state CTA)                                                                                                                                            |
+| 09    | Document upload                     | SECURITY_SPEC §5, API_CONTRACT §4.4     | Size/MIME/magic-byte guards, storage abstraction, cleanup, signed URLs                                                                                                                                             |
+| 10    | PDF/DOCX/TXT extraction             | ARCHITECTURE §4                         | Timeouts, char caps, zip-bomb/page caps, per-format tests                                                                                                                                                          |
+| 11    | Requirement segmentation            | PROJECT_SPEC §"segmentation"            | FR/NFR/REQ + numbered + heading + bullet strategies; modular registry; tests                                                                                                                                       |
+| 12    | Analysis history                    | API_CONTRACT §4.3, UI_UX_SPEC           | Search/filter/sort/paginate/delete; ownership-scoped; responsive table→cards                                                                                                                                       |
+| 13    | Detailed report UI                  | UI_UX_SPEC §7–8                         | `/analysis/[id]`: gauge, highlighted phrases, issues, "Why flagged?", AI empty states                                                                                                                              |
+| 14    | Dashboard data                      | API_CONTRACT §4.5                       | stats/categories/trends/severity/activity endpoints, denormalized counts                                                                                                                                           |
+| 15    | Dashboard visualization             | UI_UX_SPEC §7                           | Gauge, bars, trend, activity; useful empty states; mobile variants — ALREADY ABSORBED by actual Stage 11; slot reused by as-built Stage 15 (AI results integration & trust UX, UI_UX_SPEC §13a, no backend change) |
+| 16    | Settings/profile/security           | API_CONTRACT §4.6–4.7, UI_UX_SPEC       | Profile, password, providers mgmt UI, privacy, DELETE-typed account deletion                                                                                                                                       |
+| 17    | AI credential architecture          | AI_PROVIDER_SPEC §2/5, SECURITY_SPEC §4 | ABC + registry + Fernet vault + rotate + key lifecycle tests                                                                                                                                                       |
+| 18    | AI provider integrations            | AI_PROVIDER_SPEC §4                     | Gemini → Groq → OpenAI → Anthropic → OpenRouter → HF; per-adapter tests (mocked HTTP)                                                                                                                              |
+| 19    | AI overview/improvements            | AI_PROVIDER_SPEC §3/6/8                 | Prompts, overview + improvement wiring, sanitized rendering, disclosure copy                                                                                                                                       |
+| 20    | AI fallback/error handling          | AI_PROVIDER_SPEC §7                     | Chain, retry-ai, failure matrix tests, latency/usage recording                                                                                                                                                     |
+| 21    | Security hardening                  | SECURITY_SPEC                           | CSP, OpenAPI prod posture, audits (npm/pip), secret-scan docs, header review                                                                                                                                       |
+| 22    | CAPTCHA/rate limiting               | SECURITY_SPEC §7                        | Turnstile verify + buckets on sensitive routes; 429 envelope + tests                                                                                                                                               |
+| 23    | Privacy/data lifecycle ✅           | DATABASE_SCHEMA §4                      | Delivered: retention settings/CLI, purge, signed live export, storage-aware account-deletion cascade regression tests                                                                                              |
+| 24    | Monitoring ✅                       | SECURITY_SPEC §2.5/§11                  | Delivered: optional Sentry backend/frontend with scrubbers, bounded request IDs, JSON logs, safe health/readiness semantics, AI/storage/email/rate-limit observability                                             |
+| 25    | Performance ✅                      | UI_UX_SPEC §6, SEO_SPEC §3              | Delivered: DB pool tuning, summary-query projections, SQL dashboard improved-count, bounded extraction workers, frontend memoized derivations, build/audit verification                                            |
+| 26    | SEO foundation ✅                   | SEO_SPEC §2–3                           | Delivered: public `/` landing foundation, centralized metadata/canonicals, OG/Twitter, robots/sitemap, noindex private/auth policy, JSON-LD core                                                                   |
+| 27    | SEO content                         | SEO_SPEC §4                             | Evergreen content, internal links, breadcrumbs, external validation (Rich Results/OG/Search Console/CWV)                                                                                                           |
+| 28    | Responsive/a11y refinement          | UI_UX_SPEC §10–11                       | Width matrix 320→2560+, keyboard/SR pass, contrast, motion-reduced                                                                                                                                                 |
+| 29    | Testing/QA                          | DEVELOPMENT_RULES §4                    | Coverage review, e2e smoke (auth→analyze→history), contract tests, bug bash                                                                                                                                        |
+| 30    | Production deployment               | ARCHITECTURE §3                         | Vercel + Supabase topology validated, env runbook, backups, rollback plan                                                                                                                                          |
+| 31    | Documentation/screenshots           | PROJECT_SPEC §2                         | README final, screenshots full set, API docs, user guide                                                                                                                                                           |
+| 32    | Final audit                         | ALL                                     | Baseline checklist 12/12, security pass, DoD pass, release tag                                                                                                                                                     |
 
 > As-built sequencing (Stage 06, 2026-09-24): the analysis spine shipped
 > input-first. Actual Stage 06 delivered SRS text input + validation +
@@ -91,46 +91,55 @@
 > default→fallback chain (max 3, first-error-wins), overview + capped
 > rewrites on TEXT and upload paths, TEST gone live for the four, and the
 > analyzer checkbox + four-state report block. Open remainders: anthropic
-> + huggingface adapters, `POST /analysis/{id}/retry-ai`, creation-time
-> live key proof, per-run what-was-sent disclosure copy.
-> Actual Stage 17 (2026-09-24) closed the `retry-ai` remainder:
-> owner-scoped POST re-running the shared AI step (reset → re-read →
-> enhance, deterministic untouched) + the failed-card "Try again" button
-> with silent parent re-read on both report surfaces. Still open:
-> anthropic + huggingface adapters, creation-time live key proof,
-> per-run what-was-sent disclosure copy, dedicated AI rate buckets.
-> Actual Stage 18 (2026-09-24) closed the anthropic + huggingface
-> remainder: `AnthropicProvider` (Messages API) + `HuggingFaceProvider`
-> (Inference Providers router — the legacy `api-inference` host is
-> retired, so the registry pins `router.huggingface.co`), model-table
-> rows, TEST/enhancement/retry live for all six, the four deferral tests
-> flipped (defensive no-adapter branches kept, pinned via monkeypatch).
-> Still open: creation-time live key proof, per-run what-was-sent
-> disclosure copy, dedicated AI rate buckets.
-> Actual Stage 19 (2026-09-24) closed roadmap-09: newest-first document
-> list, purge-by-id (row + object; analyses survive via SET NULL), and
-> signed-URL downloads (short-lived single-document HS256 bearer, bytes
-> re-hashed before release, `attachment` disposition) + frontend clients
-> (no new UI — no surface is specified; a future slice may hang a
-> "download original" affordance on the history/report views).
-> Actual Stage 20 (2026-09-24) closed roadmap-21 (security hardening):
-> backend framing denial (prod-only) + header review, OpenAPI docs gated
-> out of production (tested both ways), report-only CSP (prod-only, API
-> origin from env), `npm audit` + `pip-audit` gating verify.sh (pytest
-> 8.3.4 → 9.1.1 fixed; 7 starlette findings accepted with reachability
-> notes — framework-major migration deferred), and secret-scan.sh (gates
-> verify.sh + documented pre-commit hook).
-> Actual Stage 21 (2026-09-24) closed the remaining AI-product slices from
-> roadmap-19/20 and part of roadmap-22's AI surface: creation-time provider
-> key proof before encrypted storage, per-run what-was-sent disclosure copy,
-> and a dedicated retry-AI rate bucket.
-> Actual Stage 22 (2026-09-24) closed roadmap-22's Turnstile slice:
-> frontend token collection + backend Cloudflare siteverify on public
-> high-abuse auth routes (register/login/resend/forgot/reset), fail-closed
-> production posture, stable app errors, mocked-provider tests. Still open
-> from roadmap-22: distributed limiter storage / production deployment
-> posture. The table above keeps its original numbers; STAGE_STATUS.md records the
-> as-built mapping.
+>
+> - huggingface adapters, `POST /analysis/{id}/retry-ai`, creation-time
+>   live key proof, per-run what-was-sent disclosure copy.
+>   Actual Stage 17 (2026-09-24) closed the `retry-ai` remainder:
+>   owner-scoped POST re-running the shared AI step (reset → re-read →
+>   enhance, deterministic untouched) + the failed-card "Try again" button
+>   with silent parent re-read on both report surfaces. Still open:
+>   anthropic + huggingface adapters, creation-time live key proof,
+>   per-run what-was-sent disclosure copy, dedicated AI rate buckets.
+>   Actual Stage 18 (2026-09-24) closed the anthropic + huggingface
+>   remainder: `AnthropicProvider` (Messages API) + `HuggingFaceProvider`
+>   (Inference Providers router — the legacy `api-inference` host is
+>   retired, so the registry pins `router.huggingface.co`), model-table
+>   rows, TEST/enhancement/retry live for all six, the four deferral tests
+>   flipped (defensive no-adapter branches kept, pinned via monkeypatch).
+>   Still open: creation-time live key proof, per-run what-was-sent
+>   disclosure copy, dedicated AI rate buckets.
+>   Actual Stage 19 (2026-09-24) closed roadmap-09: newest-first document
+>   list, purge-by-id (row + object; analyses survive via SET NULL), and
+>   signed-URL downloads (short-lived single-document HS256 bearer, bytes
+>   re-hashed before release, `attachment` disposition) + frontend clients
+>   (no new UI — no surface is specified; a future slice may hang a
+>   "download original" affordance on the history/report views).
+>   Actual Stage 20 (2026-09-24) closed roadmap-21 (security hardening):
+>   backend framing denial (prod-only) + header review, OpenAPI docs gated
+>   out of production (tested both ways), report-only CSP (prod-only, API
+>   origin from env), `npm audit` + `pip-audit` gating verify.sh (pytest
+>   8.3.4 → 9.1.1 fixed; 7 starlette findings accepted with reachability
+>   notes — framework-major migration deferred), and secret-scan.sh (gates
+>   verify.sh + documented pre-commit hook).
+>   Actual Stage 21 (2026-09-24) closed the remaining AI-product slices from
+>   roadmap-19/20 and part of roadmap-22's AI surface: creation-time provider
+>   key proof before encrypted storage, per-run what-was-sent disclosure copy,
+>   and a dedicated retry-AI rate bucket.
+>   Actual Stage 22 (2026-09-24) closed roadmap-22's Turnstile slice:
+>   frontend token collection + backend Cloudflare siteverify on public
+>   high-abuse auth routes (register/login/resend/forgot/reset), fail-closed
+>   production posture, stable app errors, mocked-provider tests. Still open
+>   from roadmap-22: distributed limiter storage / production deployment
+>   posture. The table above keeps its original numbers; STAGE_STATUS.md records the
+>   as-built mapping.
+
+> Actual Stage 26 (2026-09-24) closed roadmap-26: replaced the Stage 01 `/`
+> placeholder with a public landing foundation, centralized SEO metadata helpers,
+> canonical origin handling via `NEXT_PUBLIC_SITE_URL`, project-owned OG/Twitter image,
+> robots/sitemap generation, strict private/auth noindex policy, 404 noindex metadata,
+> and generic `WebSite` + `SoftwareApplication` JSON-LD. Stage 27 still owns deeper
+> evergreen content, breadcrumbs for new public pages, external Rich Results/OG/Search
+> Console validation, and Core Web Vitals/search measurement.
 
 ## Dependency notes
 

@@ -4,9 +4,41 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.27.0] — Stage 26 — SEO foundation, metadata & discoverability — 2026-09-24
+
+### Added
+
+- Centralized frontend SEO helpers (`frontend/src/lib/seo.ts`) for public-route registry,
+  canonical URL generation, public/private metadata builders, robots policy, sitemap entries,
+  and safe home-page structured data.
+- Public landing-page foundation at `/` replacing the Stage 01 placeholder, with semantic
+  product copy, stable CTA links, no keyword stuffing, and generic `WebSite` +
+  `SoftwareApplication` JSON-LD.
+- Project-owned 1200×630 Open Graph asset at `frontend/public/og/srs-ambiguity-detector.svg`.
+- Automated SEO contract tests covering public metadata, private/auth noindex behavior,
+  sitemap inclusion/exclusion, robots disallows, token-query safety, and JSON-LD privacy.
+
+### Changed
+
+- Root metadata now keeps only safe global app metadata/icons, while public canonical/OG/Twitter
+  metadata lives on public pages to avoid leaking discoverability onto private routes.
+- `/robots.txt` now disallows `/api/`, private app routes, auth routes, and token-sensitive
+  query patterns while still referencing the generated sitemap.
+- `/sitemap.xml` is generated from the public-route registry and currently includes only `/`;
+  auth, private app, analysis detail, API, and token URLs are deliberately excluded.
+- Auth, private app, analysis-detail, and 404 route metadata now use the centralized noindex
+  policy and avoid canonical/social metadata.
+
+### Contract
+
+- SEO_SPEC, FUTURE_ROADMAP, STAGE_STATUS, and README updated for the Stage 26 public/private
+  indexing policy, `NEXT_PUBLIC_SITE_URL` canonical strategy, OG/Twitter/robots/sitemap/JSON-LD
+  posture, and remaining Stage 27 validation/content work.
+
 ## [0.26.0] — Stage 25 — Performance, scalability & resource optimization — 2026-09-24
 
 ### Added
+
 - Env-driven async PostgreSQL pool tuning (`DATABASE_POOL_SIZE`, `DATABASE_MAX_OVERFLOW`,
   `DATABASE_POOL_TIMEOUT_SECONDS`, `DATABASE_POOL_RECYCLE_SECONDS`) with conservative
   defaults and validation.
@@ -17,6 +49,7 @@
   settings bounds, and extraction timeout resource lifecycle.
 
 ### Changed
+
 - History and dashboard recent-analysis queries now project only response-needed summary
   columns and document display metadata, avoiding fetches of large `source_text`, AI overview,
   and detail JSON columns.
@@ -26,6 +59,7 @@
   so chart/table/report derivations are not recomputed on unrelated rerenders.
 
 ### Notes
+
 - No database migration or index was added: the performance review found existing owner/order,
   token, provider, document, and issue-rollup indexes sufficient for the current contracts.
 - PostgreSQL was unavailable in the sandbox, so no `EXPLAIN ANALYZE` numbers are claimed.
@@ -33,6 +67,7 @@
 ## [0.25.0] — Stage 24 — Monitoring, observability & production error tracking — 2026-09-24
 
 ### Added
+
 - Optional backend Sentry integration (`SENTRY_DSN`) with FastAPI integration,
   explicit capture of unexpected exceptions/database request failures/500 app errors,
   and a tested `before_send` scrubber that strips request bodies, query strings,
@@ -51,6 +86,7 @@
   request-id behavior, structured access-log fields, and frontend scrubber behavior.
 
 ### Changed
+
 - Expected business errors (validation, auth, ownership/not-found, rate limits, and other
   normal control-flow errors) remain standard API envelopes and are not reported as
   catastrophic Sentry exceptions. 500 `AppError`s and unhandled exceptions are captured
@@ -59,6 +95,7 @@
   enough for deliverability diagnosis without adding PII to logs.
 
 ### Contract
+
 - API_CONTRACT now documents request-correlation headers. ARCHITECTURE, SECURITY_SPEC,
   SEO_SPEC, DEVELOPMENT_RULES, README, FUTURE_ROADMAP, and STAGE_STATUS updated for the
   as-built Stage 24 observability/privacy posture.
@@ -66,6 +103,7 @@
 ## [0.24.0] — Stage 23 — Privacy, data lifecycle & account deletion completion — 2026-09-24
 
 ### Added
+
 - `user_preferences` (`0006`) with owner-scoped nullable `history_retention_days`
   plus `GET/PATCH /settings/privacy`.
 - Privacy export flow: `POST /privacy/export` returns a short-lived signed owner
@@ -81,6 +119,7 @@
   isolation, and deleted-document download-token behavior.
 
 ### Changed
+
 - `DELETE /auth/account` now purges every owned document storage object through
   the storage abstraction before deleting the user row and relying on DB cascades
   for rows/tokens/provider credentials. Missing storage objects are idempotent;
@@ -91,6 +130,7 @@
   remains retry/remediation territory.
 
 ### Contract
+
 - API_CONTRACT §4.7, DATABASE_SCHEMA §3.8/§4, SECURITY_SPEC §9/§10,
   UI_UX_SPEC, ARCHITECTURE ADR-008, FUTURE_ROADMAP, and STAGE_STATUS updated for
   the as-built Stage 23 lifecycle behavior.
@@ -98,6 +138,7 @@
 ## [0.23.0] — Stage 22 (as-built) — Turnstile CAPTCHA abuse defense — 2026-09-24
 
 ### Added
+
 - Cloudflare Turnstile verification boundary (`app/services/turnstile.py`) for
   public high-abuse auth operations. The backend posts to Cloudflare's
   siteverify endpoint with a strict timeout, backend-only secret, no redirects,
@@ -111,6 +152,7 @@
   key is unset and reset on backend failures/expiry/error.
 
 ### Changed
+
 - Auth schemas/clients now carry optional `turnstile_token` for resend,
   forgot-password, and reset-password in addition to register/login. Stable error
   codes added: `turnstile_required`, `turnstile_invalid`,
@@ -124,6 +166,7 @@
   Distributed limiter storage remains future.
 
 ### Contract
+
 - API_CONTRACT §4.2, SECURITY_SPEC §3/§7, ARCHITECTURE §7,
   FUTURE_ROADMAP/STAGE_STATUS updated for the as-built Stage 22 Turnstile slice.
   No migration, no new routes, no live Cloudflare verification in tests.
@@ -131,6 +174,7 @@
 ## [0.22.0] — Stage 21 (as-built) — remaining AI slices + retry bucket — 2026-09-24
 
 ### Added
+
 - Creation-time provider key proof: `POST /ai/providers` now calls the provider
   adapter's `validate_credentials` before encrypted storage; rejected/unreachable
   keys store nothing and return `400 validation_error` with adapter-curated safe
@@ -144,11 +188,13 @@
   add-provider dialog now states that keys are provider-verified before storage.
 
 ### Changed
+
 - Backend suite 538 → 541 (+3: create-proof failure/no-storage ×2,
   retry-AI bucket ×1). Frontend tests unchanged (409/409). No migration and no
   response-shape change.
 
 ### Contract
+
 - API_CONTRACT §4.3/§4.6, AI_PROVIDER_SPEC §5/§7/§8/§9, SECURITY_SPEC §7,
   ARCHITECTURE §7, FUTURE_ROADMAP/STAGE_STATUS updated for the as-built Stage
   21 closure. Remaining roadmap-22 work: Turnstile + distributed limiter store.
@@ -156,6 +202,7 @@
 ## [0.21.0] — Stage 20 (as-built) — security hardening (roadmap-21 closed) — 2026-09-24
 
 ### Added
+
 - Prod-only backend framing denial (`X-Frame-Options: DENY` +
   `Content-Security-Policy: frame-ancestors 'none'`) + full header
   review: baseline trio always-on, HSTS + framing prod-only, OpenAPI
@@ -170,10 +217,11 @@
   fixtures): provider prefixes, private keys, password DSNs, key
   assignments, bearer/JWT shapes. Gates `verify.sh`; documented as
   the pre-commit hook (`ln -s ../../scripts/secret-scan.sh
-  .git/hooks/pre-commit`). Ignored paths (`.env`, `*.pem`) never
+.git/hooks/pre-commit`). Ignored paths (`.env`, `*.pem`) never
   scanned.
 
 ### Changed
+
 - `npm audit` (0 vulnerabilities) + `pip-audit` now gate `verify.sh`;
   `pip-audit` pinned in requirements-dev. pytest 8.3.4 → 9.1.1
   (PYSEC-2026-1845 fixed); 7 starlette findings accepted per-ID with
@@ -182,6 +230,7 @@
   402 → 409 (+7 CSP builder tests). Roadmap-21 fully closed.
 
 ### Contract
+
 - SECURITY_SPEC §8 (headers/CSP/OpenAPI posture as-builts) + §10
   (audit baseline with accepted findings, secret-scan procedure);
   FUTURE_ROADMAP as-built note; STAGE_STATUS §20. No migration, no
@@ -190,10 +239,11 @@
 ## [0.20.0] — Stage 19 (as-built) — document list/download endpoints (roadmap-09 closed) — 2026-09-24
 
 ### Added
+
 - `GET /documents` (owner-scoped newest-first `Page[Document]`, no filters)
-  + `DELETE /documents/{id}` (204; row + storage object in one transaction;
-  referencing analyses survive via `SET NULL` with the `document` pointer
-  degrading to null). No migration.
+  - `DELETE /documents/{id}` (204; row + storage object in one transaction;
+    referencing analyses survive via `SET NULL` with the `document` pointer
+    degrading to null). No migration.
 - Signed-URL downloads: `POST /documents/{id}/download-url` (verified +
   CSRF + dedicated 10/min bucket → `{download_url, expires_at}`) +
   `GET /documents/{id}/download?token=…` (sessionless — the short-lived
@@ -209,11 +259,13 @@
   affordance to history/report views.
 
 ### Changed
+
 - Backend suite 504 → 533 (+29: storage ×3, list ×4, delete ×6, download
   ×16 incl. a full lifecycle roundtrip). Frontend suite 396 → 402 (+6
   documents client tests). Roadmap-09 fully closed (upload slice: Stage 08).
 
 ### Contract
+
 - API_CONTRACT §4.4 finalized for the full surface (routes, download flow,
   purge semantics; NO new error codes — all reused); SECURITY_SPEC §5 + §9
   (signed downloads live, JWT inventory row); DATABASE_SCHEMA §3.5;
@@ -222,6 +274,7 @@
 ## [0.19.0] — Stage 18 (as-built) — Anthropic + Hugging Face adapters (all six live) — 2026-09-24
 
 ### Added
+
 - `AnthropicProvider` (Messages API: `POST /v1/messages` with the shared
   versioned prompts, `x-api-key` + pinned `anthropic-version` headers,
   `GET /v1/models` probe; default `claude-sonnet-5`) + `HuggingFaceProvider`
@@ -235,17 +288,20 @@
   while the defensive no-adapter branches are pinned via monkeypatch.
 
 ### Changed
+
 - Backend suite 494 → 504 (+10: adapter ×8, re-entry proofs ×2). Frontend
   unchanged (396/396 — zero UI delta). Roadmap-18 fully closed. Still open:
   creation-time live key proof, per-run disclosure copy, AI rate buckets.
 
 ### Contract
+
 - AI_PROVIDER_SPEC §2/§4/§5 updated (six-adapter as-builts, router host,
   all-six TEST); no endpoint or envelope changes.
 
 ## [0.18.0] — Stage 17 (as-built) — `retry-ai` endpoint + report Retry button — 2026-09-24
 
 ### Added
+
 - `POST /analysis/{id}/retry-ai` (verified + CSRF guarded, default
   verified-mutation bucket): re-runs ONLY the AI step through the shared
   Stage-14 service — reset (AI payload NULLed + AI-stamped rewrites dropped)
@@ -259,18 +315,21 @@
   workspace) silently re-read on success. No wiring, no button (§9).
 
 ### Changed
+
 - Frontend suite 384 → 396 (+12: client ×3, section ×6, pass-through ×1,
   saved integration ×1, fresh integration ×1). Backend suite 482 → 494
   (+12 retry API tests). Roadmap-20 retry slice closed (chain/matrix
   shipped in Stage 14; dedicated AI rate buckets stay Stage 22's).
 
 ### Contract
+
 - API_CONTRACT §4.3 retry-ai finalized (semantics above); AI_PROVIDER_SPEC
   §7 + UI_UX_SPEC §13 updated (retry rules, button behavior).
 
 ## [0.17.0] — Stage 16 (as-built) — Settings remainder: profile, password, privacy, account deletion — 2026-09-24
 
 ### Added
+
 - `GET/PATCH /settings/profile` (verified-only): safe-subset read + display-name
   write (trimmed, ≤100 chars, explicit null/blank clears, field required).
   No migration — `users.display_name` already existed. Privacy/export/purge
@@ -285,40 +344,46 @@
   profile clients + code-mapped `settings-errors` copy.
 
 ### Changed
+
 - Frontend suite 368 → 384 tests (+16: profile × 6, delete dialog × 4, screen
   integration × 6). Backend suite 470 → 482 (+12 profile API tests).
   Roadmap-16 fully closed (providers slice shipped early in Stage 13).
 
 ### Contract
+
 - API_CONTRACT §4.7 finalized: profile fields final (above); privacy endpoint
   names reserved for Stage 23 with the fake-control rationale recorded.
 
 ## [0.16.0] — Stage 15 (as-built) — AI results integration & trust UX — 2026-09-24
 
 ### Added
+
 - AI trust UX inside the shared report (frontend only, no backend/contract
   change): an explicit review disclaimer on the `ok` AI block; a `Copy
-  suggestion` button + "Review before applying" microcopy on AI-suggested
+suggestion` button + "Review before applying" microcopy on AI-suggested
   rewrites (shared `CopyButton`); an accessible Show more/less disclosure
   for overviews longer than 600 chars; an honest derived partial-coverage
   note ("AI rewrites cover X of Y flagged requirements"); and AI-aware
   pending labels on both enhance checkboxes.
 - Deterministic-first report ordering: score → overview cards → `Issue
-  categories` → `Requirement health` → `AiOverviewSection` → flagged
+categories` → `Requirement health` → `AiOverviewSection` → flagged
   requirements. AI stays additive and never precedes authoritative content.
 
 ### Changed
+
 - Frontend suite 356 → 368 tests (+12: disclaimer/expand/coverage × 5,
   copy/microcopy × 2, ordering × 3, pending labels × 2). Backend unchanged
   (470/470). Roadmap row 15 ("Dashboard visualization") was already absorbed
   by the actual Stage 11 — this as-built Stage 15 supersedes its slot.
 
 ### Contract
+
 - None — no API, schema, or migration change.
 
 ## [0.15.0] — Stage 14 — Live AI Enhancement (adapters + chain + report UI) — 2026-09-24
 
 ### Added
+
 - Four production provider adapters (`app/ai/adapters/`): `GeminiProvider`
   (`generateContent` REST, key in `x-goog-api-key` header) + `GroqProvider` /
   `OpenAIProvider` / `OpenRouterProvider` over a shared OpenAI-compatible
@@ -355,6 +420,7 @@
   list on success).
 
 ### Changed
+
 - `options.ai_enhance` is LIVE (was accepted-and-ignored through Stage 13):
   `false` → `skipped` without touching providers; `true` + no enabled
   credential → `unconfigured` (no error text); enabled-but-adapterless →
@@ -364,6 +430,7 @@
   `get_adapter` stays the fake-only seam (suites hermetic).
 
 ### Contract
+
 - §4.3 Stage 14 amendment (enhancement pipeline order, `ai_status`
   vocabulary + mapping, chain rules, deferred-provider behavior,
   `suggestion_source: "ai"`); §4.4 upload `ai_enhance` field. No new
@@ -372,6 +439,7 @@
 ## [0.14.0] — Stage 13 — AI Provider Settings UI (`/settings`) — 2026-09-24
 
 ### Added
+
 - Authenticated, verified-users-only `/settings` route (`noindex,nofollow`)
   with the AI-providers management section: provider cards (display name,
   label, masked key, Enabled/Disabled + Default + last-test chips,
@@ -392,12 +460,14 @@
   provider; keys are user-owned, encrypted at rest, never shown again.
 
 ### Changed
+
 - Drive-by fix: `.btn-primary` (referenced by the shared `SubmitButton`
   since Stage 05 but never defined — auth submits rendered unstyled) is
   now defined in `globals.css`; `SubmitButton` accepts a layout override
   for dialog action rows. Visual-only, zero behavior change.
 
 ### Contract (no §4.6 changes — pure frontend stage)
+
 - Test verdict `error` renders verbatim BY DESIGN: it is backend-curated,
   user-safe data (capped server-side), not an error envelope. All true
   failures map backend `code` → frontend copy; backend `message` strings
@@ -406,6 +476,7 @@
 ## [0.13.0] — Stage 12 — AI Credential Vault & Provider Management — 2026-09-24
 
 ### Added
+
 - User-owned provider credentials (`/api/v1/ai/providers`, verified
   users): `GET` bare-array list (registry order → enabled-first →
   oldest), `POST` create (always enabled, never default), `PATCH`
@@ -430,6 +501,7 @@
   emits), explicit `500 internal_error` (vault failures).
 
 ### Changed
+
 - Plaintext keys exist ONLY in inbound create/rotate bodies
   (edge-trimmed, 4–2000 chars); every response is allowlist-serialized
   metadata (`masked_key` = 12 bullets + last4) and logs carry ids +
@@ -439,6 +511,7 @@
   shape-only until then).
 
 ### Contract (Stage 12 amendment to §4.6, all asserted in tests)
+
 - Endpoint table rewritten as-built (bare-array list + order,
   `masked_key`, `is_enabled` in PATCH, rotate semantics, unavailable
   test); rule block (enabled/fingerprint/default invariants,
@@ -448,6 +521,7 @@
 ## [0.12.0] — Stage 11 — Analytics Dashboard & Statistics (`/dashboard`) — 2026-09-24
 
 ### Added
+
 - `GET /api/v1/dashboard?range=30d|12w` (verified users): one
   ownership-scoped aggregate snapshot — totals, scored-only average
   (half-up 1dp), newest run, high-risk / improved counts, top category,
@@ -466,12 +540,14 @@
   stage, per the architecture's dependency discipline).
 
 ### Changed
+
 - Post-auth landing is now `/dashboard` (was the temporary fixed `/`,
   which stays untouched for the SEO/marketing stage).
 - `CategoryBars` gains optional `caption` + `headingLevel` props for the
   dashboard (report default preserved).
 
 ### Contract (Stage 11 amendment to §4.5, all asserted in tests)
+
 - Five planned endpoints collapse into one `GET /dashboard` snapshot
   (same metric vocabulary, one round trip); documented: request/response
   shape, empty behavior, UTC bucket semantics, scored-vs-unscored
@@ -480,6 +556,7 @@
 ## [0.11.0] — Stage 10 — Analysis History UI (`/history`) — 2026-09-24
 
 ### Added
+
 - Authenticated, verified-users-only history route `/history`
   (`noindex,nofollow`): `HistoryScreen` (loading skeleton, stale-page
   dimming with `aria-busy`, page-clamp after deletes, live count line,
@@ -505,11 +582,13 @@
   workspace link).
 
 ### Changed
+
 - `DeleteAnalysisButton` gains `compact` (44 px icon trigger) +
   `onDeleted` props and code-mapped error copy (was: raw server message);
   `ScoreRing` exports `BAND_LABELS` for the shared band vocabulary.
 
 ### Contract (Stage 10 amendment to §§3+4.3, all asserted in tests)
+
 - `GET /analysis` accepts `q` (title OR document-filename substring,
   case-insensitive, blank ignored, metacharacters literal, owner-scoped,
   `total` honors `q`); `AnalysisSummary` gains the `document`
@@ -519,6 +598,7 @@
 ## [0.10.0] — Stage 09 — Polished Analysis Report (`/analysis/[id]`) — 2026-09-24
 
 ### Added
+
 - Saved-report route `/analysis/[id]` (verified-users-only, `noindex`):
   `AnalysisReportScreen` with loading skeleton, one honest not-found panel
   for missing/foreign/malformed ids (no existence oracle), session-expired
@@ -540,6 +620,7 @@
   report screen).
 
 ### Changed
+
 - One shared `AnalysisResultView` serves the fresh workspace result and the
   saved route (`context` + footer `actions` slot; `Start over` moved to the
   workspace) so the two can never drift; zero frontend recalculation —
@@ -547,6 +628,7 @@
 - History UI deferred to Stage 10 (the report its rows link to ships first).
 
 ### Contract (Stage 09 amendment to §4.3, all asserted in tests)
+
 - Detail gains `document: {filename, file_type} | null` (display-only —
   no id, no storage key/path, no binary); upload analysis-half ==
   `GET /analysis/{id}`; `failed` rows read back null-scored with `{}`
@@ -556,6 +638,7 @@
 ## [0.9.0] — Stage 08 — Secure Document Upload + Extraction + Upload UI — 2026-09-24
 
 ### Added
+
 - `POST /api/v1/documents/upload` (multipart, EXACTLY one pdf/docx/txt file →
   `201 {document, analysis}`): verified-user + CSRF guard, own 10/min bucket
   → stream to 0600 temp (10 MB budget on the TRUE count) → validate+extract
@@ -568,7 +651,7 @@
 - Validation (`documents/validation.py`, pure): sanitize (neutralize, rarely
   reject) → extension → MIME agreement → magic bytes → OOXML/NUL structure;
   bounded extraction (`documents/extraction.py`): pypdf ≤500 pages, python-
-  docx ≤2000 members / ≤50 MB in TRUE order with ` | ` table joins, TXT
+  docx ≤2000 members / ≤50 MB in TRUE order with `|` table joins, TXT
   utf-8-sig → windows-1252 → latin-1; 200 000-char budget during
   accumulation; `422 extraction_failed` / `no_extractable_text` (no OCR).
 - Storage abstraction (`storage/base.py` + `local.py`): server-generated
@@ -584,6 +667,7 @@
   traversal/symlink) + 14 frontend tests (form/tabs/error copy).
 
 ### Changed
+
 - `source_type` is `text|document` end-to-end (detail, summary, list filter);
   `api/v1/presenters.py` is the single service→response mapper for both.
 - `/analyzer` intro copy covers both input methods; `rate_limited` UI copy
@@ -591,8 +675,9 @@
 - `verify.sh` OpenAPI sanity now asserts the documents routes are mounted.
 
 ### Contract (Stage 08 amendment to §4.4 + §2, all verified live + asserted in tests)
+
 - §4.4 rewritten as-built: exactly-one upload+analyze → `201
-  {document, analysis}`; `Document` gains `file_type`; stored `mime_type` is
+{document, analysis}`; `Document` gains `file_type`; stored `mime_type` is
   server-detected; `extraction_status` is `ok` (`pending`/`failed` future);
   storage key/binary never exposed; no list/delete/download endpoints yet.
 - New codes: `unsupported_file_type`, `invalid_filename`, `empty_file`,
@@ -604,6 +689,7 @@
 ## [0.8.0] — Stage 07 — Detection + Scoring + Analysis CRUD + Result UI — 2026-09-24
 
 ### Added
+
 - Deterministic detection engine (`analysis/detectors.py` + `engine.py`, pure,
   no I/O): 11 detectors (vague-quantifier, subjective-term,
   missing-measurable-criteria, optional-language, pronoun-reference,
@@ -632,11 +718,12 @@
   `segmented|analyzed|failed`; new error code `analysis_not_found`.
 - 55 backend tests (26 detector + 16 scoring/dedup/bands/health + 13 CRUD
   E2E incl. IDOR-identity, cascade row-counts, CSRF-on-DELETE, determinism)
-  + 22 frontend tests (6 lib CRUD, 1 error copy, 15 across 5 result
-  components incl. span merge/clamp); 4 `SegmentPreview` tests deleted with
-  the component.
+  - 22 frontend tests (6 lib CRUD, 1 error copy, 15 across 5 result
+    components incl. span merge/clamp); 4 `SegmentPreview` tests deleted with
+    the component.
 
 ### Changed
+
 - `/analyzer` intro copy describes detect + score (not just segment); submit
   pending label is "Analyzing requirements…"; result replaces the editor with
   the draft still preserved for Start-over.
@@ -645,6 +732,7 @@
   `requirement_id` (nesting carries it).
 
 ### Contract (Stage 07 amendment to §4.3, all verified live + asserted in tests)
+
 - Detail gains populated `score`/`band`/`health` + `score_breakdown`
   (`base`/`deductions`/`counts`); requirements gain `severity` (worst issue,
   `null` when clean) + `issues_count`; nested issues gain `ai_explanation`
@@ -657,6 +745,7 @@
 ## [0.7.0] — Stage 06 — SRS Input + Segmentation + Preview — 2026-09-24
 
 ### Added
+
 - `POST /api/v1/analysis` (TEXT-only → `201` SEGMENTED detail): verified-user
   guard + per-user 20/min bucket → validate → conservative normalize →
   deterministic segment → transactional persist (`analyses` + `requirements`).
@@ -677,6 +766,7 @@
   `vitest.setup.ts` IntersectionObserver stub (jsdom lacks it; motion needs it).
 
 ### Changed
+
 - `lib/auth.ts` exposes the single-flight retry as `withSessionRetry`
   (now also serving analysis creation); param-label table shared with
   analysis field errors. Auth behavior untouched (all Stage 05 tests pass).
@@ -685,6 +775,7 @@
   (see `FUTURE_ROADMAP.md` as-built note).
 
 ### Contract (Stage 06 amendment to §4.3, all verified live + asserted in tests)
+
 - Detail gains `status: "segmented"`; requirements gain `section` +
   `segmentation`; issues are nested-only (`[]` pre-detection — no top-level
   `issues`); `source_excerpt` is summary-only (absent from the detail).
@@ -695,6 +786,7 @@
 ## [0.6.0] — Stage 05 — Authentication Frontend — 2026-09-24
 
 ### Added
+
 - Auth UI: `app/(auth)/` routes (`login`, `signup`, `forgot-password`,
   `reset-password`, `verify-email`, all `noindex, nofollow`); `AuthCard` +
   blade/sweep transition (desktop slanted panel / mobile curtain, reduced-motion
@@ -706,10 +798,12 @@
   `jsdom` + Testing Library + `user-event` devDeps.
 
 ### Changed
+
 - Root layout wraps the app in `AuthProvider`. Post-auth landing is the fixed
   temporary `/` until the dashboard stage.
 
 ### Contract (frontend assumptions on §4.2, all verified live)
+
 - `register` sets no cookies (never logs in); unverified CAN log in; logout 204;
   resend/forgot always-202; reset/change 200 `{}`; `validation_error` details are
   `[{loc,msg}]`; no `turnstile_token` sent; outstanding access JWTs survive
@@ -718,6 +812,7 @@
 ## [0.5.0] — Stage 04 — Authentication Backend — 2026-09-23
 
 ### Added
+
 - Auth backend: `core/security.py` (argon2id, 256-bit tokens, HS256 JWTs),
   `core/rate_limit.py` (single-process buckets), `services/auth.py` (11 flows),
   `repositories/auth.py`, `schemas/auth.py`, `api/v1/dependencies.py`
@@ -727,26 +822,31 @@
 - `CurrentPasswordError`, `RateLimitedError` → `Retry-After` header, 63 new tests.
 
 ### Changed
+
 - `tests/test_database.py`: metadata/head/tables expectations for `0002`, token
   tables added to the cascade test. `backend/.env.example`: Stage-04 block active.
 
 ### Contract (amendments, all additive — see API_CONTRACT §4.2)
+
 - New explicit `POST /auth/refresh` rotation endpoint (theft response included).
 - `/me` also returns `display_name` / `is_active`; `register` takes `name`.
 - New codes: `invalid_credentials`, `invalid_token`, `password_too_weak`,
   `current_password_incorrect`, `account_disabled`.
 
 ### Database
+
 - Revision `0002`: `refresh_tokens` (rotation + reuse-detection columns),
   `email_verification_tokens`, `password_reset_tokens`. Cycle + `alembic check` clean.
 
 ### Security
+
 - Hash-only credentials at rest; constant-time compare; `HttpOnly; Secure (prod);
-  SameSite=Lax` cookies; Origin/Referer CSRF checks; anti-enumeration posture tested.
+SameSite=Lax` cookies; Origin/Referer CSRF checks; anti-enumeration posture tested.
 
 ## [0.4.0] — Stage 03 — Backend Foundation / Service Layer — 2026-09-23
 
 ### Added
+
 - Service layer: `app/services/` (`readiness`, `transactions.@transactional`),
   `app/repositories/` (`SystemRepository`), `app/exceptions/` (`AppError` + 4
   subclasses), `app/schemas/` (`system`, `common` pagination).
@@ -756,6 +856,7 @@
   schemas, OpenAPI/lifespan, model-metadata sanity.
 
 ### Changed
+
 - Error handling extended: `AppError` → envelope mapping, sanitized `SQLAlchemyError`
   → `500 internal_error` (per-field validation details preserved).
 - `/ready` now flows through the service layer (same shapes, same truth table).
@@ -764,14 +865,17 @@
 - `Document.analyses` gained `passive_deletes=True` (ORM-only, no migration).
 
 ### Database
+
 - None (no migration; `0001` still head, `alembic check` zero drift).
 
 ### Security
+
 - Error sanitization + query-param-free access log (both tested); DSN hygiene unchanged.
 
 ## [0.3.0] — Stage 02 — Database Foundation — 2026-09-23
 
 ### Added
+
 - Async PG stack (SQLAlchemy 2.0.54, asyncpg 0.31.0, Alembic 1.20.0, greenlet, Mako).
 - `app/core/database.py` (lazy engine, session factory, `get_session`, status probe,
   dispose) + six models + Alembic env + hand-written revision `0001`.
@@ -780,12 +884,14 @@
   scratch-DB auto-create, skip-if-unreachable).
 
 ### Changed
+
 - `DATABASE_SCHEMA.md` rewritten as IMPLEMENTED (conventions, per-table reference,
   index rationale, migration workflow); `SECURITY_SPEC.md` §12, `API_CONTRACT.md`
   §4.1, `ARCHITECTURE.md`, README (local DB workflow) updated.
 - `verify.sh` ruff scope extended to `alembic/`.
 
 ### Database
+
 - Tables: `users`, `analyses`, `requirements`, `issues`, `documents`,
   `ai_provider_credentials`. UUID PKs (client-side), TIMESTAMPTZ, VARCHAR+CHECK
   vocabularies (no PG enums), `owner_id` cascades, 16 indexes, 20 CHECKs.
@@ -793,20 +899,24 @@
   (partial unique), document link via `analyses.document_id`, RLS deferred (reasoned).
 
 ### Security
+
 - DSN never logged/echoed (tested); hash-only password column; ciphertext-only key
   column; cascade deletion plan; least-privilege prod guidance; no creds committed.
 
 ### Tests
+
 - `verify.sh` green (pytest 27/27 on real PG 16, vitest 6/6, lint/type/build);
   downgrade/upgrade cycle + `alembic check` clean; skip-mode + live `ready:ok` verified.
 
 ### Notes
+
 - No auth/analysis/upload/AI logic (later stages). `docker-compose.yml` still
   unvalidated (no Docker in sandbox). Sandbox PG via uncommitted `pgserver` aid.
 
 ## [0.2.0] — Stage 01 (formal) — Repository & Development Foundation — 2026-09-23
 
 ### Added
+
 - `Container` layout primitive adopted by `/` and 404; `loading.tsx` + `error.tsx`
   app-shell conventions (safe message + retry).
 - API client timeout (30 s default, per-call override, `request_timeout` code).
@@ -815,32 +925,38 @@
 - README: development-commands table, current limitations, Python strategy note.
 
 ### Changed
+
 - Log redaction now scrubs quoted keys, whole `Authorization` credentials, and
   Bearer-prefixed values (contract guidance added: clients SHOULD default ~30 s).
 - Home page uses shared `apiBaseUrl()`; env examples annotated (required/optional,
   CORS dev-vs-prod); `ARCHITECTURE.md`/`DEVELOPMENT_RULES.md` updated for conventions.
 
 ### Security
+
 - Redaction gaps closed before any secret exists: JSON-quoted keys and auth headers
   are now covered and test-locked. Still NOT production-hardened (later stages).
 
 ### Tests
+
 - `verify.sh` green: ruff, mypy-strict, pytest 10/10, eslint, tsc, vitest 6/6,
   prettier, `next build`. Live curl matrix green (health alias, envelopes, pages).
 
 ### Notes
+
 - No new env vars; no dependency except Vitest (dev-only, exercised immediately);
   nothing from Stage 02+ implemented.
 
 ## [0.1.1] — Stage 00 (formal) reconciliation — 2026-09-23
 
 ### Added
+
 - Root `.env.example` (master inventory + compose reference); `DIRECT_DATABASE_URL`
   (pooled app connection vs direct migration connection).
 - `GET /health` infrastructure alias (same live payload, OpenAPI-excluded) + test.
 - `frontend/src/hooks/` + `src/types/` purpose READMEs.
 
 ### Changed
+
 - Env names aligned to the Stage 00 prompt: `NEXT_PUBLIC_API_URL`, `JWT_SECRET`,
   `ENCRYPTION_MASTER_KEY` (code, examples, README, and all docs updated).
 - Verbatim UI contract sentence added (`UI_UX_SPEC.md`); dependency-discipline and
@@ -848,16 +964,19 @@
   workflow rule added after an observed clobbering incident.
 
 ### Removed
+
 - `recharts` uninstalled (was declared but unused — dependency discipline, Stage 00
   §24). Returns in the dashboard/report stages that first import it.
 
 ### Security
+
 - No global AI provider keys: documented as a deliberate architectural absence
   (user-owned keys, encrypted per-user vault — `AI_PROVIDER_SPEC.md` §5).
 
 ## [0.1.0] — Stage 00 + Stage 01 — 2026-09-23
 
 ### Added
+
 - Project contract: all 12 `docs/*.md` created and cross-linked.
 - Canonical monorepo: `frontend/` (Next.js App Router + TS strict + Tailwind v4 +
   Motion + lucide-react + recharts), `backend/` (FastAPI + Pydantic v2, versioned `/api/v1`),
@@ -869,6 +988,7 @@
   security headers posture (framing enforced in production only).
 
 ### Contract (binding decisions)
+
 - ADR-001…ADR-007 recorded in `ARCHITECTURE.md` (monorepo, `/api/v1`, cookie sessions,
   Tailwind v4 CSS-first, async SQLAlchemy 2.0 + Alembic, Fernet vault, Inter + Plex Mono).
 - API envelopes, pagination, error codes frozen in `API_CONTRACT.md`.
@@ -876,6 +996,7 @@
   `AI_PROVIDER_SPEC.md`; taste system frozen in `UI_UX_SPEC.md`.
 
 ### Toolchain (verified 2026-09-23)
+
 - Next.js 16 + React 19 + Tailwind v4 (CSS-first) + Motion 13 + lucide-react 1.x +
   Recharts 3.x + clsx/tailwind-merge; self-hosted Fontsource type (ADR-007).
 - TypeScript held at v6 (`typescript-eslint` lacks TS 7 support); ESLint held at v9

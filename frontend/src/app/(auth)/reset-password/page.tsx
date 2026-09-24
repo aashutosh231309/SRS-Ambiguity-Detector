@@ -1,13 +1,10 @@
-import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { AuthPanel, AuthPanelFallback } from "@/components/auth/AuthPanel";
 import { ResetPasswordForm } from "@/components/auth/ResetPasswordForm";
+import { privatePageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Reset password",
-  description: "Choose a new password.",
-};
+export const metadata = privatePageMetadata("Reset password", "Choose a new password.");
 
 export default function ResetPasswordPage() {
   return (
