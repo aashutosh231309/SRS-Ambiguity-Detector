@@ -1204,6 +1204,74 @@ and/or anthropic/HF adapters (roadmap-18 remainder).
 **Next stage:** Stage 27 — SEO content/validation, unless the user explicitly prioritizes the
 remaining distributed limiter-store slice first.
 
+## Stage 27 — SEO content & public discoverability (COMPLETE)
+
+**Scope delivered:**
+
+- Reconciled Stage 26 as complete (`27903e8`) and verified the actual implementation before
+  editing: `/` was the only public/indexable route; private/auth routes used centralized
+  noindex metadata; sitemap contained only `/`; robots disallowed API/private/auth/token
+  routes; OG/Twitter and generic home JSON-LD existed; no Stage 27 content routes existed.
+- Baseline before edits: `cd frontend && npm run lint && npm run typecheck && npm test && npm run build`
+  passed (`52 files / 425 tests`; Next build green).
+- Public content architecture: added `/features`, `/how-it-works`, `/resources`,
+  `/resources/what-is-srs-ambiguity`, and `/resources/write-clearer-requirements`, all static
+  App Router pages with unique metadata, canonical URLs, OG/Twitter metadata, internal links,
+  and truthful product/educational copy.
+- Shared public shell: `frontend/src/components/public/PublicShell.tsx` provides public
+  header/footer navigation only to real public routes plus login/signup CTAs. It does not
+  present private analyzer/report/history/dashboard/settings routes as public marketing pages;
+  the existing authenticated-user analyzer shortcut remains user-state-only UI, not metadata.
+- Content source of truth: `frontend/src/lib/public-content.ts` centralizes public route facts,
+  resource cards, health dimensions, and the 11 actually implemented deterministic detector
+  categories: vague quantifiers, subjective terms, missing measurable criteria, ambiguous
+  operators, undefined terminology, passive voice/unclear actor, pronoun references, absolute
+  language, optional language, missing constraints, and incomplete requirements.
+- Educational content: resource pages explain what SRS ambiguity is, why ambiguity causes
+  implementation/test confusion, currently detected categories, synthetic examples, risks,
+  clarification patterns, and practical clearer-requirement rewrite patterns. The copy
+  explicitly states that human review is still required and the tool does not prove universal
+  correctness.
+- Product content: `/features` and `/how-it-works` describe implemented capabilities only:
+  pasted text, PDF/DOCX/TXT upload, extraction/normalization, segmentation, deterministic
+  detectors, severity/reasons/recommendations, heuristic scoring, health dimensions, private
+  reports/history/dashboard/settings, short-lived authenticated document download workflows,
+  and optional user-configured AI overview/rewrite assistance. Unsupported claims such as OCR,
+  perfect detection, certifications, fake rankings, reviews, ratings, awards, and customer
+  counts were not added.
+- SEO expansion: `PUBLIC_ROUTES`/sitemap/robots now include the six public routes and continue
+  to exclude API, auth, token, private app, and `/analysis/[id]` URLs. Public pages have unique
+  titles/descriptions/canonicals/OG/Twitter metadata. Breadcrumb JSON-LD and Article JSON-LD
+  were added for content pages; home keeps generic `WebSite` + `SoftwareApplication` JSON-LD.
+  Fake reviews/ratings/prices/testimonials/awards remain absent.
+- Private/token safety: analyzer, analysis detail, dashboard, history, settings, auth pages,
+  token-capable reset/verify routes, and 404 remain noindex/nofollow and excluded from sitemap
+  and public structured data. Public content uses only synthetic examples and generic product
+  copy, not user SRS text, document names, analysis IDs, provider credentials, tokens, or
+  user-specific statistics.
+- Tests added/updated: SEO helper and route-contract tests now cover all public pages,
+  sitemap/robots inclusion/exclusion, metadata, noindex privacy boundaries, structured data,
+  token safety, route-file existence, resource-card route alignment, and detector-category
+  public content safety.
+
+**Verification:**
+
+- Baseline before edits: `cd frontend && npm run lint && npm run typecheck && npm test && npm run build` → all passed; frontend Vitest `52 files / 425 tests`; Next build green.
+- Focused Stage 27 checks: `cd frontend && npm run lint && npm run typecheck && npm test -- seo public-content` → passed (`3 files / 20 tests`).
+- Production build after content changes: `cd frontend && npm run build` → passed; generated route list includes `/features`, `/how-it-works`, `/resources`, `/resources/what-is-srs-ambiguity`, and `/resources/write-clearer-requirements`.
+- Build-artifact spot checks: generated robots allows all public routes and disallows API/private/auth/token-sensitive paths; generated sitemap contains only the six public URLs; public HTML contains unique title/description/canonical/OG/Twitter metadata; private/auth generated HTML still contains `noindex,nofollow`; public generated pages scan clean for fake SEO claims and private-data markers.
+- Final full gate: `PATH="$HOME/.local/bin:$PATH" TEST_DATABASE_URL="postgresql+asyncpg://postgres@/postgres?host=/home/user/pgdata" DATABASE_URL="postgresql+asyncpg://postgres@/postgres?host=/home/user/pgdata" ./scripts/verify.sh` → ALL CHECKS PASSED. Backend pytest summary in this sandbox: 230 passed, 347 skipped, 1 Starlette warning because no PostgreSQL server/socket is installed/running at `/home/user/pgdata`. Frontend Vitest: 53 files / 432 tests passed. Next production build, Prettier, secret scan, npm audit, and pip-audit passed.
+
+**Known limitations (accepted, not bugs):**
+
+- Browser/mobile/desktop visual validation was not available unless separately reported; repository checks and build artifacts were used instead.
+- No Search Console submission, Rich Results Test, OG-card crawler validation, deployment-domain validation, or Core Web Vitals field measurement was performed in this sandbox.
+- Stage 27 established a small static resource architecture, not a CMS/blog/backlink/analytics platform.
+- `/privacy` and `/terms` still do not exist because legal policy content is not specified; they were not fabricated.
+- Distributed rate-limit storage remains future and unrelated to SEO content.
+
+**Next stage:** Stage 28 — responsive/accessibility refinement, unless the user explicitly prioritizes the remaining distributed limiter-store slice first.
+
 ## Current stage
 
 ### Stage 17 (as-built) — `retry-ai` endpoint + report Retry button ✅ (2026-09-24)
@@ -1696,9 +1764,9 @@ user explicitly prioritizes the deferred distributed limiter-store slice first.
 
 ## Current stage
 
-None active — Stage 26 complete in this working branch. Distributed limiter storage remains future.
-Next: **Stage 27 — SEO content / validation** (unless the next prompt explicitly prioritizes the
-remaining distributed limiter-store slice).
+None active — Stage 27 complete in this working branch. Distributed limiter storage remains future.
+Next: **Stage 28 — responsive/accessibility refinement** (unless the next prompt explicitly
+prioritizes the remaining distributed limiter-store slice).
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 
@@ -1706,7 +1774,7 @@ Database → backend → auth backend → auth frontend → SRS input/segmentati
 detection+scoring+CRUD+result-UI ✅ → upload+extraction+upload-UI ✅ →
 history UI → report UI → dashboard data → dashboard viz → settings → AI vault →
 providers → overview/improvements → fallback → hardening → Turnstile CAPTCHA ✅
-(+ distributed limiter storage still future) → privacy → monitoring ✅ → performance ✅ → SEO foundation ✅ → SEO content →
+(+ distributed limiter storage still future) → privacy → monitoring ✅ → performance ✅ → SEO foundation ✅ → SEO content ✅ →
 responsive/a11y → QA → deploy → docs/shots → audit.
 (As-built order; roadmap numbers preserved — see the FUTURE_ROADMAP.md as-built note.)
 

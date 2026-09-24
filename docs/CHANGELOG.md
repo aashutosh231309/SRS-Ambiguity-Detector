@@ -4,6 +4,37 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.28.0] — Stage 27 — SEO content & public discoverability — 2026-09-24
+
+### Added
+
+- Public content routes: `/features`, `/how-it-works`, `/resources`,
+  `/resources/what-is-srs-ambiguity`, and `/resources/write-clearer-requirements`.
+- Shared server-rendered public shell with coherent navigation/footer for real public routes
+  plus login/signup CTAs.
+- Central public-content registry for sitemap route facts, resource cards, health dimensions,
+  and the 11 actually implemented deterministic ambiguity categories.
+- Educational content explaining SRS ambiguity, detected categories, synthetic examples,
+  clarification patterns, clearer-requirements guidance, deterministic scoring, and optional
+  AI boundaries.
+- Breadcrumb and Article JSON-LD helpers for public content pages, plus tests for route files,
+  public metadata, sitemap/robots behavior, structured data, and category-content safety.
+
+### Changed
+
+- Homepage now links into the public content architecture and states the deterministic-vs-AI
+  boundary more explicitly.
+- Sitemap and robots now include/allow the new public content routes while continuing to exclude
+  private app, auth, API, token, and analysis-detail URLs.
+- Home structured data no longer emits an offer/price field; public structured data stays limited
+  to truthful generic application/site, breadcrumb, and article information.
+
+### Contract
+
+- SEO_SPEC, UI_UX_SPEC, FUTURE_ROADMAP, STAGE_STATUS, CHANGELOG, and README updated for the
+  Stage 27 public content architecture, private-route boundary, structured-data decisions,
+  and remaining external validation/deployment limitations.
+
 ## [0.27.0] — Stage 26 — SEO foundation, metadata & discoverability — 2026-09-24
 
 ### Added

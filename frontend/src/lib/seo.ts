@@ -1,14 +1,9 @@
 import type { Metadata, MetadataRoute } from "next";
 
+import { PUBLIC_CONTENT_ROUTES } from "./public-content";
 import { SITE } from "./site";
 
-export const PUBLIC_ROUTES = [
-  {
-    path: "/",
-    changeFrequency: "weekly" as const,
-    priority: 1,
-  },
-] as const;
+export const PUBLIC_ROUTES = PUBLIC_CONTENT_ROUTES;
 
 export const PRIVATE_ROUTES = [
   "/analysis/",
@@ -119,12 +114,54 @@ export function robotsPolicy(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: "/",
+        allow: PUBLIC_ROUTES.map((route) => route.path),
         disallow: ["/api/", ...PRIVATE_ROUTES, ...AUTH_ROUTES, "/*?token=", "/*&token="],
       },
     ],
     sitemap: absoluteUrl("/sitemap.xml"),
     host: SITE.url,
+  };
+}
+
+export function breadcrumbStructuredData(
+  items: Array<{ name: string; path: string }>,
+): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: absoluteUrl(item.path),
+    })),
+  };
+}
+
+export function articleStructuredData({
+  title,
+  description,
+  path,
+}: {
+  title: string;
+  description: string;
+  path: string;
+}): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: title,
+    description,
+    url: absoluteUrl(path),
+    author: {
+      "@type": "Organization",
+      name: SITE.name,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: SITE.name,
+    },
+    inLanguage: "en-US",
   };
 }
 
@@ -146,11 +183,6 @@ export function homeStructuredData(): Array<Record<string, unknown>> {
       operatingSystem: "Web",
       url: SITE.url,
       description: SITE.description,
-      offers: {
-        "@type": "Offer",
-        price: "0",
-        priceCurrency: "USD",
-      },
     },
   ];
 }

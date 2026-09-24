@@ -23,27 +23,29 @@ dashboard.» Public marketing pages may use richer motion; private productivity 
 
 **Color (CSS-first tokens in `globals.css`, Tailwind v4 `@theme`):**
 
-| Token | Value | Use |
-|-------|-------|-----|
-| `--color-paper` | `#FAF8F4` | Light background — warm paper, not sterile white |
-| `--color-ink` | `#16140F` | Primary text / dark surfaces |
-| `--color-ink-soft` | `#4A463B` | Secondary text |
-| `--color-line` | `#E5E0D3` | Hairline borders (1px, restrained) |
-| `--color-signal` | `#0E6B4F` | Brand accent — deep requirements-green; CTAs, active states |
-| `--color-signal-deep` | `#0A4F3A` | Hover/pressed accent |
-| `--color-gold` | `#B98A1C` | Sparingly: highlights, "premium" moments, score bands |
-| Severity: `--sev-low/med/high/crit` | `#64748B` / `#B98A1C` / `#C2540A` / `#B4232A` | Severity + score-band semantics (consistent everywhere) |
+| Token                               | Value                                         | Use                                                         |
+| ----------------------------------- | --------------------------------------------- | ----------------------------------------------------------- |
+| `--color-paper`                     | `#FAF8F4`                                     | Light background — warm paper, not sterile white            |
+| `--color-ink`                       | `#16140F`                                     | Primary text / dark surfaces                                |
+| `--color-ink-soft`                  | `#4A463B`                                     | Secondary text                                              |
+| `--color-line`                      | `#E5E0D3`                                     | Hairline borders (1px, restrained)                          |
+| `--color-signal`                    | `#0E6B4F`                                     | Brand accent — deep requirements-green; CTAs, active states |
+| `--color-signal-deep`               | `#0A4F3A`                                     | Hover/pressed accent                                        |
+| `--color-gold`                      | `#B98A1C`                                     | Sparingly: highlights, "premium" moments, score bands       |
+| Severity: `--sev-low/med/high/crit` | `#64748B` / `#B98A1C` / `#C2540A` / `#B4232A` | Severity + score-band semantics (consistent everywhere)     |
 
 Dark mode: supported via `prefers-color-scheme`-driven token swap (Stage 05+ refines;
 tokens already structured for it). Contrast: body text ≥ 4.5:1 on both themes.
 
 **Typography (locked direction):**
+
 - Sans: `Inter` (UI, prose), self-hosted via Fontsource (ADR-007). Display tightening (`-0.02em`) on H1/H2.
 - Mono: `IBM Plex Mono` (requirement IDs, detector IDs, code, fingerprints, scores-as-data).
 - Scale: 12 / 13 / 14 / 16 / 20 / 24 / 32 / 44 / 60 — fluid clamp on the top three.
 - Requirement text and findings render at 15–16px with 1.65 line-height (readability first).
 
 **Depth & shape:**
+
 - Radius: 10px cards, 8px inputs, full pills for badges. No oversized 24px+ everything-rounding.
 - Shadows: one restrained elevation scale (3 steps); borders do more work than shadows.
 - Texture: subtle paper grain / hairline rules on marketing surfaces only; product surfaces stay flat.
@@ -55,6 +57,11 @@ tokens already structured for it). Contrast: body text ≥ 4.5:1 on both themes.
 - Grids: 4px base spacing scale; section rhythm 64/96/128 (desktop), 40/56/72 (mobile).
 - Product shell (Stage 05+): quiet top navbar + contextual sub-navigation per area
   (Analyzer / History / Dashboard / Settings) — NOT a heavy icon sidebar.
+- Public content shell (Stage 27): server-rendered marketing/content pages share a restrained
+  header/footer with links only to real public routes (`/features`, `/how-it-works`,
+  `/resources`) plus auth CTAs. It does not expose private analyzer/report/history/dashboard
+  routes as public marketing pages, and it avoids adding client-only behavior except the
+  existing authenticated-user analyzer shortcut.
 
 ## 4. Navbar (binding direction, per master prompt)
 
@@ -90,12 +97,12 @@ is `/dashboard` (Stage 11 — the fixed `/` was temporary until the dashboard st
 **Tokens:** `ease-out-expo`-ish cubic-bezier `(0.16, 1, 0.3, 1)`; durations 120 / 200 / 320 / 560ms;
 spring (stiffness ≈ 380, damping ≈ 30) for press/active states.
 
-| Layer | Where | Pattern |
-|-------|-------|---------|
-| Micro | buttons, inputs, nav, icons | hover lift 1–2px / press scale 0.98 + spring release; focus ring fade-in |
-| Reveal | sections, cards, lists | fade + 12–20px lift; lists stagger 40–60ms; clip/text reveals on marketing only |
-| Story | marketing scroll moments | parallax/scrub/pin sparingly (Motion; GSAP only if Motion can't) |
-| Premium | hero CTA, spotlight | magnetic CTA (desktop, pointer-fine only), cursor spotlight on 1–2 surfaces |
+| Layer   | Where                       | Pattern                                                                         |
+| ------- | --------------------------- | ------------------------------------------------------------------------------- |
+| Micro   | buttons, inputs, nav, icons | hover lift 1–2px / press scale 0.98 + spring release; focus ring fade-in        |
+| Reveal  | sections, cards, lists      | fade + 12–20px lift; lists stagger 40–60ms; clip/text reveals on marketing only |
+| Story   | marketing scroll moments    | parallax/scrub/pin sparingly (Motion; GSAP only if Motion can't)                |
+| Premium | hero CTA, spotlight         | magnetic CTA (desktop, pointer-fine only), cursor spotlight on 1–2 surfaces     |
 
 Rules: analyzer/report UIs stay CALM (micro + reveal only); respect
 `prefers-reduced-motion` globally (kill story/premium layers); GPU-friendly
@@ -210,8 +217,8 @@ forms tomorrow):
 
 - The analyzer opt-in is a plain checkbox ("Enhance with AI") + one-line
   explainer (overview + rewrites, own provider key, deterministic unaffected)
-  + "Manage providers in Settings" link — identical on the text form and the
-  upload form. Unchecked by default; never a dark pattern, never required.
+  - "Manage providers in Settings" link — identical on the text form and the
+    upload form. Unchecked by default; never a dark pattern, never required.
 - The report carries ONE AI outcome block (`AiOverviewSection`, directly under
   the score card) driven by `ai_status`: `ok` = "AI overview" + "Generated by
   {provider}" byline + plain-text overview; `failed` = error card rendering
@@ -232,7 +239,7 @@ forms tomorrow):
 ## 13a. AI results integration (binding — Stage 15, additive over §13)
 
 - Deterministic-first ordering: the score card, overview cards, `Issue
-  categories`, and `Requirement health` grids render ABOVE `AiOverviewSection`;
+categories`, and `Requirement health` grids render ABOVE `AiOverviewSection`;
   flagged requirements render BELOW it. AI never precedes authoritative content.
 - The `ok` block carries an explicit review disclaimer ("AI-generated
   enrichment — review suggestions against the original before applying").

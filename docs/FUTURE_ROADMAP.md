@@ -35,7 +35,7 @@
 | 24    | Monitoring ✅                       | SECURITY_SPEC §2.5/§11                  | Delivered: optional Sentry backend/frontend with scrubbers, bounded request IDs, JSON logs, safe health/readiness semantics, AI/storage/email/rate-limit observability                                             |
 | 25    | Performance ✅                      | UI_UX_SPEC §6, SEO_SPEC §3              | Delivered: DB pool tuning, summary-query projections, SQL dashboard improved-count, bounded extraction workers, frontend memoized derivations, build/audit verification                                            |
 | 26    | SEO foundation ✅                   | SEO_SPEC §2–3                           | Delivered: public `/` landing foundation, centralized metadata/canonicals, OG/Twitter, robots/sitemap, noindex private/auth policy, JSON-LD core                                                                   |
-| 27    | SEO content                         | SEO_SPEC §4                             | Evergreen content, internal links, breadcrumbs, external validation (Rich Results/OG/Search Console/CWV)                                                                                                           |
+| 27    | SEO content ✅                      | SEO_SPEC §4                             | Delivered: public content routes, educational resources, internal links, breadcrumbs/Article JSON-LD, sitemap/robots expansion, content/privacy tests                                                              |
 | 28    | Responsive/a11y refinement          | UI_UX_SPEC §10–11                       | Width matrix 320→2560+, keyboard/SR pass, contrast, motion-reduced                                                                                                                                                 |
 | 29    | Testing/QA                          | DEVELOPMENT_RULES §4                    | Coverage review, e2e smoke (auth→analyze→history), contract tests, bug bash                                                                                                                                        |
 | 30    | Production deployment               | ARCHITECTURE §3                         | Vercel + Supabase topology validated, env runbook, backups, rollback plan                                                                                                                                          |
@@ -140,6 +140,12 @@
 > and generic `WebSite` + `SoftwareApplication` JSON-LD. Stage 27 still owns deeper
 > evergreen content, breadcrumbs for new public pages, external Rich Results/OG/Search
 > Console validation, and Core Web Vitals/search measurement.
+> Actual Stage 27 (2026-09-24) closed roadmap-27's repository content slice:
+> `/features`, `/how-it-works`, `/resources`, and two educational resource guides now
+> provide truthful public content, coherent internal links, public navigation/footer,
+> breadcrumbs + Article JSON-LD, and expanded sitemap/robots coverage. External Search
+> Console, Rich Results, OG crawler, deployment-domain, and Core Web Vitals validation remain
+> deployment/operations work because no browser/search-console tooling is available here.
 
 ## Dependency notes
 

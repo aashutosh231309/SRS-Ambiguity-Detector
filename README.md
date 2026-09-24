@@ -166,12 +166,13 @@ list/download/delete, Turnstile on sensitive public auth ops, and privacy lifecy
 controls (retention/export/purge/storage-aware account deletion), and monitoring/Sentry
 with privacy scrubbers, the Stage 25 performance pass (summary-query projections,
 bounded document parser workers, env-driven DB pool tuning, and frontend derivation
-memoization), and the Stage 26 SEO foundation (public `/` landing, metadata, OG/Twitter,
-robots, sitemap, JSON-LD, and noindex private/auth policy). Still intentionally NOT
-implemented yet: distributed limiter storage, deeper SEO content/validation, responsive/a11y
-final pass, production deployment, screenshots/docs finalization. Scores are heuristic triage
-aids, not validated measurements (see [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) §4.3
-honest limits). Full plan:
+memoization), the Stage 26 SEO foundation (metadata, OG/Twitter, robots, sitemap, JSON-LD,
+and noindex private/auth policy), and the Stage 27 public content layer (`/features`,
+`/how-it-works`, `/resources`, and two educational resource guides). Still intentionally NOT
+implemented yet: distributed limiter storage, external SEO/Search Console validation,
+responsive/a11y final pass, production deployment, screenshots/docs finalization. Scores are
+heuristic triage aids, not validated measurements (see [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md)
+§4.3 honest limits). Full plan:
 [`docs/FUTURE_ROADMAP.md`](docs/FUTURE_ROADMAP.md) (see the as-built sequencing
 note — the analysis spine shipped input-first, then detection + CRUD).
 
