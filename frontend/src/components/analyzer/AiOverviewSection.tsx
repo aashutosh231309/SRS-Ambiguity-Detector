@@ -234,7 +234,9 @@ export function AiOverviewSection({
           ) : null}
           <p className="mt-3 border-t border-line pt-3 text-[13px] leading-relaxed text-ink-faint">
             AI-generated enrichment — review suggestions against the original requirements and
-            project context before applying them.
+            project context before applying them. To generate this run, the app sent finding
+            summaries for the overview and only flagged requirement excerpts for rewrites; provider
+            retention follows that provider&apos;s policy.
           </p>
         </div>
       </div>

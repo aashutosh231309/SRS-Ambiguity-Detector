@@ -137,7 +137,13 @@ def _login_verified(client: TestClient, tag: str) -> None:
 
 
 def _create_credential(client: TestClient, provider: str, api_key: str) -> dict[str, Any]:
-    response = client.post("/api/v1/ai/providers", json={"provider": provider, "api_key": api_key})
+    # Stage 21: CREATE proves keys through the adapter, so tests register an
+    # offline fake for the proof call. Scenario-specific fakes still wrap the
+    # later enhancement calls.
+    with _adapters(_FakeAdapter(provider)):
+        response = client.post(
+            "/api/v1/ai/providers", json={"provider": provider, "api_key": api_key}
+        )
     assert response.status_code == 201, response.text
     assert api_key not in response.text
     return dict(response.json())

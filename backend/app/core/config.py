@@ -97,6 +97,9 @@ class Settings(BaseSettings):
     # Credential-test budget: per-user tests per minute (tests can trigger
     # external provider calls — tighter than the auth default).
     RATE_LIMIT_AI_TEST_PER_MINUTE: int = 10
+    # Explicit retry budget: retry-ai can trigger the same provider work as a
+    # fresh enhanced run, so it gets its own AI bucket (Stage 21 as-built).
+    RATE_LIMIT_AI_RETRY_PER_MINUTE: int = 10
     # --- Stage 14: AI enhancement budgets (AI_PROVIDER_SPEC §2) ---
     # Per-call provider timeout (seconds); adapters clamp every `timeout_s`
     # into [1, AI_MAX_TIMEOUT_S]. DEFAULT > MAX is operator misconfig and

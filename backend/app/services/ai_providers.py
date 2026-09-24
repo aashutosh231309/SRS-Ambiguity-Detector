@@ -96,7 +96,6 @@ def _decrypt_or_500(ciphertext: str) -> str:
         raise InternalError("Credential storage is temporarily unavailable.") from None
 
 
-@transactional
 async def create_credential(
     session: AsyncSession,
     *,
@@ -105,21 +104,49 @@ async def create_credential(
     label: str | None,
     api_key: str,
 ) -> AICredential:
-    """Store a credential: always enabled, never default. An existing ENABLED
-    row for (owner, provider) is `409 conflict` — re-enable via PATCH /
-    rotate via ROTATE instead. Key material already stored on ANY row of this
-    provider (even soft-disabled) is `409` with a rotation hint, never a
-    silent dup."""
+    """Store a credential: always enabled, never default.
+
+    Stage 21 closes the live-proof remainder: CREATE validates the plaintext
+    key with the provider adapter BEFORE storing it. Duplicate checks run
+    before proof to avoid unnecessary outbound calls; the transactional insert
+    re-checks them after proof to close races. No transaction spans provider
+    network I/O.
+    """
     label_n = normalize_label(label)
     _validate_preconditions(provider, api_key, label_n)
     repo = AICredentialRepository(session)
+    fingerprint = fingerprint_secret(api_key)
+    await _raise_create_conflicts(
+        repo, owner_id=owner_id, provider=provider, fingerprint=fingerprint
+    )
+    # The SELECT preflight can autobegin a read transaction; close it before
+    # provider I/O so no DB transaction spans the network call.
+    await session.rollback()
+    await _prove_create_key(provider=provider, api_key=api_key)
+    return await _create_credential_row(
+        session,
+        owner_id=owner_id,
+        provider=provider,
+        label=label_n,
+        api_key=api_key,
+        fingerprint=fingerprint,
+    )
+
+
+async def _raise_create_conflicts(
+    repo: AICredentialRepository,
+    *,
+    owner_id: uuid.UUID,
+    provider: str,
+    fingerprint: str,
+) -> None:
+    """Cheap preflight (and transactional re-check) for CREATE conflicts."""
     if await repo.get_enabled(owner_id=owner_id, provider=provider) is not None:
         raise ConflictError(
             "conflict",
             "An enabled credential already exists for this provider. "
             "Rotate its key or disable it first.",
         )
-    fingerprint = fingerprint_secret(api_key)
     if (
         await repo.get_by_fingerprint(
             owner_id=owner_id, provider=provider, key_fingerprint=fingerprint
@@ -131,15 +158,49 @@ async def create_credential(
             "This API key is already stored for this provider. "
             "Use key rotation on the existing credential instead.",
         )
+
+
+async def _prove_create_key(*, provider: str, api_key: str) -> None:
+    """Creation-time proof-of-key (no storage on invalid/unreachable keys)."""
+    adapter = resolve_adapter(provider)
+    if adapter is None:  # defensive: all supported providers ship adapters since Stage 18
+        raise ValidationError(_UNAVAILABLE_MESSAGE)
+    try:
+        result = await adapter.validate_credentials(api_key)
+    except ProviderError as exc:
+        logger.info("credential proof failed provider=%s code=%s", provider, exc.code)
+        raise ValidationError(exc.user_message) from None
+    if not result.ok:
+        message = result.detail[:_ERROR_MAX_LENGTH] or "Provider rejected the API key."
+        logger.info("credential proof rejected provider=%s", provider)
+        raise ValidationError(message)
+
+
+async def _create_credential_row(
+    session: AsyncSession,
+    *,
+    owner_id: uuid.UUID,
+    provider: str,
+    label: str | None,
+    api_key: str,
+    fingerprint: str,
+) -> AICredential:
+    """Transactional insert after live proof; re-checks conflicts for races."""
+    repo = AICredentialRepository(session)
+    await _raise_create_conflicts(
+        repo, owner_id=owner_id, provider=provider, fingerprint=fingerprint
+    )
     try:
         row = await repo.create(
             owner_id=owner_id,
             provider=provider,
-            label=label_n,
+            label=label,
             encrypted_api_key=_encrypt_or_500(api_key),
             key_version=VAULT_VERSION,
             key_fingerprint=fingerprint,
             last4=api_key[-4:],
+            last_test_status="ok",
+            last_tested_at=utcnow(),
         )
     except IntegrityError:
         # Lost a create race: roll back, re-read, and report the CURRENT
@@ -154,8 +215,9 @@ async def create_credential(
         raise ConflictError(
             "conflict", "An enabled credential already exists for this provider."
         ) from None
+    await session.commit()
     logger.info(
-        "credential created credential_id=%s owner_id=%s provider=%s",
+        "credential created credential_id=%s owner_id=%s provider=%s proof=ok",
         row.id,
         owner_id,
         provider,

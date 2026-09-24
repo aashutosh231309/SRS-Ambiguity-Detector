@@ -32,6 +32,8 @@ class AICredentialRepository:
         key_version: int,
         key_fingerprint: str,
         last4: str,
+        last_test_status: str | None = None,
+        last_tested_at: datetime | None = None,
     ) -> AICredential:
         row = AICredential(
             owner_id=owner_id,
@@ -44,6 +46,8 @@ class AICredentialRepository:
             is_enabled=True,
             is_default=False,
             fallback_rank=0,
+            last_test_status=last_test_status,
+            last_tested_at=last_tested_at,
         )
         self._session.add(row)
         await self._session.flush()  # surfaces constraint violations inside the txn

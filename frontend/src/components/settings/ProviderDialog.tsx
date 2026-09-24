@@ -138,8 +138,9 @@ export function ProviderDialog({
       description={
         mode === "add" ? (
           <>
-            Store one of your own API keys. It is encrypted before storage and never shown again —
-            not even to you. New credentials start enabled; you can set a default after saving.
+            Store one of your own API keys. We verify it with the provider before saving, then
+            encrypt it before storage and never show it again — not even to you. New credentials
+            start enabled; you can set a default after saving.
           </>
         ) : (
           <>

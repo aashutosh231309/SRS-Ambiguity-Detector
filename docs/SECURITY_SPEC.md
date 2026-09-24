@@ -134,7 +134,10 @@ their own keys; we disclose what is sent — see `AI_PROVIDER_SPEC.md` §Privacy
 
 Sensitive ops (register, login, verify-resend, forgot/reset, analysis, upload, AI test,
 AI retry) get server-side limits (token-bucket per IP + per-user where authed),
-configurable via env (`RATE_LIMIT_*`), returning `429` + `Retry-After`. Turnstile
+configurable via env (`RATE_LIMIT_*`), returning `429` + `Retry-After`. As-built:
+auth default, analysis-create, upload, provider-TEST, document-download-mint, and
+retry-AI all have dedicated/env-backed buckets; distributed storage + Turnstile remain
+roadmap-22. Turnstile
 (server-verified) on register + suspicious login + reset + public endpoints if ever exposed.
 Frontend throttling is cosmetic only. Live since Stage 06: `POST /analysis` is
 per-user bucketed (`RATE_LIMIT_ANALYSIS_PER_MINUTE`, default 20/min) inside the

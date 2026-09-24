@@ -211,16 +211,16 @@ deterministic scores/issues intact, `ai_overview`/`ai_provider` null).
 Chain: default → fallbacks in rank order, max 3 attempts, failover on
 overview failure only (improvements are best-effort on the winning
 provider — attribution never mixes). Stored credentials WITHOUT an
-adapter yet (anthropic, huggingface — deferred, AI_PROVIDER_SPEC §4)
+adapter yet (defensive future-provider branch; all six built-ins ship)
 report `failed` with "<Label> integration isn't available yet." (a key IS
 stored, so `unconfigured` would lie).
 
-**Retry-ai (FINAL Stage 17):** `POST /analysis/{id}/retry-ai` re-runs ONLY
+**Retry-ai (FINAL Stage 17; dedicated bucket Stage 21):** `POST /analysis/{id}/retry-ai` re-runs ONLY
 the AI step through the SAME shared service as creation (same chain, caps,
 fail-open, sanitizer): reset (AI payload NULLed + AI-stamped rewrites
 dropped — a failed retry can never strand stale `ok` output) → re-read →
-enhance. Verified-user + CSRF guarded, default verified-mutation bucket (a
-dedicated AI bucket is Stage 22's). Owner-scoped (`404 analysis_not_found`
+enhance. Verified-user + CSRF guarded, dedicated per-user AI retry bucket
+(`RATE_LIMIT_AI_RETRY_PER_MINUTE`, default 10). Owner-scoped (`404 analysis_not_found`
 on foreign ids, byte-identical to missing — no oracle); malformed ids `400
 validation_error` like the detail GET. Accepts ANY prior `ai_status` — a
 retry is always an explicit user action (over `ok` = fresh overview, over
@@ -464,11 +464,11 @@ validation_error` (bad `range`) / `5xx` generic. No paged envelope — the
 snapshot is bounded by construction (fixed vocabularies + zero-filled window
 + 5 recents).
 
-### 4.6 AI providers — Stage 12 (as-built: vault CRUD + test; adapters Stage 18)
+### 4.6 AI providers — Stage 12 (vault CRUD + test) + Stage 21 (create proof); adapters Stage 18
 
 ```
 GET    /ai/providers                 → [{id,provider,label,masked_key,is_enabled,is_default,fallback_rank,key_version,last_tested_at,last_test_status}] (bare array: registry order → enabled-first → oldest)
-POST   /ai/providers                 {provider,label?,api_key} → 201 (same shape; always enabled, never default; key NEVER returned)
+POST   /ai/providers                 {provider,label?,api_key} → 201 (same shape; always enabled, never default; key NEVER returned; live proof succeeds before storage)
 POST   /ai/providers/{id}/test       → 200 {ok, models, latency_ms, error?} (a failed check is data, not an error; dedicated 10/min bucket)
 PATCH  /ai/providers/{id}            {label?,is_enabled?,is_default?,fallback_rank?} → 200 (contradictions / default-on-disabled → 409; disabling the default auto-clears it)
 POST   /ai/providers/{id}/rotate-key {api_key} → 200 (new ciphertext + fingerprint; test verdict cleared — the new key is unproven)
@@ -480,19 +480,22 @@ Plaintext keys appear ONLY in inbound `POST`/`rotate-key` bodies (opaque, edge-t
 log, or error. Responses are allowlist-serialized metadata: `masked_key` = 12 bullets +
 last4 is the ONLY key-derived value that ever leaves the server.
 
-**Stage 12 rules (all asserted in tests):** creation is SHAPE-only (no live key proof —
-adapters land in Stage 18); one ENABLED credential per (owner, provider); each key
-fingerprint (`sha256(key)[0:16]`) unique per (owner, provider); exactly one default per
-owner (a claim moves it in the same transaction); labels strip with blank→None; unknown
-providers fail as `400 validation_error` via the request vocabulary. Until adapters ship,
-every TEST deterministically returns `200 {ok:false}` with an unavailable message and
-leaves `last_test_*` untouched. **Errors:** `401 unauthenticated` / `403
-email_unverified` / `400 validation_error` (shape, unknown provider, malformed id) /
-`404 ai_provider_not_found` (missing AND foreign ids identical — no oracle) / `409
-conflict` (enabled/fingerprint dup, contradictory PATCH, occupied re-enable) / `429
-rate_limited` (test bucket only) / `500 internal_error` (vault unconfigured or ciphertext
-tampered — generic message, never vault internals). `provider_error` / `ai_unavailable`
-stay RESERVED for live-provider failures (Stage 18+).
+**Rules (all asserted in tests):** creation is shape validation PLUS live proof
+(`validate_credentials`) before storage (Stage 21) — invalid/rejected/unreachable keys
+store nothing and return `400 validation_error` with adapter-curated safe copy; successful
+creates stamp `last_test_status="ok"` + `last_tested_at`. One ENABLED credential per
+(owner, provider); each key fingerprint (`sha256(key)[0:16]`) unique per (owner,
+provider); exactly one default per owner (a claim moves it in the same transaction);
+labels strip with blank→None; unknown providers fail as `400 validation_error` via the
+request vocabulary. The explicit TEST endpoint still decrypts an existing row,
+`health_check`s it, lists curated models on success, and records its own verdict;
+a future adapter-less provider reports `200 {ok:false}` with an unavailable message and
+leaves the existing verdict untouched. **Errors:** `401 unauthenticated` / `403
+email_unverified` / `400 validation_error` (shape, unknown provider, malformed id,
+failed create proof) / `404 ai_provider_not_found` (missing AND foreign ids identical —
+no oracle) / `409 conflict` (enabled/fingerprint dup, contradictory PATCH, occupied
+re-enable) / `429 rate_limited` (test bucket only) / `500 internal_error` (vault
+unconfigured or ciphertext tampered — generic message, never vault internals).
 
 ### 4.7 Settings / privacy — Stage 16 (profile final) / Stage 23 (privacy)
 

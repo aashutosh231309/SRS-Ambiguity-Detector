@@ -149,7 +149,13 @@ def _login_unverified(client: TestClient, tag: str) -> str:
 
 
 def _create_credential(client: TestClient, provider: str, api_key: str) -> dict[str, Any]:
-    response = client.post("/api/v1/ai/providers", json={"provider": provider, "api_key": api_key})
+    # Stage 21: CREATE proves keys through the adapter, so tests register an
+    # offline fake for the proof call. Scenario-specific fakes still wrap the
+    # later analysis/retry calls.
+    with _adapters(_FakeAdapter(provider)):
+        response = client.post(
+            "/api/v1/ai/providers", json={"provider": provider, "api_key": api_key}
+        )
     assert response.status_code == 201, response.text
     assert api_key not in response.text
     return dict(response.json())
@@ -239,6 +245,25 @@ def test_retry_malformed_id_400s(retry_client: TestClient) -> None:
     response = retry_client.post("/api/v1/analysis/not-a-uuid/retry-ai")
     assert response.status_code == 400
     assert _code(response) == "validation_error"
+
+
+def test_retry_ai_dedicated_bucket_rate_limits(
+    retry_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _login_verified(retry_client, "ratelimit")
+    created = _analyze(retry_client, False)
+    analysis_id = str(created.json()["id"])
+    monkeypatch.setenv("RATE_LIMIT_AI_RETRY_PER_MINUTE", "2")
+    get_settings.cache_clear()
+    try:
+        assert retry_client.post(f"/api/v1/analysis/{analysis_id}/retry-ai").status_code == 200
+        assert retry_client.post(f"/api/v1/analysis/{analysis_id}/retry-ai").status_code == 200
+        limited = retry_client.post(f"/api/v1/analysis/{analysis_id}/retry-ai")
+        assert limited.status_code == 429
+        assert _code(limited) == "rate_limited"
+        assert int(limited.headers["retry-after"]) >= 1
+    finally:
+        get_settings.cache_clear()
 
 
 def test_retry_foreign_analysis_404s_without_oracle(retry_client: TestClient) -> None:

@@ -1324,13 +1324,54 @@ audits, secret-scan docs, header review). The remaining AI slices
 (creation-time live key proof, per-run what-was-sent disclosure)
 and/or roadmap-22 (rate limiting).
 
+### Stage 21 (as-built) — remaining AI slices + retry bucket ✅ (2026-09-24)
+
+Scope note: the Stage 21 prompt framed a "FINAL REPOSITORY FREEZE /
+SUBMISSION INTEGRITY AUDIT", but the repo is still mid-roadmap (Stages
+22–32 remain, including screenshots/docs/deployment/final audit). Per the
+repo-authority rule, this as-built Stage 21 implements the documented
+next-pointer: the remaining AI slices (creation-time live key proof,
+per-run what-was-sent disclosure) plus the AI part of roadmap-22 rate
+limits (dedicated retry bucket). No final freeze/release claim is made.
+
+- Backend: `POST /ai/providers` now proves key material with the selected
+  provider adapter (`validate_credentials`) before encrypted storage. Duplicate
+  enabled/fingerprint checks still run before proof (avoid needless outbound
+  work) and again inside the insert path (race closure). No DB transaction spans
+  provider I/O. Invalid/rejected/unreachable keys return `400 validation_error`
+  with adapter-curated safe copy and store nothing; successful creates stamp
+  `last_test_status=ok` + `last_tested_at` (no schema change — existing columns).
+- Backend: `POST /analysis/{id}/retry-ai` now uses a dedicated per-user bucket
+  (`RATE_LIMIT_AI_RETRY_PER_MINUTE`, default 10) instead of the generic
+  verified-mutation bucket. Provider TEST keeps `RATE_LIMIT_AI_TEST_PER_MINUTE`.
+- Frontend: add-provider copy states keys are provider-verified before encrypted
+  storage; successful AI overviews now include per-run disclosure copy: overview
+  uses finding summaries, rewrites use flagged requirement excerpts only, and
+  provider retention follows the provider's policy. No new fields, no UI flow
+  redesign, no model column.
+- 541/541 pytest (+3: create-proof failure/no-storage ×2, retry-AI bucket ×1),
+  409/409 vitest (no new frontend tests; existing affected tests pass),
+  ruff/mypy/eslint/tsc/prettier clean, `verify.sh` green. No migration, no new
+  endpoint, no scoring/detector/auth architecture change.
+
+**Known limitations (accepted, not bugs):**
+- NO browser in this sandbox (as in Stages 05–20) — disclosure copy and existing
+  UI surfaces are unit-tested only, not visually revalidated at 390/768/1440.
+- `docker-compose.yml` STILL unvalidated (no Docker in sandbox); the Supabase
+  storage path is unexercised (local adapter only here).
+- Remaining roadmap-22 work is not complete: Turnstile and distributed limiter
+  storage/production abuse posture remain future. The new retry bucket is still
+  the existing single-process limiter.
+
+**Next stage:** Stage 22 (as-built) — CAPTCHA/rate limiting remainder
+(Turnstile + distributed limiter store / production abuse posture) or the next
+repo-authoritative slice from FUTURE_ROADMAP.md.
+
 ## Current stage
-None active — Stage 20 complete; all success conditions hold
-(roadmap-21 fully closed: prod framing + header review, OpenAPI prod
-posture, report-only CSP, audit gates, secret scan; 538/538 + 409/409
-tests, verify.sh green, docs match).
-Next: **Stage 21 (as-built) — remaining AI slices and/or rate
-limiting**.
+None active — Stage 21 complete; all success conditions hold (remaining AI
+slices closed: create proof + what-was-sent disclosure + dedicated retry bucket;
+541/541 + 409/409 tests, verify.sh green, docs match).
+Next: **Stage 22 (as-built) — CAPTCHA/rate limiting remainder**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 Database → backend → auth backend → auth frontend → SRS input/segmentation/preview ✅ →

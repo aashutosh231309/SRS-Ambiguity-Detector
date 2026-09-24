@@ -120,6 +120,11 @@
 > 8.3.4 → 9.1.1 fixed; 7 starlette findings accepted with reachability
 > notes — framework-major migration deferred), and secret-scan.sh (gates
 > verify.sh + documented pre-commit hook).
+> Actual Stage 21 (2026-09-24) closed the remaining AI-product slices from
+> roadmap-19/20 and part of roadmap-22's AI surface: creation-time provider
+> key proof before encrypted storage, per-run what-was-sent disclosure copy,
+> and a dedicated retry-AI rate bucket. Still open from roadmap-22: Turnstile
+> + distributed limiter storage / production deployment posture.
 > The table above keeps its original numbers; STAGE_STATUS.md records the
 > as-built mapping.
 

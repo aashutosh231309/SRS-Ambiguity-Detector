@@ -4,6 +4,31 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.22.0] — Stage 21 (as-built) — remaining AI slices + retry bucket — 2026-09-24
+
+### Added
+- Creation-time provider key proof: `POST /ai/providers` now calls the provider
+  adapter's `validate_credentials` before encrypted storage; rejected/unreachable
+  keys store nothing and return `400 validation_error` with adapter-curated safe
+  copy. Successful creates stamp `last_test_status=ok` + `last_tested_at`.
+- Dedicated retry-AI rate bucket: `POST /analysis/{id}/retry-ai` uses
+  `RATE_LIMIT_AI_RETRY_PER_MINUTE` (default 10) instead of the generic
+  verified-mutation bucket.
+- Per-run AI disclosure copy in the report: successful AI overviews now state
+  that the overview uses finding summaries, rewrites use flagged requirement
+  excerpts, and provider retention follows the provider's policy. The
+  add-provider dialog now states that keys are provider-verified before storage.
+
+### Changed
+- Backend suite 538 → 541 (+3: create-proof failure/no-storage ×2,
+  retry-AI bucket ×1). Frontend tests unchanged (409/409). No migration and no
+  response-shape change.
+
+### Contract
+- API_CONTRACT §4.3/§4.6, AI_PROVIDER_SPEC §5/§7/§8/§9, SECURITY_SPEC §7,
+  ARCHITECTURE §7, FUTURE_ROADMAP/STAGE_STATUS updated for the as-built Stage
+  21 closure. Remaining roadmap-22 work: Turnstile + distributed limiter store.
+
 ## [0.21.0] — Stage 20 (as-built) — security hardening (roadmap-21 closed) — 2026-09-24
 
 ### Added

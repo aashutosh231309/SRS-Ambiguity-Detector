@@ -35,9 +35,11 @@ create_guard = verified_user_guard(
     "analysis:create", limit=lambda: get_settings().RATE_LIMIT_ANALYSIS_PER_MINUTE
 )
 delete_guard = verified_user_guard("analysis:delete")
-# Retry-ai rides the default verified-mutation bucket (a dedicated AI bucket
-# is Stage 22's — AI_PROVIDER_SPEC §9 names retry-ai + test as its surface).
-retry_guard = verified_user_guard("analysis:retry-ai")
+# Retry-ai is an explicit AI provider call surface (AI_PROVIDER_SPEC §9), so
+# Stage 21 gives it a dedicated per-user bucket alongside provider TEST.
+retry_guard = verified_user_guard(
+    "analysis:retry-ai", limit=lambda: get_settings().RATE_LIMIT_AI_RETRY_PER_MINUTE
+)
 
 SortParam = Literal["created_at", "-created_at", "score", "-score"]
 BandParam = Literal["low", "moderate", "high", "very_high"]

@@ -33,7 +33,7 @@ from app.ai.providers import (
     ProviderError,
     ProviderHealth,
 )
-from app.ai.registry import register_adapter, unregister_adapter
+from app.ai.registry import PROVIDER_IDS, register_adapter, unregister_adapter
 from app.core.config import get_settings
 from app.core.database import normalize_url
 from app.core.rate_limit import reset_rate_limiter
@@ -192,30 +192,42 @@ class _FakeAdapter(AIProvider):
     def __init__(
         self,
         *,
-        expect_key: str,
+        expect_key: str | None,
+        provider_id: str = "groq",
+        display_name: str | None = None,
         health_ok: bool = True,
+        auth_ok: bool = True,
         detail: str = "",
         models: tuple[str, ...] = ("fake-model-a", "fake-model-b"),
         error: ProviderError | None = None,
     ) -> None:
+        self.id = provider_id
+        self.display_name = display_name or provider_id.title()
+        self.base_url = f"https://{provider_id}.example.com"
         self._expect_key = expect_key
         self._health_ok = health_ok
+        self._auth_ok = auth_ok
         self._detail = detail
         self._models = models
         self._error = error
 
     async def validate_credentials(self, api_key: str) -> ProviderAuthResult:
-        _ = api_key
-        return ProviderAuthResult(ok=True)
+        if self._expect_key is not None:
+            assert api_key == self._expect_key
+        if self._error is not None:
+            raise self._error
+        return ProviderAuthResult(ok=self._auth_ok, detail=self._detail)
 
     async def health_check(self, api_key: str) -> ProviderHealth:
-        assert api_key == self._expect_key  # decrypt→adapter proof
+        if self._expect_key is not None:
+            assert api_key == self._expect_key  # decrypt→adapter proof
         if self._error is not None:
             raise self._error
         return ProviderHealth(ok=self._health_ok, detail=self._detail)
 
     async def list_models(self, api_key: str) -> list[str]:
-        assert api_key == self._expect_key
+        if self._expect_key is not None:
+            assert api_key == self._expect_key
         return list(self._models)
 
     async def generate_overview(
@@ -227,6 +239,18 @@ class _FakeAdapter(AIProvider):
         self, api_key: str, payload: ImprovementPayload, *, timeout_s: int
     ) -> AITextResult:
         raise NotImplementedError
+
+
+@pytest.fixture(autouse=True)
+def _offline_provider_proofs() -> Generator[None, None, None]:
+    """CREATE proves keys live since Stage 21; tests stay offline via fakes."""
+    for provider_id in PROVIDER_IDS:
+        register_adapter(_FakeAdapter(expect_key=None, provider_id=provider_id))
+    try:
+        yield
+    finally:
+        for provider_id in PROVIDER_IDS:
+            unregister_adapter(provider_id)
 
 
 @pytest.fixture()
@@ -242,9 +266,12 @@ def _fake_groq() -> Generator[_FakeAdapter, None, None]:
 class _FakeAnthropic(_FakeAdapter):
     """Same seam, Anthropic identity (proves TEST reaches any adapter)."""
 
-    id = "anthropic"
-    display_name = "Anthropic"
-    base_url = "https://api.anthropic.com"
+    def __init__(self, *, expect_key: str) -> None:
+        super().__init__(
+            expect_key=expect_key,
+            provider_id="anthropic",
+            display_name="Anthropic",
+        )
 
 
 # --- auth gating ------------------------------------------------------------------
@@ -309,8 +336,8 @@ def test_create_returns_safe_metadata_shape(ai_client: TestClient) -> None:
     assert data["is_default"] is False  # creation never claims default
     assert data["fallback_rank"] == 0
     assert data["key_version"] == 1
-    assert data["last_tested_at"] is None
-    assert data["last_test_status"] is None
+    assert data["last_tested_at"] is not None
+    assert data["last_test_status"] == "ok"
 
 
 def test_create_normalizes_label(ai_client: TestClient) -> None:
@@ -341,6 +368,35 @@ def test_create_rejects_short_and_huge_keys(ai_client: TestClient) -> None:
         json={"provider": "groq", "label": "l" * 81, "api_key": KEY_GROQ},
     )
     assert long_label.status_code == 400
+
+
+def test_create_proves_key_before_storage(ai_client: TestClient) -> None:
+    fake = _FakeAdapter(expect_key=KEY_GROQ, auth_ok=False, detail="Key rejected by provider.")
+    register_adapter(fake)
+    _login_verified(ai_client, "proofbad")
+    response = ai_client.post(
+        "/api/v1/ai/providers", json={"provider": "groq", "api_key": KEY_GROQ}
+    )
+    assert response.status_code == 400
+    assert _code(response) == "validation_error"
+    assert "Key rejected" in response.json()["error"]["message"]
+    assert _list(ai_client) == []
+
+
+def test_create_provider_error_stores_nothing(ai_client: TestClient) -> None:
+    fake = _FakeAdapter(
+        expect_key=KEY_GROQ,
+        error=ProviderError("auth", "Groq rejected the API key. Check the key in Settings."),
+    )
+    register_adapter(fake)
+    _login_verified(ai_client, "prooferr")
+    response = ai_client.post(
+        "/api/v1/ai/providers", json={"provider": "groq", "api_key": KEY_GROQ}
+    )
+    assert response.status_code == 400
+    assert _code(response) == "validation_error"
+    assert "rejected" in response.json()["error"]["message"]
+    assert _list(ai_client) == []
 
 
 def test_create_rejects_duplicate_enabled_provider(ai_client: TestClient) -> None:
@@ -648,9 +704,9 @@ def test_missing_adapter_reports_unavailable(
     # unavailable without touching the vault plaintext or the verdict.
     import app.services.ai_providers as provider_service
 
-    monkeypatch.setattr(provider_service, "resolve_adapter", lambda provider_id: None)
     _login_verified(ai_client, "unavail")
     row = _create(ai_client, "groq", KEY_GROQ)
+    monkeypatch.setattr(provider_service, "resolve_adapter", lambda provider_id: None)
     response = ai_client.post(f"/api/v1/ai/providers/{row['id']}/test")
     assert response.status_code == 200, response.text
     body = response.json()
@@ -659,9 +715,9 @@ def test_missing_adapter_reports_unavailable(
     assert body["latency_ms"] == 0
     assert "not available yet" in (body["error"] or "")
     assert KEY_GROQ not in response.text
-    listed = _list(ai_client)[0]  # no attempt ran: verdict stays untouched
-    assert listed["last_tested_at"] is None
-    assert listed["last_test_status"] is None
+    listed = _list(ai_client)[0]  # no TEST attempt ran: create-proof verdict stays untouched
+    assert listed["last_tested_at"] is not None
+    assert listed["last_test_status"] == "ok"
 
 
 def test_anthropic_test_reaches_its_adapter(ai_client: TestClient) -> None:
@@ -721,14 +777,14 @@ def test_failed_health_records_failure(ai_client: TestClient) -> None:
 
 
 def test_provider_error_surfaces_user_message_only(ai_client: TestClient) -> None:
+    _login_verified(ai_client, "testerr")
+    row = _create(ai_client, "groq", KEY_GROQ)
     fake = _FakeAdapter(
         expect_key=KEY_GROQ,
         error=ProviderError("auth", "Invalid API key."),
     )
     register_adapter(fake)
     try:
-        _login_verified(ai_client, "testerr")
-        row = _create(ai_client, "groq", KEY_GROQ)
         response = ai_client.post(f"/api/v1/ai/providers/{row['id']}/test")
         assert response.status_code == 200, response.text
         body = response.json()
