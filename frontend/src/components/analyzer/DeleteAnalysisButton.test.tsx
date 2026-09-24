@@ -115,10 +115,56 @@ describe("DeleteAnalysisButton", () => {
     render(<DeleteAnalysisButton analysisId="analysis-1" title="Login SRS" />);
     await user.click(screen.getByRole("button", { name: "Delete" }));
     await user.click(screen.getByRole("button", { name: "Delete analysis" }));
-    expect((await screen.findByRole("alert")).textContent).toBe("The database is unreachable.");
+    // Code-mapped copy (Stage 10) — the server sentence is never displayed.
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Something went wrong. Please try again.",
+    );
     expect(nav.push).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog", { name: "Delete this analysis?" })).toBeDefined();
     await user.click(screen.getByRole("button", { name: "Keep analysis" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("compact trigger is title-named; onDeleted stays on the page after delete", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const onDeleted = vi.fn();
+    render(
+      <DeleteAnalysisButton
+        analysisId="analysis-1"
+        title="Login SRS"
+        compact
+        onDeleted={onDeleted}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Delete Login SRS" }));
+    await user.click(screen.getByRole("button", { name: "Delete analysis" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(onDeleted).toHaveBeenCalledTimes(1);
+    expect(nav.push).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("compact 404-at-confirm still resolves through onDeleted", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async () =>
+      errorResponse("analysis_not_found", "No analysis with id analysis-1.", 404),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const onDeleted = vi.fn();
+    render(
+      <DeleteAnalysisButton
+        analysisId="analysis-1"
+        title="Login SRS"
+        compact
+        onDeleted={onDeleted}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Delete Login SRS" }));
+    await user.click(screen.getByRole("button", { name: "Delete analysis" }));
+    await waitFor(() => expect(onDeleted).toHaveBeenCalledTimes(1));
+    expect(nav.push).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

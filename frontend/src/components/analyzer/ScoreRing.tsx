@@ -4,7 +4,8 @@ import { motion } from "motion/react";
 
 import type { AnalysisBand } from "@/types/analysis";
 
-const BAND_LABELS: Record<AnalysisBand, string> = {
+/** Band vocabulary shared with history rows (color never stands alone — §10). */
+export const BAND_LABELS: Record<AnalysisBand, string> = {
   low: "Low ambiguity",
   moderate: "Moderate ambiguity",
   high: "High ambiguity",

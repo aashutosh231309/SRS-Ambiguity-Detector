@@ -6,17 +6,32 @@
  * Tab cycles inside the dialog, Escape cancels, focus returns to the trigger
  * on close. A 404 at confirm time means "already gone" (other tab/device)
  * and resolves to the Analyzer like a success; anything else stays open with
- * the honest error.
+ * the code-mapped error. Without `onDeleted` success leaves for the Analyzer
+ * (report context — Stage 09); with it the caller stays and refreshes
+ * (history rows — Stage 10).
  */
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash } from "lucide-react";
 
+import { analysisErrorMessage } from "@/lib/analysis-errors";
 import { ApiRequestError } from "@/lib/api";
 import { deleteAnalysis } from "@/lib/analysis";
 
-export function DeleteAnalysisButton({ analysisId, title }: { analysisId: string; title: string }) {
+export function DeleteAnalysisButton({
+  analysisId,
+  title,
+  onDeleted,
+  compact = false,
+}: {
+  analysisId: string;
+  title: string;
+  /** Stay-on-page success path (history): called after the dialog closes. */
+  onDeleted?: () => void;
+  /** Row-sized icon trigger with a title-named label (history table). */
+  compact?: boolean;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -77,15 +92,17 @@ export function DeleteAnalysisButton({ analysisId, title }: { analysisId: string
         // Already gone (deleted in another tab/device) — same destination.
       } else {
         setPending(false);
-        setError(
-          err instanceof ApiRequestError
-            ? err.message
-            : "Couldn't delete this analysis. Try again.",
-        );
+        setError(analysisErrorMessage(err));
         return;
       }
     }
-    router.push("/analyzer");
+    if (onDeleted === undefined) {
+      router.push("/analyzer");
+      return;
+    }
+    setPending(false);
+    setOpen(false);
+    onDeleted();
   }
 
   return (
@@ -93,14 +110,19 @@ export function DeleteAnalysisButton({ analysisId, title }: { analysisId: string
       <button
         ref={triggerRef}
         type="button"
+        aria-label={compact ? `Delete ${title}` : undefined}
         onClick={() => {
           setError(null);
           setOpen(true);
         }}
-        className="inline-flex items-center justify-center gap-2 rounded-full border border-critic/40 px-5 py-2.5 text-[15px] font-medium text-critic transition outline-none hover:bg-critic/10 focus-visible:ring-2 focus-visible:ring-critic/50"
+        className={
+          compact
+            ? "inline-flex size-11 items-center justify-center rounded-full border border-line text-ink-soft transition outline-none hover:border-critic/40 hover:text-critic focus-visible:ring-2 focus-visible:ring-critic/50"
+            : "inline-flex items-center justify-center gap-2 rounded-full border border-critic/40 px-5 py-2.5 text-[15px] font-medium text-critic transition outline-none hover:bg-critic/10 focus-visible:ring-2 focus-visible:ring-critic/50"
+        }
       >
         <Trash className="size-4" aria-hidden />
-        Delete
+        {compact ? null : "Delete"}
       </button>
       {open ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

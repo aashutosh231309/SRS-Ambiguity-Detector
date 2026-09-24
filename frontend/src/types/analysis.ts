@@ -108,12 +108,14 @@ export interface AnalysisResult {
   updated_at: string;
 }
 
-/** History-list row: detail minus `requirements`, plus `source_excerpt`. */
+/** History-list row: detail minus `requirements`, plus `source_excerpt`.
+ * Stage 10: carries the `document` display pointer (like the detail). */
 export interface AnalysisSummary {
   id: string;
   title: string;
   status: AnalysisStatus;
   source_type: "text" | "document";
+  document: AnalysisDocumentRef | null;
   source_excerpt: string | null;
   score: number | null;
   band: AnalysisBand | null;
@@ -131,6 +133,8 @@ export interface ListAnalysesParams {
   sort?: AnalysisSort;
   band?: AnalysisBand;
   source_type?: "text" | "document";
+  /** History search (Stage 10): title + document filename substring, ≤200 chars. */
+  q?: string;
 }
 
 export interface CreateAnalysisInput {

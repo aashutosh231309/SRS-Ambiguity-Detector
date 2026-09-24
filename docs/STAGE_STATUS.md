@@ -658,12 +658,67 @@ API (search/filter/sort/paginate/delete, ownership-scoped, responsive
 table→cards, linking each row to its Stage 09 report); document
 list/download endpoints can ride along or follow.
 
+### Stage 10 — Analysis History UI (`/history`) ✅ (2026-09-24)
+Authenticated, verified-users-only history page on the ready list API —
+search, band/source filters, backend sort, real paging, per-row open + delete,
+responsive table→cards. The ONLY backend extension is the search the endpoint
+docstring already reserved (`q`) plus the `document` pointer §3 display needs;
+everything else is pure UI over the contracted envelopes. Details:
+
+**Completed:**
+- Backend (contract §4.3 amendment, additive): `GET /analysis` accepts `q` —
+  free-text search over title OR linked document filename
+  (case-insensitive substring, blank ignored, LIKE metacharacters literal,
+  owner-scoped join, `total` honors `q`); `AnalysisSummary` gains the Stage 09
+  `document` pointer (`{filename, file_type} | null`, same leak rules).
+  `category`/`severity` stay ignored (issue-level semantics, locked by tests).
+- `/history` route (verified-guard + `noindex,nofollow`): `HistoryScreen` with
+  loading skeleton; toolbar (350 ms-debounced server search with
+  "Searching…" state, band + source selects, 4-option backend sort, honest
+  disabled reset); stale-page dimming (`aria-busy`, never presented as
+  current); page-clamp when a delete empties the page; live count line.
+- `HistoryTable`: ONE semantic table (caption + scoped headers + `aria-sort`)
+  that CSS-transforms into cards under 640 px (`data-label` pseudo-labels);
+  every cell renders persisted values verbatim (zero recalculation);
+  failed/unscored rows read honestly; title + Open link to `/analysis/[id]`;
+  compact row delete reusing the Stage 09 confirm dialog (`onDeleted` refetch
+  path, no navigation, 404-as-success, mapped errors stay open).
+- `HistoryPagination`: envelope-driven only (`page`/`page_size`/`total`),
+  hidden on single pages, honest disabled Prev/Next.
+- Distinct empties (pristine "No analyses yet" + analyzer CTA and NO toolbar
+  vs filtered "No matching results" + clear), code-mapped error panel with
+  retry, session-expired sign-in nudge, malformed-payload rejection; back link
+  + analyzer cross-link both ways.
+- 17 backend tests (`test_analysis_history.py`) + 23 frontend tests (history
+  screen/table, debounce hook, compact dialog, `q` passthrough, workspace
+  link).
+
+**Verification:** 342/342 pytest, 259/259 vitest (35 files), ruff + eslint +
+`tsc` + prettier clean, `./scripts/verify.sh` green (`○ /history` in build —
+static shell, list loads client-side behind the verified guard).
+Live journey: register → verify → text + upload analyses → history lists both
+(`q`/band/source/sort/page honored) → row opens the Stage 09 report with
+identical numbers → delete → confirm → row gone without navigation.
+
+**Known limitations (accepted, not bugs):**
+- NO browser in this sandbox (as in Stages 05–09) — history route, toolbar,
+  table→cards, dialog, and responsive widths NOT pixel-verified, NO
+  screenshots ship (`screenshots/` still empty). First browsed environment
+  must capture `stage10-*` at 390/768/1440 + the pending
+  `stage05/06/07/08/09-*` sets.
+- `docker-compose.yml` STILL unvalidated (no Docker in sandbox) — recurring warning.
+
+**Next stage:** Stage 11 (as-built) — document list/download endpoints
+(roadmap-09 remainder: no download/list/purge-by-id surface yet) and/or
+Dashboard data (roadmap-14: stats/categories/trends endpoints).
+
 ## Current stage
-None active — Stage 09 complete; all success conditions hold (saved-report
-route with ownership-safe states, shared polished result view with
-overviews/filters/copy/delete, backend `document` pointer + failed-row
-semantics, 325/325 + 236/236 tests, journey green, docs match).
-Next: **Stage 10 (as-built) — Analysis history UI**.
+None active — Stage 10 complete; all success conditions hold (history page
+with server-driven search/filter/sort/paging, ownership-safe rows linking to
+the Stage 09 report, shared confirm-delete, honest empties/errors, backend
+`q` + summary `document` pointer, 342/342 + 259/259 tests, journey green,
+docs match).
+Next: **Stage 11 (as-built) — document list/download and/or Dashboard data**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 Database → backend → auth backend → auth frontend → SRS input/segmentation/preview ✅ →

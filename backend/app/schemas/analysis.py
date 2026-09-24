@@ -132,12 +132,14 @@ class AnalysisDetailResponse(BaseModel):
 
 
 class AnalysisSummaryResponse(BaseModel):
-    """History-list row: detail minus `requirements`, plus `source_excerpt`."""
+    """History-list row: detail minus `requirements`, plus `source_excerpt`.
+    Stage 10: carries the `document` display pointer (like the detail)."""
 
     id: uuid.UUID
     title: str
     status: Literal["segmented", "analyzed", "failed"]
     source_type: Literal["text", "document"]
+    document: DocumentRefResponse | None = None
     source_excerpt: str | None = None
     score: int | None = None
     band: str | None = None

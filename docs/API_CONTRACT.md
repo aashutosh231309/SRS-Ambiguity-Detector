@@ -54,7 +54,8 @@
 Query params: `page` (≥1, default 1), `page_size` (1–100, default 20),
 `sort` (`created_at` | `-created_at` | `score` | `-score`, default `-created_at`),
 resource-specific `q` (search), `band`, `category`, `severity`, `source_type`.
-Unknown params are ignored (forward-compatible).
+Unknown params are ignored (forward-compatible). `q` semantics are
+endpoint-defined — see §4.3 for the analysis list (the only `q` consumer).
 
 ## 4. Endpoints
 

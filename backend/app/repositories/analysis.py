@@ -10,14 +10,21 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.analysis import Analysis
+from app.models.document import Document
 from app.models.issue import Issue
 from app.models.requirement import Requirement
 
 SortKey = Literal["created_at", "-created_at", "score", "-score"]
+
+
+def _escape_like(value: str) -> str:
+    """Escape LIKE wildcards so history `q` matches literally (`%`, `_`
+    and `\\` in user input are data, never pattern syntax)."""
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 @dataclass(frozen=True)
@@ -51,6 +58,18 @@ class IssueRow:
     end_offset: int
     reason: str
     recommendation: str
+
+
+@dataclass(frozen=True)
+class AnalysisListRow:
+    """One history-list row: the owned analysis + its source document's
+    display columns. `filename`/`file_type` are None for text analyses AND
+    when the linked document row is absent (the service degrades those to
+    `document: None`, mirroring the detail's absent-document behavior)."""
+
+    analysis: Analysis
+    filename: str | None
+    file_type: str | None
 
 
 class AnalysisRepository:
@@ -114,15 +133,38 @@ class AnalysisRepository:
         sort: SortKey,
         band: str | None,
         source_type: str | None,
-    ) -> tuple[list[Analysis], int]:
-        """Newest-first page of owned analyses + total (contract §3)."""
+        q: str | None,
+    ) -> tuple[list[AnalysisListRow], int]:
+        """Newest-first page of owned analyses + total (contract §3).
+
+        Stage 10: LEFT JOINs the source document's display columns (both
+        sides owner-scoped, like the detail's double `get_owned`) and
+        optionally filters by `q` — case-insensitive substring over title +
+        document filename. `q` arrives normalized + length-capped; LIKE
+        wildcards are escaped here. The join is many-to-one, so the total
+        stays exact with the same filters applied.
+        """
+        join_on = (Document.id == Analysis.document_id) & (Document.owner_id == owner_id)
         filters = [Analysis.owner_id == owner_id]
         if band is not None:
             filters.append(Analysis.band == band)
         if source_type is not None:
             filters.append(Analysis.source_type == source_type)
+        if q is not None:
+            pattern = f"%{_escape_like(q)}%"
+            filters.append(
+                or_(
+                    Analysis.title.ilike(pattern, escape="\\"),
+                    Document.filename.ilike(pattern, escape="\\"),
+                )
+            )
         total = (
-            await self._session.execute(select(func.count()).select_from(Analysis).where(*filters))
+            await self._session.execute(
+                select(func.count())
+                .select_from(Analysis)
+                .outerjoin(Document, join_on)
+                .where(*filters)
+            )
         ).scalar_one()
         order: tuple[Any, ...] = {
             "created_at": (Analysis.created_at.asc(), Analysis.id.asc()),
@@ -131,9 +173,18 @@ class AnalysisRepository:
             "-score": (Analysis.score.desc(), Analysis.id.desc()),
         }[sort]
         result = await self._session.execute(
-            select(Analysis).where(*filters).order_by(*order).offset(offset).limit(limit)
+            select(Analysis, Document.filename, Document.file_type)
+            .outerjoin(Document, join_on)
+            .where(*filters)
+            .order_by(*order)
+            .offset(offset)
+            .limit(limit)
         )
-        return list(result.scalars().all()), total
+        rows = [
+            AnalysisListRow(analysis=row[0], filename=row[1], file_type=row[2])
+            for row in result.all()
+        ]
+        return rows, total
 
     async def delete(self, row: Analysis) -> None:
         """Delete an owned row (requirements + issues cascade in the DB)."""

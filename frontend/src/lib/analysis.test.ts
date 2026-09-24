@@ -207,6 +207,7 @@ describe("listAnalyses", () => {
           title: "Login SRS",
           status: "analyzed",
           source_type: "text",
+          document: null,
           source_excerpt: "FR-001: hi",
           score: 100,
           band: "low",
@@ -246,12 +247,21 @@ describe("listAnalyses", () => {
         return jsonResponse(pageResponse());
       }),
     );
-    await listAnalyses({ page: 2, page_size: 5, sort: "-score", band: "high" });
+    await listAnalyses({
+      page: 2,
+      page_size: 5,
+      sort: "-score",
+      band: "high",
+      source_type: "document",
+      q: "acme contract",
+    });
     const query = new URL(seen).searchParams;
     expect(query.get("page")).toBe("2");
     expect(query.get("page_size")).toBe("5");
     expect(query.get("sort")).toBe("-score");
     expect(query.get("band")).toBe("high");
+    expect(query.get("source_type")).toBe("document");
+    expect(query.get("q")).toBe("acme contract");
   });
 });
 

@@ -131,8 +131,9 @@ reasoning (+ optional AI explanation when available). No black boxes.
 - [x] Product: AnalyzerForm + SegmentPreview (Stage 06 — requirements + segmentation evidence only; superseded by the scored result view in Stage 07)
 - [x] Product: AnalysisResultView + ScoreRing + RequirementCard + IssueCard + SeverityBadge (Stage 07 — overall score/band + per-requirement scores, severities, `<mark>` highlighting, and "Why was this flagged?" disclosures per §8; Stage 09 report polish: saved `/analysis/[id]` route + CategoryBars/HealthBars overviews, search/filter/sort toolbar, collapsed-by-default issues, copy actions, failed/segmented/clean states)
 - [x] Product: AnalyzerWorkspace tabs + DocumentUploadForm dropzone (Stage 08 — feature-local input-method tabs with arrow-key nav; dropzone + picker for exactly one PDF/DOCX/TXT with honest indeterminate progress; shared Tabs/Dropzone primitives still pending)
-- [x] Product: HealthBars, CategoryBars, DeleteConfirm dialog (Stage 09 — explicit-confirm delete on the report route; `DELETE`-typing variant still future)
-- [ ] Product: Navbar, TrendChart, HistoryTable, SettingsForms, ProviderCard (owning stages)
+- [x] Product: HealthBars, CategoryBars, DeleteConfirm dialog (Stage 09 — explicit-confirm delete on the report route; `DELETE`-typing variant still future; Stage 10 — compact row variant + `onDeleted` refetch path for history)
+- [x] Product: HistoryScreen + HistoryToolbar + HistoryTable + HistoryPagination (Stage 10 — authenticated `/history` on the list API: debounced server search, band/source filters, backend sort, envelope-driven paging, semantic table → CSS cards, distinct no-analyses/no-match empties)
+- [ ] Product: Navbar, TrendChart, SettingsForms, ProviderCard (owning stages)
 - [ ] Marketing: Hero, FeatureGrid, HowItWorks steps, CTA, Footer, Breadcrumbs (Stage 26+)
 
 Rules: no fake buttons (every control does something or doesn't ship); no placeholder

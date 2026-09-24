@@ -47,6 +47,7 @@ export async function listAnalyses(
   if (params.sort !== undefined) search.set("sort", params.sort);
   if (params.band !== undefined) search.set("band", params.band);
   if (params.source_type !== undefined) search.set("source_type", params.source_type);
+  if (params.q !== undefined) search.set("q", params.q);
   const query = search.size > 0 ? `?${search.toString()}` : "";
   return withSessionRetry(() => api<Collection<AnalysisSummary>>(`/analysis${query}`));
 }

@@ -14,10 +14,29 @@ from app.schemas.analysis import (
     RequirementResponse,
     SegmentationMetaResponse,
 )
-from app.services.analysis import AnalysisDetail, AnalysisSummary, IssueDetail, RequirementDetail
+from app.services.analysis import (
+    AnalysisDetail,
+    AnalysisSummary,
+    DocumentRef,
+    IssueDetail,
+    RequirementDetail,
+)
 
 _VALID_STATUSES = ("segmented", "analyzed", "failed")
 _VALID_SOURCE_TYPES = ("text", "document")
+
+
+def _document_response(doc: DocumentRef | None) -> DocumentRefResponse | None:
+    """Shared detail/summary pointer mapping (Stage 10): absent degrades to
+    None upstream; a present-but-unexpected type 500s (drift never lies)."""
+    if doc is None:
+        return None
+    if doc.file_type not in ("pdf", "docx", "txt"):
+        raise ValueError(f"unexpected file type: {doc.file_type!r}")
+    return DocumentRefResponse(
+        filename=doc.filename,
+        file_type=doc.file_type,  # type: ignore[arg-type]  # narrowed above
+    )
 
 
 def issue_response(item: IssueDetail) -> IssueResponse:
@@ -66,14 +85,7 @@ def detail_response(detail: AnalysisDetail) -> AnalysisDetailResponse:
         raise ValueError(f"unexpected analysis status: {detail.status!r}")
     if detail.source_type not in _VALID_SOURCE_TYPES:
         raise ValueError(f"unexpected source type: {detail.source_type!r}")
-    document = None
-    if detail.document is not None:
-        if detail.document.file_type not in ("pdf", "docx", "txt"):
-            raise ValueError(f"unexpected file type: {detail.document.file_type!r}")
-        document = DocumentRefResponse(
-            filename=detail.document.filename,
-            file_type=detail.document.file_type,  # type: ignore[arg-type]  # narrowed above
-        )
+    document = _document_response(detail.document)
     return AnalysisDetailResponse(
         id=detail.id,
         title=detail.title,
@@ -102,6 +114,7 @@ def summary_response(item: AnalysisSummary) -> AnalysisSummaryResponse:
         title=item.title,
         status=item.status,  # type: ignore[arg-type]  # narrowed above
         source_type=item.source_type,  # type: ignore[arg-type]  # narrowed above
+        document=_document_response(item.document),
         source_excerpt=item.source_excerpt,
         score=item.score,
         band=item.band,

@@ -128,7 +128,8 @@ class AnalysisDetail:
 
 @dataclass(frozen=True)
 class AnalysisSummary:
-    """History-list row: detail minus `requirements`, plus `source_excerpt`."""
+    """History-list row: detail minus `requirements`, plus `source_excerpt`.
+    Stage 10: carries the `document` display pointer (like the detail)."""
 
     id: uuid.UUID
     title: str
@@ -141,6 +142,7 @@ class AnalysisSummary:
     issues_count: int
     created_at: datetime
     updated_at: datetime
+    document: DocumentRef | None = None
 
 
 @transactional
@@ -408,8 +410,19 @@ async def list_analyses(
     sort: SortKey,
     band: str | None,
     source_type: str | None,
+    q: str | None,
 ) -> tuple[list[AnalysisSummary], int]:
-    """Newest-first page of owned analyses + total (contract §3). Read-only."""
+    """Newest-first page of owned analyses + total (contract §3). Read-only.
+
+    Stage 10: `q` (already length-capped at the boundary) filters by
+    case-insensitive title/filename substring; blank searches behave as
+    absent. The `document` pointer degrades to None when the linked row is
+    absent OR its `file_type` is NULL (migration 0005 keeps NULL honest) —
+    mirroring the detail, a present-but-unexpected type still 500s downstream.
+    """
+    query = q.strip() if q is not None else None
+    if not query:
+        query = None
     rows, total = await AnalysisRepository(session).list_owned(
         owner_id=owner_id,
         offset=(page - 1) * page_size,
@@ -417,21 +430,27 @@ async def list_analyses(
         sort=sort,
         band=band,
         source_type=source_type,
+        q=query,
     )
     return (
         [
             AnalysisSummary(
-                id=row.id,
-                title=row.title,
-                status=row.status,
-                source_type=row.source_type,
-                source_excerpt=row.source_excerpt,
-                score=row.score,
-                band=row.band,
-                requirements_count=row.requirements_count,
-                issues_count=row.issues_count,
-                created_at=row.created_at,
-                updated_at=row.updated_at,
+                id=row.analysis.id,
+                title=row.analysis.title,
+                status=row.analysis.status,
+                source_type=row.analysis.source_type,
+                document=(
+                    DocumentRef(filename=row.filename, file_type=row.file_type)
+                    if row.filename is not None and row.file_type is not None
+                    else None
+                ),
+                source_excerpt=row.analysis.source_excerpt,
+                score=row.analysis.score,
+                band=row.analysis.band,
+                requirements_count=row.analysis.requirements_count,
+                issues_count=row.analysis.issues_count,
+                created_at=row.analysis.created_at,
+                updated_at=row.analysis.updated_at,
             )
             for row in rows
         ],

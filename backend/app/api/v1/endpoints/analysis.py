@@ -66,9 +66,11 @@ async def list_analyses(
     sort: Annotated[SortParam, Query()] = "-created_at",
     band: Annotated[BandParam | None, Query()] = None,
     source_type: Annotated[SourceTypeParam | None, Query()] = None,
+    q: Annotated[str | None, Query(max_length=200)] = None,
 ) -> Page[AnalysisSummaryResponse]:
     """Newest-first page of owned analyses (contract §3; unknown params are
-    ignored by FastAPI, `q`/`category`/`severity` arrive with history search)."""
+    ignored by FastAPI; `q` searches title + document filename, Stage 10 —
+    `category`/`severity` still future)."""
     items, total = await analysis_service.list_analyses(
         session,
         owner_id=user.id,
@@ -77,6 +79,7 @@ async def list_analyses(
         sort=sort,
         band=band,
         source_type=source_type,
+        q=q,
     )
     return Page[AnalysisSummaryResponse](
         items=[summary_response(item) for item in items],

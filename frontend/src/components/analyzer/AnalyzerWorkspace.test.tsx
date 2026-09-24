@@ -233,6 +233,23 @@ describe("AnalyzerWorkspace", () => {
     expect(screen.queryByLabelText("SRS text")).toBeNull();
   });
 
+  it("links verified users to their analysis history", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => userResponse(true)),
+    );
+    render(
+      <AuthProvider>
+        <AnalyzerWorkspace />
+      </AuthProvider>,
+    );
+    expect(await screen.findByRole("heading", { name: "Analyze requirements" })).toBeDefined();
+    expect(screen.getByRole("link", { name: /View history/ })).toHaveProperty(
+      "href",
+      expect.stringContaining("/history"),
+    );
+  });
+
   it("redirects signed-out visitors to /login", async () => {
     vi.stubGlobal(
       "fetch",

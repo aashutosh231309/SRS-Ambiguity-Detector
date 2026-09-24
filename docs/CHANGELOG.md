@@ -4,6 +4,45 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.11.0] — Stage 10 — Analysis History UI (`/history`) — 2026-09-24
+
+### Added
+- Authenticated, verified-users-only history route `/history`
+  (`noindex,nofollow`): `HistoryScreen` (loading skeleton, stale-page
+  dimming with `aria-busy`, page-clamp after deletes, live count line,
+  back link) + `HistoryToolbar` (350 ms-debounced server search with a
+  "Searching…" state, band + source filters, 4-option backend sort, honest
+  disabled reset) + `HistoryTable` (one semantic table that CSS-transforms
+  into cards under 640 px; title/source/score/counts/date + Open link to
+  the Stage 09 report per row) + `HistoryPagination` (envelope-driven,
+  hidden on single pages).
+- Every cell renders persisted values verbatim (zero client
+  recalculation); `failed` rows read "Failed" and unscored rows "Not
+  scored" — never fabricated scores. Raw ids never surface.
+- Compact row delete reusing the Stage 09 dialog (explicit confirm, safe
+  default, Tab-trapped, Esc cancels, focus returns, 404-as-success,
+  code-mapped errors stay open) with an `onDeleted` refetch path — no
+  navigation, no bulk delete.
+- Distinct designed empties (pristine "No analyses yet" + analyzer CTA
+  and no toolbar vs filtered "No matching results" + clear), code-mapped
+  error panel with retry, session-expired sign-in nudge, wrong-shape
+  payload rejection, and an analyzer ↔ history cross-link both ways.
+- 17 backend tests (`test_analysis_history.py`) + 23 frontend tests
+  (history screen/table, debounce hook, compact dialog, `q` passthrough,
+  workspace link).
+
+### Changed
+- `DeleteAnalysisButton` gains `compact` (44 px icon trigger) +
+  `onDeleted` props and code-mapped error copy (was: raw server message);
+  `ScoreRing` exports `BAND_LABELS` for the shared band vocabulary.
+
+### Contract (Stage 10 amendment to §§3+4.3, all asserted in tests)
+- `GET /analysis` accepts `q` (title OR document-filename substring,
+  case-insensitive, blank ignored, metacharacters literal, owner-scoped,
+  `total` honors `q`); `AnalysisSummary` gains the `document`
+  `{filename, file_type} | null` pointer (same leak rules as the detail);
+  `category`/`severity` are locked as ignored non-filters.
+
 ## [0.10.0] — Stage 09 — Polished Analysis Report (`/analysis/[id]`) — 2026-09-24
 
 ### Added

@@ -10,9 +10,10 @@
  * as a resumable draft (the file itself cannot persist — only its title).
  */
 
+import Link from "next/link";
 import { useRef, useState } from "react";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 
 import type { AnalysisResult } from "@/types/analysis";
 import { Container } from "@/components/layout/Container";
@@ -65,6 +66,15 @@ export function AnalyzerWorkspace() {
             Paste your SRS text below, or upload a PDF, DOCX, or TXT file. Either way we split it
             into individual requirements — numbered, bulleted, ID-tagged, or plain paragraphs — then
             run the deterministic ambiguity detectors over each one and score the set.
+          </p>
+          <p className="mt-4">
+            <Link
+              href="/history"
+              className="inline-flex items-center gap-1.5 rounded-full font-mono text-xs font-medium text-ink-soft transition outline-none hover:text-ink focus-visible:ring-2 focus-visible:ring-signal/50"
+            >
+              View history
+              <ArrowRight className="size-3.5" aria-hidden />
+            </Link>
           </p>
         </Reveal>
 

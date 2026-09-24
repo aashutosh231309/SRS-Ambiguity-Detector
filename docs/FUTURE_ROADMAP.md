@@ -56,6 +56,13 @@
 > upload+analyze returning `{document, analysis}`, metadata read, validation
 > pipeline, bounded extraction (pdf/docx/txt), local storage adapter, and the
 > upload UI (tabs + dropzone) — all on the shared Stage 07 pipeline.
+> Actual Stage 09 (2026-09-24) shipped roadmap-13 (detailed report UI) FIRST
+> as `/analysis/[id]` — gauge, overviews, toolbar, copy, confirm-delete —
+> plus the detail `document` pointer and failed/segmented read-back rules.
+> Actual Stage 10 (2026-09-24) then shipped roadmap-12 (analysis history) as
+> `/history` — server search (`q`), band/source filters, backend sort,
+> paging, per-row delete — plus the summary `document` pointer. Roadmap-09's
+> download/list/purge-by-id surface is still the outstanding remainder.
 > The table above keeps its original numbers; STAGE_STATUS.md records the
 > as-built mapping.
 
