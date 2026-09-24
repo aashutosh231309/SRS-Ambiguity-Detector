@@ -4,9 +4,9 @@ Layout: `{STORAGE_LOCAL_DIR}/documents/{user_id}/{document_id}/source`.
 Uploads stream to 0600 system-temp files (`mkstemp`) and are moved here on
 success — atomic `os.replace` on the same filesystem, copy+unlink fallback
 otherwise (either way the staged bytes become the object exactly once). Temp
-files stay 0600 through the move. Nothing here is ever served over HTTP — no
-downloads exist yet, and when they do they go through authenticated handlers,
-never static mounts.
+files stay 0600 through the move. Nothing here is ever served over HTTP
+directly — Stage 19 downloads go through the signed-URL handler (token +
+owner checks, `Content-Disposition: attachment`), never static mounts.
 """
 
 from __future__ import annotations
@@ -43,6 +43,11 @@ class LocalStorageBackend:
                 raise
             shutil.copy2(src, dest)
             src.unlink(missing_ok=True)
+
+    def read_bytes(self, key: str) -> bytes:
+        # `_resolve` confines under root first (a confused caller must never
+        # read outside the bucket); a missing object raises FileNotFoundError.
+        return self._resolve(key).read_bytes()
 
     def delete(self, key: str) -> None:
         try:

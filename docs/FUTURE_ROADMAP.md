@@ -67,8 +67,8 @@
 > collapse into a single snapshot) plus the statistics UI (totals, trend,
 > distributions, recent runs; Recharts lands here, its earmarked stage) —
 > and flipped the post-auth landing to `/dashboard` per UI_UX_SPEC §5.
-> Roadmap-09's download/list/purge-by-id surface is still the outstanding
-> remainder.
+> Roadmap-09 is FULLY closed (Stage 08: upload/guards/storage; Stage 19:
+> download/list/purge-by-id surface).
 > Actual Stage 12 (2026-09-24) shipped the roadmap-17 vault spine EARLY as
 > vault + provider management (ABC + metadata registry + Fernet vault +
 > CRUD/test endpoints; NO adapters, NO settings UI, NO generation) —
@@ -107,6 +107,12 @@
 > flipped (defensive no-adapter branches kept, pinned via monkeypatch).
 > Still open: creation-time live key proof, per-run what-was-sent
 > disclosure copy, dedicated AI rate buckets.
+> Actual Stage 19 (2026-09-24) closed roadmap-09: newest-first document
+> list, purge-by-id (row + object; analyses survive via SET NULL), and
+> signed-URL downloads (short-lived single-document HS256 bearer, bytes
+> re-hashed before release, `attachment` disposition) + frontend clients
+> (no new UI — no surface is specified; a future slice may hang a
+> "download original" affordance on the history/report views).
 > The table above keeps its original numbers; STAGE_STATUS.md records the
 > as-built mapping.
 

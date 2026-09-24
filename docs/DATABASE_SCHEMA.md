@@ -172,7 +172,8 @@ users 1──1 user_preferences / settings                   [PLANNED — Stage 
   survives doc purge); the storage OBJECT deletion is application-level (§4) —
   the database cannot reach object storage. App-level (Stage 08): deleting an
   analysis purges its orphaned document row + object (nothing references it —
-  see §3.2). No document delete-by-id endpoint exists yet.
+  see §3.2). App-level (Stage 19): `DELETE /documents/{id}` purges the row +
+  object directly (analyses survive via `SET NULL`, §3.2).
 - Planned: no analysis_id on documents — the link direction is `analyses.document_id`
   (one document, many re-analyses). As of Stage 08 each upload creates exactly
   one analysis — the many side opens when by-id re-analysis ships.

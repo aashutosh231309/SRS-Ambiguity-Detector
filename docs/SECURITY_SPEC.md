@@ -97,7 +97,7 @@ their own keys; we disclose what is sent — see `AI_PROVIDER_SPEC.md` §Privacy
 | Processing timeout | 60 s validate+extract in a worker thread (`503 document_processing_timeout`; temp file ALWAYS cleaned up) |
 | Filename | sanitized display-only (≤255 chars); storage key = server-generated `documents/{owner}/{doc}/source` |
 | Binary storage | object storage ONLY (never Postgres); binaries unreadable by key-guessing (UUID path segments) |
-| Execution | never execute / never render as HTML; `Content-Disposition: attachment` on any future re-download |
+| Execution | never execute / never render as HTML; `Content-Disposition: attachment` on re-download (Stage 19 ✅) |
 | Malware posture | no embedded AV in v1 — controls are type/size/magic-byte/timeout/isolation; document as known limitation in STAGE_STATUS |
 
 - Staging: `tempfile.mkstemp` (O_EXCL, 0600) + chunk writes off the event loop,
@@ -109,8 +109,10 @@ their own keys; we disclose what is sent — see `AI_PROVIDER_SPEC.md` §Privacy
 - Parsers only READ (pypdf ignores embedded JS/actions; python-docx never
   opens macros/embedded objects); `\\x00` stripped everywhere (Postgres TEXT
   rejects it); logs carry ids + counts only, never file content.
-- Storage objects private; any future user download via short-lived signed
-  URL (≤15 min). No binaries in Postgres — the DB holds metadata only.
+- Storage objects private; user downloads go through short-lived signed URLs
+  ONLY (Stage 19 ✅ — single-document HS256 bearer, ≤15 min enforced at boot,
+  bytes re-hashed against the stored sha256 before release, never logged).
+  No binaries in Postgres — the DB holds metadata only.
 
 ## 6. Input validation & output encoding
 
@@ -156,6 +158,7 @@ verified-user guard — anonymous callers never reach the bucket (401 first).
 | Session signing | JWT HS256 with 256-bit server secret (separate from master key) | ✅ Stage 04 |
 | Token storage | sha256 hash of 256-bit random tokens | ✅ Stage 04 |
 | Checksums | sha256 of uploads (streamed during staging, stored per document) | Stage 08 ✅ |
+| Download URLs | HS256 JWT, `type: document_download` (single doc, ≤15 min, boot-capped) | Stage 19 ✅ |
 
 ## 10. Dependency & secret hygiene
 

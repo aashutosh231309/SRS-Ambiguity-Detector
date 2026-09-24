@@ -39,3 +39,16 @@ class DocumentUploadResponse(BaseModel):
 
     document: DocumentResponse
     analysis: AnalysisDetailResponse
+
+
+class DocumentDownloadUrlResponse(BaseModel):
+    """POST /documents/{id}/download-url result (contract §4.4, Stage 19).
+
+    `download_url` is an origin-RELATIVE path (`{prefix}/documents/{id}/
+    download?token=…`, prefix included) — clients resolve it against the
+    API origin. The token is single-document, short-lived, and must never
+    be logged.
+    """
+
+    download_url: str
+    expires_at: datetime

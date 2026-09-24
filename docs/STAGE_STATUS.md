@@ -1197,11 +1197,79 @@ with new signed-URL crypto design + open UI questions).
 **Next stage:** Stage 19 (as-built) — document list/download endpoints
 (roadmap-09 remainder).
 
+### Stage 19 (as-built) — document list/download endpoints (roadmap-09 closed) ✅ (2026-09-24)
+
+Scope note: the Stage 19 prompt framed a "final release packaging /
+submission validation" pass, but the repo is mid-roadmap (stages 20–32
+including roadmap-31 docs/screenshots all unfinished). Per the prompt's own
+repo-authority rule, this as-built Stage 19 implements the documented
+next-pointer: the roadmap-09 download/list/purge-by-id surface (the last
+roadmap-09 remainder — the row is now FULLY closed).
+
+- Backend: `GET /documents` (owner-scoped newest-first `Page[Document]`,
+  verified-only, no filters in v1), `DELETE /documents/{id}` (verified +
+  CSRF, default bucket → 204; row + storage object in one transaction,
+  rows first — referencing analyses survive via `SET NULL`, their
+  `document` pointer degrading to null), `POST /documents/{id}/
+  download-url` (verified + CSRF + dedicated 10/min bucket → 200
+  `{download_url, expires_at}`), and `GET /documents/{id}/download?
+  token=…` (no session — the short-lived single-document HS256 bearer
+  `type: document_download` IS the credential; 400 `invalid_token` on
+  expired/forged/wrong-type/wrong-document, 404 when deleted after mint).
+  Bytes are re-hashed against the stored sha256 before release (missing/
+  corrupt object → honest 500, ids-only logs); served under the
+  server-detected MIME as `attachment` (legacy `filename` + RFC 5987
+  `filename*`, never `inline`) with the global `nosniff`. Storage port
+  gains the bounded `read_bytes` (objects ≤10 MiB by upload invariant);
+  new settings `DOCUMENT_DOWNLOAD_URL_MINUTES` (15 — the §5 cap is
+  boot-enforced) + `RATE_LIMIT_DOCUMENT_DOWNLOAD_PER_MINUTE` (10).
+  No migration, no new error codes (all reused).
+- Frontend: `listDocuments` / `deleteDocument` /
+  `mintDocumentDownloadUrl` clients + `DocumentDownloadUrl` /
+  `ListDocumentsParams` types + `resolveDownloadUrl` (origin-relative
+  path → absolute URL via `new URL(path, apiBaseUrl())` — a naive join
+  would double the `/api/v1` prefix; caught by test). No new UI — no
+  download/list surface is specified in UI_UX_SPEC; a future slice may
+  hang a "download original" affordance on the history/report views.
+- 533/533 pytest (+29: storage ×3, list ×4, delete ×6, download ×16 incl.
+  a full upload→list→mint→download→purge roundtrip) + 402/402 vitest
+  (+6 documents client tests), ruff/mypy/eslint/tsc/prettier clean,
+  `verify.sh` green (specs amended in-stage).
+- Security notes (§11): the bearer-in-query is the spec-mandated signed-
+  URL shape (S3/Supabase-presigned idiom) — safe here by tight scope
+  (single doc, ≤15 min, type-separated from session JWTs in BOTH
+  directions) + the path-only access log (query strings never logged) +
+  no endpoint echoing the token (asserted); owner-scoped 404s identical
+  to missing on all four routes (no oracle); CSRF on both mutations;
+  filenames stay display-only (disposition built from the sanitized
+  name, ASCII fallback + quoted `filename*`); no new secrets, buckets,
+  or envelope shapes beyond the specced mint response.
+
+**Known limitations (accepted, not bugs):**
+- NO browser in this sandbox (as in Stages 05–18) — new clients NOT
+  click-verified, NO screenshots ship (`screenshots/` still empty).
+  First browsed environment must capture the backlog at 390/768/1440.
+- `docker-compose.yml` STILL unvalidated (no Docker in sandbox); the
+  Supabase storage path is unexercised (local adapter only here).
+- Sandbox note: FRESH single-branch clone (only `main` fetched, so the
+  session history looked absent at first — `git ls-remote` revealed the
+  remote tip `1cba530` intact). The tree was verified byte-identical to
+  that tip, the 504/504 baseline re-run green, and Stage 19 commits
+  directly on top — no recovery commit, no history lost. Toolchains
+  rebuilt (pip --user + npm + pgserver holder). Lesson: single-branch
+  clones hide remote refs from `git branch -a`; check `ls-remote` before
+  declaring history unrecoverable.
+
+**Next stage:** Stage 20 (as-built) — security hardening (roadmap-21)
+and/or the remaining AI slices (creation-time key proof, per-run
+what-was-sent disclosure).
+
 ## Current stage
-None active — Stage 18 complete; all success conditions hold (roadmap-18
-adapters closed: all six live with mocked-HTTP tests, 504/504 + 396/396
-tests, verify.sh green, docs match).
-Next: **Stage 19 (as-built) — document list/download endpoints**.
+None active — Stage 19 complete; all success conditions hold (roadmap-09
+fully closed: list + purge + signed downloads with clients, 533/533 +
+402/402 tests, verify.sh green, docs match).
+Next: **Stage 20 (as-built) — security hardening and/or remaining AI
+slices**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 Database → backend → auth backend → auth frontend → SRS input/segmentation/preview ✅ →

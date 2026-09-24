@@ -31,3 +31,20 @@ export interface DocumentUploadResponse {
   document: DocumentMetadata;
   analysis: AnalysisResult;
 }
+
+/** GET /documents paging (newest-first, no filters in v1). */
+export interface ListDocumentsParams {
+  page?: number;
+  page_size?: number;
+}
+
+/**
+ * POST /documents/{id}/download-url result (Stage 19). `download_url` is an
+ * API-relative path (carries the `/api/v1` prefix) — resolve it against the
+ * API origin (see `resolveDownloadUrl`) before navigating. The embedded
+ * token is a short-lived single-document bearer: never log or store it.
+ */
+export interface DocumentDownloadUrl {
+  download_url: string;
+  expires_at: string;
+}

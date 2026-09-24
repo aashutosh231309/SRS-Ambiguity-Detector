@@ -1,10 +1,14 @@
-"""Document upload orchestration (API_CONTRACT §4.4, Stage 08).
+"""Document upload orchestration (API_CONTRACT §4.4, Stage 08; list + purge +
+signed downloads Stage 19).
 
 HTTP-free: the router streams multipart bytes through `read()` and this module
 owns everything else — bounded staging → validate → extract (worker thread +
 timeout) → shared analysis pipeline → transactional persist (document + the
 FULL analysis graph) → safe dataclasses out. Nothing persists on any failure;
 temp files are removed in `finally` (success moves them into storage first).
+Stage 19 siblings: newest-first list, owner purge (row + object; referencing
+analyses survive via `SET NULL`), and signed-URL mint + byte serving (bytes
+re-verified against the stored sha256 before they leave the building).
 
 Ordering notes (all deliberate):
 - Validate+extract run BEFORE any DB transaction (a 60 s parse must never hold
@@ -28,13 +32,14 @@ import tempfile
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.core.security import create_document_download_token, utcnow
 from app.documents import (
     ExtractedDocument,
     ValidatedUpload,
@@ -44,8 +49,10 @@ from app.documents import (
 from app.exceptions import (
     DocumentProcessingTimeoutError,
     FileTooLargeError,
+    InternalError,
     NotFoundError,
 )
+from app.models.document import Document
 from app.repositories.documents import DocumentRepository
 from app.schemas.analysis import TITLE_MAX_LENGTH
 from app.services.analysis import AnalysisDetail, DocumentRef, analyze_text
@@ -269,14 +276,8 @@ async def upload_and_analyze(
     return document, analysis
 
 
-async def get_document_detail(
-    session: AsyncSession, *, owner_id: uuid.UUID, document_id: uuid.UUID
-) -> DocumentDetail:
-    """One owned document's metadata (404 unless owned — IDOR rule).
-    Read-only: no transaction boundary needed."""
-    doc = await DocumentRepository(session).get_owned(owner_id=owner_id, document_id=document_id)
-    if doc is None:
-        raise NotFoundError("document")
+def _to_detail(doc: Document) -> DocumentDetail:
+    """Row → metadata dataclass (shared by the detail + list paths)."""
     # Invariant: NULL file_type/extracted_chars predate uploads, but no code
     # path could write a documents row before Stage 08 — impossible in practice.
     assert doc.file_type is not None and doc.extracted_chars is not None
@@ -291,3 +292,104 @@ async def get_document_detail(
         extraction_status=doc.extraction_status,
         created_at=doc.created_at,
     )
+
+
+async def get_document_detail(
+    session: AsyncSession, *, owner_id: uuid.UUID, document_id: uuid.UUID
+) -> DocumentDetail:
+    """One owned document's metadata (404 unless owned — IDOR rule).
+    Read-only: no transaction boundary needed."""
+    doc = await DocumentRepository(session).get_owned(owner_id=owner_id, document_id=document_id)
+    if doc is None:
+        raise NotFoundError("document")
+    return _to_detail(doc)
+
+
+async def list_documents(
+    session: AsyncSession, *, owner_id: uuid.UUID, page: int, page_size: int
+) -> tuple[list[DocumentDetail], int]:
+    """Newest-first page of owned documents + total (contract §3 envelope).
+    Read-only: no transaction boundary needed."""
+    rows, total = await DocumentRepository(session).list_owned(
+        owner_id=owner_id,
+        offset=(page - 1) * page_size,
+        limit=page_size,
+    )
+    return [_to_detail(row) for row in rows], total
+
+
+@transactional
+async def delete_document(
+    session: AsyncSession, *, owner_id: uuid.UUID, document_id: uuid.UUID
+) -> None:
+    """Purge one owned document: row + storage object (404 unless owned).
+
+    Referencing analyses SURVIVE — the FK is `SET NULL`, and the detail +
+    history paths already degrade the `document` pointer to None (their
+    persisted requirements/issues/scores never needed the binary). Rows go
+    first with storage inside the same transaction (the orphan-purge
+    ordering: a storage failure rolls the rows back; only a commit failure
+    after a storage delete could strand a row — rare, logged,
+    metadata-intact).
+    """
+    doc = await DocumentRepository(session).get_owned(owner_id=owner_id, document_id=document_id)
+    if doc is None:
+        raise NotFoundError("document")
+    await DocumentRepository(session).delete(doc)
+    get_storage_backend().delete(doc.storage_path)
+    logger.info("document purged document_id=%s owner_id=%s", document_id, owner_id)
+
+
+@dataclass(frozen=True)
+class DocumentBytes:
+    """One owned document's binary, ready to serve (Stage 19 download)."""
+
+    data: bytes
+    filename: str
+    mime_type: str
+
+
+async def mint_download_url(
+    session: AsyncSession, *, owner_id: uuid.UUID, document_id: uuid.UUID
+) -> tuple[str, datetime]:
+    """Mint a short-lived signed download URL (404 unless owned — IDOR).
+
+    Returns the origin-RELATIVE path (prefix included — clients resolve it
+    against the API origin; the backend claims no public origin of its own)
+    plus the absolute expiry. Read-only + sign: no transaction needed. The
+    token is single-document and short-lived (DOCUMENT_DOWNLOAD_URL_MINUTES,
+    spec-capped at 15) — and it is NEVER logged (see the caller contract).
+    """
+    doc = await DocumentRepository(session).get_owned(owner_id=owner_id, document_id=document_id)
+    if doc is None:
+        raise NotFoundError("document")
+    ttl_minutes = get_settings().DOCUMENT_DOWNLOAD_URL_MINUTES
+    token = create_document_download_token(owner_id, document_id, ttl_minutes)
+    expires_at = utcnow() + timedelta(minutes=ttl_minutes)
+    prefix = get_settings().API_V1_PREFIX.rstrip("/")
+    url = f"{prefix}/documents/{document_id}/download?token={token}"
+    logger.info("download URL minted document_id=%s owner_id=%s", document_id, owner_id)
+    return url, expires_at
+
+
+async def read_document_bytes(
+    session: AsyncSession, *, owner_id: uuid.UUID, document_id: uuid.UUID
+) -> DocumentBytes:
+    """Serve-path read: owned row → integrity-checked bytes (404 unless owned).
+
+    The bytes are re-hashed against the stored sha256 before release — a
+    missing object or a digest mismatch is OUR inconsistency (500, logged
+    with ids only), never the user's 404. Read-only: no transaction needed.
+    """
+    doc = await DocumentRepository(session).get_owned(owner_id=owner_id, document_id=document_id)
+    if doc is None:
+        raise NotFoundError("document")
+    try:
+        data = get_storage_backend().read_bytes(doc.storage_path)
+    except (OSError, ValueError):
+        logger.error("download bytes missing document_id=%s owner_id=%s", document_id, owner_id)
+        raise InternalError("The file is temporarily unavailable.") from None
+    if hashlib.sha256(data).hexdigest() != doc.sha256:
+        logger.error("download bytes corrupt document_id=%s owner_id=%s", document_id, owner_id)
+        raise InternalError("The file is temporarily unavailable.") from None
+    return DocumentBytes(data=data, filename=doc.filename, mime_type=doc.mime_type)

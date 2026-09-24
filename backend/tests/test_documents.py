@@ -1,11 +1,16 @@
-"""Secure document upload + extraction (API_CONTRACT §4.4, Stage 08).
+"""Secure document upload + extraction (API_CONTRACT §4.4, Stage 08) + the
+Stage 19 remainder: newest-first list, purge-by-id, and signed-URL downloads.
 
 Covers the full pipeline — validation (filename/extension/MIME/magic/size),
 bounded extraction (pdf/docx/txt), upload→analyze integration through the
 SHARED Stage 07 engine (equivalence with pasted text), ownership/IDOR, rate
-limits, CSRF, timeouts, and storage-hygiene (no rows, objects, or temp files
-left behind by failures). Self-contained suite (mirrors test_analysis_crud
-fixtures; file builders live here — no binary fixtures in the repo).
+limits, CSRF, timeouts, storage-hygiene (no rows, objects, or temp files
+left behind by failures), list pagination + isolation, purge semantics
+(analyses survive, pointer degrades), and the download bearer lifecycle
+(mint guards, token binding/expiry, byte-identity, attachment headers,
+missing/corrupt-object 500s). Self-contained suite (mirrors
+test_analysis_crud fixtures; file builders live here — no binary fixtures
+in the repo).
 """
 
 import io
@@ -14,6 +19,7 @@ import tempfile
 import uuid
 import zipfile
 from collections.abc import Generator
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +33,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from app.core.config import get_settings
 from app.core.database import normalize_url
 from app.core.rate_limit import reset_rate_limiter
+from app.core.security import create_access_token, create_document_download_token
 from app.documents.extraction import (
     DocxExtractor,
     PdfExtractor,
@@ -784,3 +791,328 @@ class TestLocalStorage:
         src.write_bytes(b"x")
         with pytest.raises(ValueError):
             backend.store_file("link/evil", src)
+
+    def test_read_bytes_roundtrip(self, tmp_path: Path) -> None:
+        backend = LocalStorageBackend(tmp_path / "store")
+        src = tmp_path / "src.bin"
+        src.write_bytes(b"\x00\x01binary-bytes")
+        backend.store_file("documents/u/d/source", src)
+        assert backend.read_bytes("documents/u/d/source") == b"\x00\x01binary-bytes"
+
+    def test_read_bytes_missing_raises(self, tmp_path: Path) -> None:
+        with pytest.raises(FileNotFoundError):
+            LocalStorageBackend(tmp_path / "store").read_bytes("documents/nope/source")
+
+    def test_read_bytes_refuses_escape(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError):
+            LocalStorageBackend(tmp_path / "store").read_bytes("../escape")
+
+
+class TestDocumentList:
+    def test_empty_list_returns_empty_page(self, doc_client: TestClient) -> None:
+        _login_verified(doc_client, "a")
+        response = doc_client.get("/api/v1/documents")
+        assert response.status_code == 200
+        assert response.json() == {"items": [], "page": 1, "page_size": 20, "total": 0}
+
+    def test_list_newest_first_with_pagination(self, doc_client: TestClient) -> None:
+        _login_verified(doc_client, "a")
+        ids = [
+            _upload(doc_client, b"FR-001: first upload here.\n", "a.txt").json()["document"]["id"],
+            _upload(doc_client, b"FR-002: second upload here.\n", "b.txt").json()["document"]["id"],
+            _upload(doc_client, b"FR-003: third upload here.\n", "c.txt").json()["document"]["id"],
+        ]
+        first = doc_client.get("/api/v1/documents?page=1&page_size=2").json()
+        assert first["total"] == 3 and first["page"] == 1 and first["page_size"] == 2
+        assert [item["id"] for item in first["items"]] == [ids[2], ids[1]]  # newest first
+        second = doc_client.get("/api/v1/documents?page=2&page_size=2").json()
+        assert [item["id"] for item in second["items"]] == [ids[0]]
+        assert second["total"] == 3
+        assert "storage_path" not in doc_client.get("/api/v1/documents").text
+
+    def test_list_is_owner_scoped(self, doc_client: TestClient) -> None:
+        _login_verified(doc_client, "a")
+        _upload(doc_client, b"FR-001: owner A file here.\n", "a.txt")
+        doc_client.cookies.clear()
+        _login_verified(doc_client, "b")
+        body = doc_client.get("/api/v1/documents").json()
+        assert body == {"items": [], "page": 1, "page_size": 20, "total": 0}
+
+    def test_list_requires_verified(self, doc_client: TestClient) -> None:
+        assert doc_client.get("/api/v1/documents").status_code == 401
+        email = _email("unverified")
+        assert _register(doc_client, email).status_code == 201
+        assert _login(doc_client, email).status_code == 200
+        response = doc_client.get("/api/v1/documents")
+        assert response.status_code == 403
+        assert _code(response) == "email_unverified"
+
+
+class TestDocumentDelete:
+    def test_delete_purges_row_and_object(self, doc_client: TestClient, tmp_path: Path) -> None:
+        _login_verified(doc_client, "a")
+        document_id = _upload(
+            doc_client, b"FR-001: The system shall allow login.\n", "s.txt"
+        ).json()["document"]["id"]
+        assert list((tmp_path / "uploads").rglob("*")) != []  # object landed
+        assert doc_client.delete(f"/api/v1/documents/{document_id}").status_code == 204
+        assert doc_client.get(f"/api/v1/documents/{document_id}").status_code == 404
+        assert list((tmp_path / "uploads").rglob("*")) == []  # object + dirs pruned
+        docs, analyses, _, _ = run(_row_counts())
+        assert (docs, analyses) == (0, 1)  # the analysis SURVIVES the purge
+
+    def test_second_delete_is_404(self, doc_client: TestClient) -> None:
+        _login_verified(doc_client, "a")
+        document_id = _upload(doc_client, b"FR-001: purge me twice.\n", "s.txt").json()["document"][
+            "id"
+        ]
+        assert doc_client.delete(f"/api/v1/documents/{document_id}").status_code == 204
+        missing = doc_client.delete(f"/api/v1/documents/{document_id}")
+        assert missing.status_code == 404
+        assert _code(missing) == "document_not_found"
+
+    def test_delete_foreign_id_is_identical_404(self, doc_client: TestClient) -> None:
+        _login_verified(doc_client, "a")
+        document_id = _upload(
+            doc_client, b"FR-001: The system shall allow login.\n", "a.txt"
+        ).json()["document"]["id"]
+        doc_client.cookies.clear()
+        _login_verified(doc_client, "b")
+        foreign = doc_client.delete(f"/api/v1/documents/{document_id}")
+        ghost = doc_client.delete("/api/v1/documents/00000000-0000-0000-0000-000000000000")
+        assert foreign.status_code == 404 and ghost.json() == foreign.json()  # no oracle
+        assert _code(foreign) == "document_not_found"
+        assert run(_row_counts())[0] == 1  # B's attempt changed nothing
+
+    def test_delete_requires_verified(self, doc_client: TestClient) -> None:
+        _login_verified(doc_client, "a")
+        document_id = _upload(doc_client, b"FR-001: guarded purge.\n", "s.txt").json()["document"][
+            "id"
+        ]
+        doc_client.cookies.clear()
+        assert doc_client.delete(f"/api/v1/documents/{document_id}").status_code == 401
+        email = _email("unverified")
+        assert _register(doc_client, email).status_code == 201
+        assert _login(doc_client, email).status_code == 200
+        response = doc_client.delete(f"/api/v1/documents/{document_id}")
+        assert response.status_code == 403
+        assert _code(response) == "email_unverified"
+
+    def test_delete_rejects_bad_origin(self, doc_client: TestClient) -> None:
+        _login_verified(doc_client, "a")
+        document_id = _upload(doc_client, b"FR-001: csrf purge guard.\n", "s.txt").json()[
+            "document"
+        ]["id"]
+        response = doc_client.delete(
+            f"/api/v1/documents/{document_id}", headers={"Origin": "https://evil.example"}
+        )
+        assert response.status_code == 403
+        assert _code(response) == "forbidden"
+
+    def test_linked_analysis_survives_with_null_pointer(self, doc_client: TestClient) -> None:
+        _login_verified(doc_client, "a")
+        body = _upload(doc_client, b"FR-001: The system shall allow login.\n", "s.txt").json()
+        analysis_id, document_id = body["analysis"]["id"], body["document"]["id"]
+        assert body["analysis"]["document"] is not None  # pointer set while linked
+        assert doc_client.delete(f"/api/v1/documents/{document_id}").status_code == 204
+        detail = doc_client.get(f"/api/v1/analysis/{analysis_id}").json()
+        assert detail["document"] is None  # degraded, not broken
+        assert detail["score"] == body["analysis"]["score"]  # results intact
+        assert detail["requirements"]  # graph intact
+        history = doc_client.get("/api/v1/analysis").json()["items"]
+        assert history[0]["document"] is None
+
+
+def _mint(doc_client: TestClient, document_id: str) -> Response:
+    return doc_client.post(f"/api/v1/documents/{document_id}/download-url")
+
+
+def _upload_txt(
+    doc_client: TestClient, text: str = "FR-001: The system shall allow login.\n"
+) -> str:
+    return _upload(doc_client, text.encode(), "s.txt", "text/plain").json()["document"]["id"]
+
+
+class TestDownloadUrl:
+    def test_mint_returns_relative_url_and_expiry(self, doc_client: TestClient) -> None:
+        _login_verified(doc_client, "a")
+        document_id = _upload_txt(doc_client)
+        response = _mint(doc_client, document_id)
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert set(body) == {"download_url", "expires_at"}
+        assert body["download_url"].startswith(f"/api/v1/documents/{document_id}/download?token=")
+        assert " " not in body["download_url"]  # single query-safe token
+        expires_at = datetime.fromisoformat(body["expires_at"])
+        assert expires_at.tzinfo is not None
+        now = datetime.now(UTC)
+        assert timedelta(minutes=14) < expires_at - now <= timedelta(minutes=15)
+
+    def test_mint_foreign_or_missing_is_identical_404(self, doc_client: TestClient) -> None:
+        _login_verified(doc_client, "a")
+        document_id = _upload_txt(doc_client)
+        doc_client.cookies.clear()
+        _login_verified(doc_client, "b")
+        foreign = _mint(doc_client, document_id)
+        ghost = _mint(doc_client, "00000000-0000-0000-0000-000000000000")
+        assert foreign.status_code == 404 and ghost.json() == foreign.json()  # no oracle
+        assert _code(foreign) == "document_not_found"
+
+    def test_mint_requires_verified(self, doc_client: TestClient) -> None:
+        _login_verified(doc_client, "a")
+        document_id = _upload_txt(doc_client)
+        doc_client.cookies.clear()
+        assert _mint(doc_client, document_id).status_code == 401
+        email = _email("unverified")
+        assert _register(doc_client, email).status_code == 201
+        assert _login(doc_client, email).status_code == 200
+        response = _mint(doc_client, document_id)
+        assert response.status_code == 403
+        assert _code(response) == "email_unverified"
+
+    def test_mint_rejects_bad_origin(self, doc_client: TestClient) -> None:
+        _login_verified(doc_client, "a")
+        document_id = _upload_txt(doc_client)
+        response = doc_client.post(
+            f"/api/v1/documents/{document_id}/download-url",
+            headers={"Origin": "https://evil.example"},
+        )
+        assert response.status_code == 403
+        assert _code(response) == "forbidden"
+
+    def test_mint_rate_limit(self, doc_client: TestClient, _retuned_env: Any) -> None:
+        _login_verified(doc_client, "a")
+        document_id = _upload_txt(doc_client)
+        _retuned_env(RATE_LIMIT_DOCUMENT_DOWNLOAD_PER_MINUTE=2)
+        assert _mint(doc_client, document_id).status_code == 200
+        assert _mint(doc_client, document_id).status_code == 200
+        limited = _mint(doc_client, document_id)
+        assert limited.status_code == 429
+        assert _code(limited) == "rate_limited"
+        assert "Retry-After" in limited.headers
+
+    def test_download_streams_original_bytes_without_session(self, doc_client: TestClient) -> None:
+        _login_verified(doc_client, "a")
+        content = _make_pdf(["FR-001: The system shall allow login quickly."])
+        document_id = _upload(doc_client, content, "spec.pdf").json()["document"]["id"]
+        url = _mint(doc_client, document_id).json()["download_url"]
+        doc_client.cookies.clear()  # the token IS the credential — no session needed
+        response = doc_client.get(url)
+        assert response.status_code == 200
+        assert response.content == content  # byte-identical, not re-rendered
+        assert response.headers["content-type"] == "application/pdf"  # detected MIME
+        assert response.headers["content-disposition"] == (
+            "attachment; filename=\"spec.pdf\"; filename*=UTF-8''spec.pdf"
+        )
+        assert response.headers["content-length"] == str(len(content))
+        assert response.headers["x-content-type-options"] == "nosniff"
+
+    def test_download_names_unicode_filenames_safely(self, doc_client: TestClient) -> None:
+        _login_verified(doc_client, "a")
+        document_id = _upload(doc_client, b"FR-001: hi there friend.\n", "srs-ünïcödé.txt").json()[
+            "document"
+        ]["id"]
+        url = _mint(doc_client, document_id).json()["download_url"]
+        response = doc_client.get(url)
+        assert response.status_code == 200
+        assert response.headers["content-disposition"] == (
+            'attachment; filename="srs-?n?c?d?.txt"; '
+            "filename*=UTF-8''srs-%C3%BCn%C3%AFc%C3%B6d%C3%A9.txt"
+        )
+
+    def test_download_rejects_expired_token(self, doc_client: TestClient) -> None:
+        _login_verified(doc_client, "a")
+        document_id = _upload_txt(doc_client)
+        stale = create_document_download_token(uuid.uuid4(), uuid.UUID(document_id), -1)
+        response = doc_client.get(f"/api/v1/documents/{document_id}/download?token={stale}")
+        assert response.status_code == 400
+        assert _code(response) == "invalid_token"
+
+    def test_download_rejects_forged_token(self, doc_client: TestClient) -> None:
+        _login_verified(doc_client, "a")
+        document_id = _upload_txt(doc_client)
+        url = _mint(doc_client, document_id).json()["download_url"]
+        token = url.rsplit("token=", 1)[1]
+        forged = token[:-1] + ("a" if token[-1] != "a" else "b")
+        response = doc_client.get(f"/api/v1/documents/{document_id}/download?token={forged}")
+        assert response.status_code == 400
+        assert _code(response) == "invalid_token"
+
+    def test_download_rejects_cross_document_token(self, doc_client: TestClient) -> None:
+        _login_verified(doc_client, "a")
+        doc_a = _upload_txt(doc_client, "FR-001: first document here.\n")
+        doc_b = _upload_txt(doc_client, "FR-002: second document here.\n")
+        url_a = _mint(doc_client, doc_a).json()["download_url"]
+        token_a = url_a.rsplit("token=", 1)[1]
+        response = doc_client.get(f"/api/v1/documents/{doc_b}/download?token={token_a}")
+        assert response.status_code == 400
+        assert _code(response) == "invalid_token"
+
+    def test_download_rejects_session_jwt(self, doc_client: TestClient) -> None:
+        _login_verified(doc_client, "a")
+        document_id = _upload_txt(doc_client)
+        session_jwt = create_access_token(uuid.uuid4())  # valid signature, wrong type
+        response = doc_client.get(f"/api/v1/documents/{document_id}/download?token={session_jwt}")
+        assert response.status_code == 400
+        assert _code(response) == "invalid_token"
+
+    def test_download_after_delete_is_404(self, doc_client: TestClient) -> None:
+        _login_verified(doc_client, "a")
+        document_id = _upload_txt(doc_client)
+        url = _mint(doc_client, document_id).json()["download_url"]
+        assert doc_client.delete(f"/api/v1/documents/{document_id}").status_code == 204
+        response = doc_client.get(url)
+        assert response.status_code == 404
+        assert _code(response) == "document_not_found"
+
+    def test_download_missing_object_is_500(self, doc_client: TestClient, tmp_path: Path) -> None:
+        _login_verified(doc_client, "a")
+        document_id = _upload_txt(doc_client)
+        url = _mint(doc_client, document_id).json()["download_url"]
+        objects = [p for p in (tmp_path / "uploads").rglob("*") if p.is_file()]
+        assert len(objects) == 1
+        objects[0].unlink()  # row lives, bytes lost: OUR inconsistency
+        response = doc_client.get(url)
+        assert response.status_code == 500
+        assert _code(response) == "internal_error"
+        assert str(tmp_path) not in response.text  # no paths leak
+
+    def test_download_corrupt_object_is_500(self, doc_client: TestClient, tmp_path: Path) -> None:
+        _login_verified(doc_client, "a")
+        document_id = _upload_txt(doc_client)
+        url = _mint(doc_client, document_id).json()["download_url"]
+        objects = [p for p in (tmp_path / "uploads").rglob("*") if p.is_file()]
+        assert len(objects) == 1
+        objects[0].write_bytes(b"tampered-not-the-upload")
+        response = doc_client.get(url)
+        assert response.status_code == 500
+        assert _code(response) == "internal_error"
+
+    def test_download_requires_token(self, doc_client: TestClient) -> None:
+        _login_verified(doc_client, "a")
+        document_id = _upload_txt(doc_client)
+        assert doc_client.get(f"/api/v1/documents/{document_id}/download").status_code == 400
+        empty = doc_client.get(f"/api/v1/documents/{document_id}/download?token=")
+        assert empty.status_code == 400
+        assert _code(empty) == "invalid_token"
+
+    def test_full_lifecycle_roundtrip(self, doc_client: TestClient) -> None:
+        # Upload → list shows it → mint → download bytes → purge → gone
+        # everywhere (list, metadata, analysis pointer), token dead after.
+        _login_verified(doc_client, "a")
+        content = b"FR-001: The system shall allow login.\n"
+        uploaded = _upload(doc_client, content, "roundtrip.txt", "text/plain").json()
+        document_id, analysis_id = uploaded["document"]["id"], uploaded["analysis"]["id"]
+        assert [item["id"] for item in doc_client.get("/api/v1/documents").json()["items"]] == [
+            document_id
+        ]
+        minted = _mint(doc_client, document_id).json()
+        token = minted["download_url"].rsplit("token=", 1)[1]
+        assert token not in doc_client.get("/api/v1/documents").text  # bearer stays in the URL
+        assert token not in doc_client.get(f"/api/v1/documents/{document_id}").text
+        assert doc_client.get(minted["download_url"]).content == content
+        assert doc_client.delete(f"/api/v1/documents/{document_id}").status_code == 204
+        assert doc_client.get("/api/v1/documents").json()["items"] == []
+        assert doc_client.get(minted["download_url"]).status_code == 404
+        detail = doc_client.get(f"/api/v1/analysis/{analysis_id}").json()
+        assert detail["document"] is None and detail["score"] is not None

@@ -9,9 +9,14 @@
  * the single retry cannot double-create.
  */
 
-import type { DocumentMetadata, DocumentUploadResponse } from "../types/documents";
+import type {
+  DocumentDownloadUrl,
+  DocumentMetadata,
+  DocumentUploadResponse,
+  ListDocumentsParams,
+} from "../types/documents";
 
-import { api, apiForm } from "./api";
+import { api, apiBaseUrl, apiForm, type Collection } from "./api";
 import { withSessionRetry } from "./auth";
 
 /** Server limits mirrored for instant client feedback (server authoritative). */
@@ -58,6 +63,44 @@ export function uploadDocument(input: UploadDocumentInput): Promise<DocumentUplo
 /** Fetch one owned document's metadata (404 unless owned — IDOR rule). */
 export function getDocument(id: string): Promise<DocumentMetadata> {
   return withSessionRetry(() => api<DocumentMetadata>(`/documents/${id}`));
+}
+
+/** Newest-first page of owned documents (contract §3; server clamps paging). */
+export function listDocuments(
+  params: ListDocumentsParams = {},
+): Promise<Collection<DocumentMetadata>> {
+  const search = new URLSearchParams();
+  if (params.page !== undefined) search.set("page", String(params.page));
+  if (params.page_size !== undefined) search.set("page_size", String(params.page_size));
+  const query = search.size > 0 ? `?${search.toString()}` : "";
+  return withSessionRetry(() => api<Collection<DocumentMetadata>>(`/documents${query}`));
+}
+
+/** Purge one owned document (row + stored binary). 204 → void. */
+export function deleteDocument(id: string): Promise<void> {
+  return withSessionRetry(() => api<void>(`/documents/${id}`, { method: "DELETE" }));
+}
+
+/**
+ * Mint a short-lived signed download URL (Stage 19). POST (not GET): minting
+ * issues a bearer credential, so it rides the verified + CSRF + tight-bucket
+ * guard. Retry-safe: the guard rejects pre-execution on 401.
+ */
+export function mintDocumentDownloadUrl(id: string): Promise<DocumentDownloadUrl> {
+  return withSessionRetry(() =>
+    api<DocumentDownloadUrl>(`/documents/${id}/download-url`, { method: "POST" }),
+  );
+}
+
+/**
+ * Resolve a minted API-relative download path to the absolute URL the
+ * browser navigates to (the SPA origin and the API origin differ). The path
+ * already carries the `/api/v1` prefix, so it resolves against the API
+ * ORIGIN (a naive base + path join would double the prefix). Pure — no
+ * fetch, no token handling.
+ */
+export function resolveDownloadUrl(path: string): string {
+  return new URL(path, apiBaseUrl()).toString();
 }
 
 /** Human file size for the picker/dropzone (1 decimal under 100 units). */

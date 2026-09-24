@@ -288,23 +288,46 @@ are identity-authed only; DELETE additionally requires the CSRF double-submit
 `400 validation_error` — the report UI maps them to the same not-found panel
 as a 404, so no existence signal leaks through copy or status.
 
-### 4.4 Documents — Stage 08 ✅ (upload+analyze + metadata read)
+### 4.4 Documents — Stage 08 ✅ (upload+analyze + metadata read) + Stage 19 ✅ (list + purge + signed downloads)
 
-(As-built: absorbs roadmap-09 EXCEPT signed-URL downloads and the document
-list/delete-by-id endpoints, which stay future; absorbs roadmap-10 fully.)
+(As-built: absorbs roadmap-09 FULLY — Stage 08 shipped upload/guards/storage,
+Stage 19 the list/purge-by-id/signed-URL-download surface; absorbs roadmap-10
+fully.)
 
 ```
 POST /documents/upload   multipart (EXACTLY 1 file, each ≤10 MB; pdf/docx/txt only)
                          → 201 {document: Document, analysis: AnalysisDetail}
 GET  /documents/{id}     own metadata → 200 Document | 404 document_not_found
+GET  /documents           own page (newest-first, §3 envelope, no filters)
+                         → 200 Page[Document] (verified only)
+DELETE /documents/{id}    purge own row + stored binary → 204 | 404 document_not_found
+POST /documents/{id}/download-url
+                         mint a signed download URL → 200 {download_url, expires_at}
+                         | 404 | 429 (dedicated 10/min bucket)
+GET  /documents/{id}/download?token=…
+                         stream the original bytes (token IS the credential —
+                         no session) → 200 attachment | 400 invalid_token | 404
 ```
 
 `Document`: `{id, filename, file_type, mime_type, byte_size, sha256,
 extracted_chars, extraction_status, created_at}`. `mime_type` is the
 server-DETECTED canonical MIME (never the client claim); `extraction_status`
 is `ok` on every Stage 08 row (`pending`/`failed` are future async states).
-The storage key and the binary are NEVER exposed; downloads (if added later)
-use short-lived signed URLs.
+The storage key and the binary are NEVER exposed except through the signed
+download flow (Stage 19): `POST …/download-url` (verified + CSRF + dedicated
+10/min bucket) mints `{download_url, expires_at}` — an origin-relative path
+carrying a single-document HS256 bearer (`type: document_download`,
+`DOCUMENT_DOWNLOAD_URL_MINUTES`, spec-capped at 15 — higher fails boot).
+`GET …/download?token=…` needs no session: expired/forged/wrong-type/
+wrong-document tokens fail `400 invalid_token` (no oracle — 256-bit HMAC),
+a document deleted after minting fails `404 document_not_found`. Bytes are
+re-hashed against the stored sha256 before release (missing/corrupt object →
+`500 internal_error`, generic message); served under the server-DETECTED
+MIME as `Content-Disposition: attachment` (legacy `filename` + RFC 5987
+`filename*`, never `inline`) with the global `nosniff`. The access log
+records paths only, never query strings — the bearer never lands in logs,
+and no other endpoint echoes it. Streaming rides the default bucket keyed
+by the token's owner.
 
 Request parts: `files` (exactly one; more → `400 too_many_files` with
 `{max_files: 1}` — extra parts are rejected, never silently dropped) +
@@ -348,16 +371,24 @@ zero requirements is `400 no_requirements_detected`, never an empty analysis.
 
 Reads/deletes: `GET /documents/{id}` is owner-scoped (foreign ids 404
 identically — no oracle) and returns metadata byte-identical to the upload
-response half. `DELETE /analysis/{id}` on a document analysis ALSO purges
-the now-orphaned document (row + storage object, verified by row-count +
-storage-empty, not just status). There is deliberately NO document
-list/delete-by-id/download endpoint yet (future stages); `document_id` on
-POST /analysis is still `400 document_analysis_unavailable`.
+response half. `GET /documents` pages the owner's documents newest-first
+(`created_at` DESC + `id` tiebreak, §3 envelope, verified only).
+`DELETE /documents/{id}` (verified + CSRF, default bucket) purges the owned
+row + storage object (→ 204; rows first, object inside the same transaction)
+— referencing analyses SURVIVE (`document_id` SET NULL; their `document`
+pointer degrades to null, results intact). `DELETE /analysis/{id}` on a
+document analysis ALSO purges the now-orphaned document (row + storage
+object, verified by row-count + storage-empty, not just status).
+`document_id` on POST /analysis is still `400 document_analysis_unavailable`
+(by-id re-analysis is future).
 
 New codes: `unsupported_file_type`, `invalid_filename`, `empty_file`,
 `file_too_large` (`{reason, limit}`), `extracted_text_too_large`
 (`{max_chars}`), `too_many_files` (`{max_files}`), `extraction_failed`,
 `no_extractable_text`, `document_processing_timeout`, `document_not_found`.
+Stage 19 adds NO new codes: list/purge/download reuse `document_not_found`,
+`invalid_token` (400 — the download bearer envelope), `rate_limited`,
+`validation_error`, and `internal_error` (missing/corrupt object).
 
 ### 4.5 Dashboard — Stage 11 ✅ (as-built; absorbs planned Stage 14–15)
 

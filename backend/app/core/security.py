@@ -20,6 +20,7 @@ from app.core.config import get_settings
 from app.exceptions import InvalidTokenError
 
 ACCESS_TOKEN_TYPE = "access"  # noqa: S105 — JWT type label, not a credential
+DOCUMENT_DOWNLOAD_TOKEN_TYPE = "document_download"  # noqa: S105 — ditto (Stage 19)
 _JWT_ALGORITHM = "HS256"
 _TOKEN_BYTES = 32  # 256-bit raw tokens (urlsafe ~43 chars)
 PASSWORD_MIN_LENGTH = 12
@@ -162,3 +163,56 @@ def decode_access_token(token: str) -> uuid.UUID:
         return uuid.UUID(raw_sub)
     except ValueError:
         raise InvalidTokenError("Invalid session. Please log in again.") from None
+
+
+def create_document_download_token(
+    owner_id: uuid.UUID, document_id: uuid.UUID, expires_minutes: int
+) -> str:
+    """Short-lived HS256 download bearer (`sub` = owner, `doc` = document).
+
+    Single purpose (the `type` separates it from session JWTs in BOTH
+    directions), single document, short expiry (SECURITY_SPEC §5 caps
+    signed-URL life at 15 min). The token travels in a query string — that
+    is inherent to signed URLs (S3/Supabase presigned shape) and safe here
+    ONLY because of the tight scope + expiry; it must never be logged.
+    """
+    now = utcnow()
+    return jwt.encode(
+        {
+            "sub": str(owner_id),
+            "type": DOCUMENT_DOWNLOAD_TOKEN_TYPE,
+            "doc": str(document_id),
+            "iat": now,
+            "exp": now + timedelta(minutes=expires_minutes),
+        },
+        _jwt_secret(),
+        algorithm=_JWT_ALGORITHM,
+    )
+
+
+def decode_document_download_token(token: str, document_id: uuid.UUID) -> uuid.UUID:
+    """Validate a download bearer → owner id. Expired/forged/wrong-type /
+    wrong-document ALL fail as 400 `invalid_token` (same envelope as email
+    links — 256-bit HMAC is not enumerable, so honesty leaks no oracle).
+
+    `document_id` is the path id: the token MUST name the document being
+    fetched (a bearer for doc A never opens doc B).
+    """
+    try:
+        payload = jwt.decode(token, _jwt_secret(), algorithms=[_JWT_ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        raise InvalidTokenError("This download link has expired.") from None
+    except jwt.InvalidTokenError:
+        raise InvalidTokenError("This download link is invalid.") from None
+    if payload.get("type") != DOCUMENT_DOWNLOAD_TOKEN_TYPE:
+        # A session JWT (or any other token) is NOT a download bearer.
+        raise InvalidTokenError("This download link is invalid.")
+    if payload.get("doc") != str(document_id):
+        raise InvalidTokenError("This download link is invalid.")
+    raw_sub = payload.get("sub")
+    if not isinstance(raw_sub, str):
+        raise InvalidTokenError("This download link is invalid.")
+    try:
+        return uuid.UUID(raw_sub)
+    except ValueError:
+        raise InvalidTokenError("This download link is invalid.") from None

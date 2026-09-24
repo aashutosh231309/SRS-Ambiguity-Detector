@@ -62,6 +62,29 @@ class DocumentRepository:
         )
         return result.scalar_one_or_none()
 
+    async def list_owned(
+        self, *, owner_id: uuid.UUID, offset: int, limit: int
+    ) -> tuple[list[Document], int]:
+        """Newest-first page of owned documents + total (contract §3).
+
+        Fixed order (`created_at` DESC + `id` DESC tiebreak — same idiom as
+        the analysis history default); no filters in v1 (documents carry no
+        band/score to slice by).
+        """
+        total = (
+            await self._session.execute(
+                select(func.count()).select_from(Document).where(Document.owner_id == owner_id)
+            )
+        ).scalar_one()
+        result = await self._session.execute(
+            select(Document)
+            .where(Document.owner_id == owner_id)
+            .order_by(Document.created_at.desc(), Document.id.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        return list(result.scalars().all()), total
+
     async def count_referencing_analyses(self, *, document_id: uuid.UUID) -> int:
         """How many analyses still point at this document (orphan-cascade
         decision on analysis delete — shared documents survive)."""

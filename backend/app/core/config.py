@@ -76,6 +76,14 @@ class Settings(BaseSettings):
     # Storage backend: local dev dir now; `supabase` arrives with prod stages.
     STORAGE_BACKEND: Literal["local"] = "local"
     STORAGE_LOCAL_DIR: str = "./uploads"
+    # --- Stage 19: signed document downloads (SECURITY_SPEC §5) ---
+    # Signed-URL lifetime (minutes). SECURITY_SPEC §5 caps this at 15 —
+    # the validator below refuses anything higher at boot.
+    DOCUMENT_DOWNLOAD_URL_MINUTES: int = 15
+    # Per-user download-URL mints per minute (minting issues a bearer
+    # credential — tighter than the auth default; the streaming GET rides
+    # the default bucket keyed by the token's owner).
+    RATE_LIMIT_DOCUMENT_DOWNLOAD_PER_MINUTE: int = 10
     # argon2id work factors. Tests override via env (fast-but-real params).
     ARGON2_TIME_COST: int = 3
     ARGON2_MEMORY_COST: int = 65536
@@ -134,6 +142,14 @@ class Settings(BaseSettings):
             raise ValueError("AI_MAX_TIMEOUT_S must be at least 1.")
         if not 1 <= self.AI_DEFAULT_TIMEOUT_S <= self.AI_MAX_TIMEOUT_S:
             raise ValueError("AI_DEFAULT_TIMEOUT_S must be within [1, AI_MAX_TIMEOUT_S].")
+        return self
+
+    @model_validator(mode="after")
+    def _download_ttl_within_spec_cap(self) -> "Settings":
+        # SECURITY_SPEC §5 caps signed-URL life at 15 min — an operator
+        # override above that fails boot loudly rather than silently.
+        if not 1 <= self.DOCUMENT_DOWNLOAD_URL_MINUTES <= 15:
+            raise ValueError("DOCUMENT_DOWNLOAD_URL_MINUTES must be within [1, 15].")
         return self
 
     @property

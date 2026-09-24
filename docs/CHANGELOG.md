@@ -4,6 +4,38 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.20.0] — Stage 19 (as-built) — document list/download endpoints (roadmap-09 closed) — 2026-09-24
+
+### Added
+- `GET /documents` (owner-scoped newest-first `Page[Document]`, no filters)
+  + `DELETE /documents/{id}` (204; row + storage object in one transaction;
+  referencing analyses survive via `SET NULL` with the `document` pointer
+  degrading to null). No migration.
+- Signed-URL downloads: `POST /documents/{id}/download-url` (verified +
+  CSRF + dedicated 10/min bucket → `{download_url, expires_at}`) +
+  `GET /documents/{id}/download?token=…` (sessionless — the short-lived
+  single-document HS256 bearer is the credential; 400 `invalid_token` on
+  expired/forged/wrong-type/wrong-document, 404 when deleted after mint).
+  Bytes re-hashed against the stored sha256 before release (missing/corrupt
+  → honest 500); served as `attachment` under the server-detected MIME
+  with RFC 5987 filenames. TTL `DOCUMENT_DOWNLOAD_URL_MINUTES` (15,
+  spec-capped at boot). Storage port gains the bounded `read_bytes`.
+- Frontend clients (`listDocuments`, `deleteDocument`,
+  `mintDocumentDownloadUrl`, `resolveDownloadUrl`) + types. No new UI —
+  no surface specified; a future slice may add a "download original"
+  affordance to history/report views.
+
+### Changed
+- Backend suite 504 → 533 (+29: storage ×3, list ×4, delete ×6, download
+  ×16 incl. a full lifecycle roundtrip). Frontend suite 396 → 402 (+6
+  documents client tests). Roadmap-09 fully closed (upload slice: Stage 08).
+
+### Contract
+- API_CONTRACT §4.4 finalized for the full surface (routes, download flow,
+  purge semantics; NO new error codes — all reused); SECURITY_SPEC §5 + §9
+  (signed downloads live, JWT inventory row); DATABASE_SCHEMA §3.5;
+  ARCHITECTURE §7 (new settings).
+
 ## [0.19.0] — Stage 18 (as-built) — Anthropic + Hugging Face adapters (all six live) — 2026-09-24
 
 ### Added
