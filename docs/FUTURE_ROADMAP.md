@@ -113,6 +113,13 @@
 > re-hashed before release, `attachment` disposition) + frontend clients
 > (no new UI — no surface is specified; a future slice may hang a
 > "download original" affordance on the history/report views).
+> Actual Stage 20 (2026-09-24) closed roadmap-21 (security hardening):
+> backend framing denial (prod-only) + header review, OpenAPI docs gated
+> out of production (tested both ways), report-only CSP (prod-only, API
+> origin from env), `npm audit` + `pip-audit` gating verify.sh (pytest
+> 8.3.4 → 9.1.1 fixed; 7 starlette findings accepted with reachability
+> notes — framework-major migration deferred), and secret-scan.sh (gates
+> verify.sh + documented pre-commit hook).
 > The table above keeps its original numbers; STAGE_STATUS.md records the
 > as-built mapping.
 

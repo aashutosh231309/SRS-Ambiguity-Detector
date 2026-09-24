@@ -99,6 +99,11 @@ def create_app() -> FastAPI:
             response.headers["Strict-Transport-Security"] = (
                 "max-age=63072000; includeSubDomains; preload"
             )
+            # Framing denial (SECURITY_SPEC §8): JSON APIs are not frameable
+            # content, but the headers close embedding of error pages and file
+            # downloads. Prod-only so sandboxed/preview iframes keep working.
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["Content-Security-Policy"] = "frame-ancestors 'none'"
         return response
 
     @app.middleware("http")

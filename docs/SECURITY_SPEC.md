@@ -140,14 +140,26 @@ Frontend throttling is cosmetic only. Live since Stage 06: `POST /analysis` is
 per-user bucketed (`RATE_LIMIT_ANALYSIS_PER_MINUTE`, default 20/min) inside the
 verified-user guard — anonymous callers never reach the bucket (401 first).
 
-## 8. Headers & transport (foundation in Stage 01, hardened Stage 21)
+## 8. Headers & transport (foundation Stage 01, hardened Stage 20 as-built / roadmap-21)
 
 - `Strict-Transport-Security` (prod), `X-Content-Type-Options: nosniff`,
-  `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` (camera/mic/geo off).
+  `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` (camera/mic/geo off)
+  — the backend middleware sets them on every response including error envelopes; Next sets
+  the same baseline on pages (`next.config.ts`). Tested both env postures.
 - Framing: `frame-ancestors 'none'` (+ `X-Frame-Options: DENY` legacy) — applied ONLY when
-  `APP_ENV=production` so sandboxed/preview iframes keep working in dev (see `next.config.ts`).
-- CSP: introduced in Stage 21 (report-only first), must allow Next inline runtime + charts;
-  `object-src 'none'`, `base-uri 'self'`, no `unsafe-inline` beyond Next's nonce strategy.
+  `APP_ENV=production` so sandboxed/preview iframes keep working in dev (backend:
+  `app/main.py` middleware; frontend: `next.config.ts`).
+- CSP: report-only since Stage 20 (roadmap-21), production only
+  (`Content-Security-Policy-Report-Only`, built by `frontend/src/lib/csp.ts`, tested):
+  `default-src 'self'`; `script-src`/`style-src` allow Next's inline runtime (report-only
+  observation first — nonce plumbing only if violation data justifies it); `connect-src`
+  `'self'` + the API origin (derived from `NEXT_PUBLIC_API_URL`); `font-src 'self'`
+  (Fontsource self-hosted); `img-src 'self' data:` (Recharts renders inline SVG — no
+  carve-out needed); `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'none'`,
+  `form-action 'self'`. Violations are observed, never enforced, until real-browser data
+  justifies enforce mode + a `report-uri` collector (future).
+- OpenAPI posture: `/api/docs`, `/api/redoc`, `/api/openapi.json` exist ONLY outside
+  production (`create_app` nulls them when `is_production`; asserted both ways in tests).
 
 ## 9. Cryptography inventory
 
@@ -163,9 +175,30 @@ verified-user guard — anonymous callers never reach the bucket (401 first).
 ## 10. Dependency & secret hygiene
 
 - Pinned versions (`package-lock.json`, `requirements*.txt`); `npm audit` + `pip-audit`
-  (or `osv-scanner`) in `scripts/verify.sh` from Stage 21 (warn-only before).
+  gate `scripts/verify.sh` since Stage 20 (roadmap-21) — the build fails on NEW
+  advisories. `pip-audit` itself is pinned in `requirements-dev.txt`.
+- Stage 20 audit baseline: `npm audit` 0 vulnerabilities; `pip-audit` fixed 1 (`pytest`
+  8.3.4 → 9.1.1 for PYSEC-2026-1845) and accepts 7 starlette 0.41.3 findings via
+  `--ignore-vuln` in `verify.sh` (re-triage when the framework pin moves):
+  - PYSEC-2026-1942 (Range-header FileResponse DoS), -2281 (Windows StaticFiles SSRF),
+    -2280 (`HTTPEndpoint` method confusion): NOT reachable — no `FileResponse`,
+    `StaticFiles`, or `HTTPEndpoint` usage; POSIX-only deployments.
+  - PYSEC-2026-161 / -248 (Host/path → `request.url` confusion): NOT reachable for auth
+    bypass — the sole `request.url` read is path-only access logging (`app/main.py`); no
+    security decision uses reconstructed URLs.
+  - PYSEC-2026-1941 (multipart spool blocks event loop): negligible per the advisory;
+    uploads are authenticated + rate-limited.
+  - PYSEC-2026-249 (urlencoded form limits ignored): residual authenticated,
+    rate-limited body-parse DoS on form endpoints — accepted pending a FastAPI/starlette
+    major migration (dedicated future stage; the fixed starlette range 0.47–1.3 exceeds
+    FastAPI 0.115's ceiling, so this is a migration project, not a pin bump).
 - `.env` files git-ignored; `.env.example` contains ONLY placeholders (`changeme…`, never
-  real-looking keys). Pre-commit secret scan recommended (documented Stage 21).
+  real-looking keys).
+- Secret scan: `scripts/secret-scan.sh` (provider prefixes + private keys + password DSNs +
+  key assignments + bearer/JWT shapes, minus provably-fake fixtures in
+  `scripts/secret-scan.allow`) gates `verify.sh` and is the recommended pre-commit hook:
+  `ln -s ../../scripts/secret-scan.sh .git/hooks/pre-commit`. Ignored paths (`.env`,
+  `*.pem`, `secrets/`) are never scanned — local secrets belong there, never in git.
 - Sentry scrubbing (Stage 24) is a RELEASE BLOCKER: no DSN enabled until `before_send`
   redaction + PII flags are tested.
 

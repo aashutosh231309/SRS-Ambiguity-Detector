@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Stage-completion verification gate (see docs/DEVELOPMENT_RULES.md §5).
-#   ./scripts/verify.sh         full gate (lint, typecheck, tests, production builds)
-#   ./scripts/verify.sh --fast  lint + typecheck + unit tests (no production build)
+#   ./scripts/verify.sh         full gate (lint, typecheck, tests, builds, audits)
+#   ./scripts/verify.sh --fast  skips only the production build
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -58,6 +58,29 @@ if [[ "$FAST" == "0" ]]; then
 else
   echo "  ⏭  skipped production build (--fast)"
 fi
+
+cd "$ROOT"
+
+section "Secret scan"
+./scripts/secret-scan.sh || fail "secret scan found possible committed secrets"
+pass "secret scan clean"
+
+section "Dependency audit (npm)"
+cd frontend
+npm audit --silent || fail "npm audit found vulnerabilities"
+pass "npm audit clean"
+
+section "Dependency audit (pip)"
+cd "$ROOT/backend"
+# Accepted starlette findings (triaged Stage 20, roadmap-21 — see
+# docs/SECURITY_SPEC.md §10): the gate fails only on NEW advisories.
+python -m pip_audit -r requirements.txt -r requirements-dev.txt \
+  --ignore-vuln PYSEC-2026-1941 --ignore-vuln PYSEC-2026-1942 \
+  --ignore-vuln PYSEC-2026-161 --ignore-vuln PYSEC-2026-2281 \
+  --ignore-vuln PYSEC-2026-2280 --ignore-vuln PYSEC-2026-249 \
+  --ignore-vuln PYSEC-2026-248 \
+  || fail "pip-audit found NEW vulnerabilities (triage in SECURITY_SPEC.md §10)"
+pass "pip-audit clean"
 
 cd "$ROOT"
 echo

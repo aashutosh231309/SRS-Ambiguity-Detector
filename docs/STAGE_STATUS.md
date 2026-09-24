@@ -1264,12 +1264,73 @@ roadmap-09 remainder — the row is now FULLY closed).
 and/or the remaining AI slices (creation-time key proof, per-run
 what-was-sent disclosure).
 
+### Stage 20 (as-built) — security hardening (roadmap-21 closed) ✅ (2026-09-24)
+
+Scope note: the Stage 20 prompt framed a "FINAL HANDOFF / CLOSURE" pass,
+but the repo is mid-roadmap (stages 21–32 including roadmap-31
+docs/screenshots all unfinished). Per the prompt's own repo-authority
+rule, this as-built Stage 20 implements the documented next-pointer:
+roadmap-21 security hardening (CSP, OpenAPI prod posture, npm/pip
+audits, secret-scan docs, header review). The remaining AI slices
+(creation-time key proof, per-run disclosure) stay future.
+
+- Backend: prod-only framing denial (`X-Frame-Options: DENY` +
+  `Content-Security-Policy: frame-ancestors 'none'`) in the security
+  headers middleware, next to the existing HSTS; full header review
+  (baseline trio always-on, HSTS + framing prod-only, docs surface
+  gated out of production — asserted both ways incl. error envelopes).
+- Frontend: report-only CSP (`Content-Security-Policy-Report-Only`,
+  prod-only) built by `src/lib/csp.ts` — `default-src 'self'`,
+  Next inline runtime allowed under observation, `connect-src` self +
+  API origin from `NEXT_PUBLIC_API_URL`, `object-src 'none'`,
+  `base-uri 'self'`, framing `none`; the minimal enforced framing
+  directive stays (clickjacking already solved).
+- Audits gate `verify.sh`: `npm audit` strict (0 vulnerabilities);
+  `pip-audit` (now pinned in requirements-dev) with 7 per-ID
+  `--ignore-vuln` accepts — fails only on NEW advisories. pytest
+  8.3.4 → 9.1.1 (fixes PYSEC-2026-1845, suite green); the 7 starlette
+  0.41.3 findings are accepted with per-finding reachability notes in
+  SECURITY_SPEC §10 (none critically reachable; framework-major
+  migration deferred to a dedicated future stage).
+- `scripts/secret-scan.sh` (provider prefixes + private keys + password
+  DSNs + key assignments + bearer/JWT shapes, minus provably-fake
+  fixtures in `scripts/secret-scan.allow`) gates `verify.sh` and is the
+  documented pre-commit hook (symlink-tested). Ignored paths (`.env`,
+  `*.pem`, `secrets/`) are never scanned.
+- 538/538 pytest (+5: prod/non-prod header postures, error-envelope
+  headers, docs gating both ways) + 409/409 vitest (+7 CSP builder),
+  ruff/mypy/eslint/tsc/prettier clean, `verify.sh` green (specs
+  amended in-stage). No migration, no new routes/codes/settings; no
+  production dependency changed.
+- Security notes (§11): report-only CSP cannot break the app
+  (observe-only by construction); prod-only gating keeps sandbox/
+  preview iframes working (both postures tested); audit exceptions are
+  per-advisory-ID with written rationale (no blanket ignores); the
+  secret-scan allowlist holds provably-fake fixtures only (stage-marked
+  test keys, placeholder DSNs); positive control verified (planted key
+  flagged, then removed).
+
+**Known limitations (accepted, not bugs):**
+- NO browser in this sandbox (as in Stages 05–19) — the report-only CSP
+  has never been observed in a real browser; first browsed production
+  env must review console violations before any enforce-mode rollout.
+- `docker-compose.yml` STILL unvalidated (no Docker in sandbox); the
+  Supabase storage path is unexercised (local adapter only here).
+- Sandbox note: WARM environment (postgres holder + toolchains from
+  prior stages all alive) — no rebuild needed; baseline 533/533
+  re-run green before changes.
+
+**Next stage:** Stage 21 (as-built) — the remaining AI slices
+(creation-time live key proof, per-run what-was-sent disclosure)
+and/or roadmap-22 (rate limiting).
+
 ## Current stage
-None active — Stage 19 complete; all success conditions hold (roadmap-09
-fully closed: list + purge + signed downloads with clients, 533/533 +
-402/402 tests, verify.sh green, docs match).
-Next: **Stage 20 (as-built) — security hardening and/or remaining AI
-slices**.
+None active — Stage 20 complete; all success conditions hold
+(roadmap-21 fully closed: prod framing + header review, OpenAPI prod
+posture, report-only CSP, audit gates, secret scan; 538/538 + 409/409
+tests, verify.sh green, docs match).
+Next: **Stage 21 (as-built) — remaining AI slices and/or rate
+limiting**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 Database → backend → auth backend → auth frontend → SRS input/segmentation/preview ✅ →

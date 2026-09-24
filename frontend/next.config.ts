@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+import { buildReportOnlyCsp } from "./src/lib/csp";
+
 // Security headers posture (docs/SECURITY_SPEC.md §8). Framing denial applies ONLY in
 // production so sandboxed/preview iframes keep working during development.
 const isProd = process.env.APP_ENV === "production" || process.env.VERCEL_ENV === "production";
@@ -19,8 +21,13 @@ const nextConfig: NextConfig = {
         key: "Content-Security-Policy",
         value: "frame-ancestors 'none'",
       });
-      // Full CSP arrives in Stage 21 (report-only first). This minimal production
-      // directive covers clickjacking without breaking Next's runtime.
+      // Full CSP (Stage 20, roadmap-21): report-only first — violations are logged
+      // without breaking the app; tune from real-browser data before enforcing.
+      // The enforced framing directive above stays (clickjacking is already solved).
+      headers.push({
+        key: "Content-Security-Policy-Report-Only",
+        value: buildReportOnlyCsp(process.env.NEXT_PUBLIC_API_URL),
+      });
     }
     return [{ source: "/:path*", headers }];
   },

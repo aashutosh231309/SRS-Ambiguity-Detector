@@ -43,6 +43,7 @@ def test_security_headers_present(client: TestClient) -> None:
     res = client.get("/api/v1/health/live")
     assert res.headers["X-Content-Type-Options"] == "nosniff"
     assert res.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+    assert res.headers["Permissions-Policy"] == "camera=(), microphone=(), geolocation=()"
 
 
 def test_openapi_lists_only_real_routes(client: TestClient) -> None:

@@ -4,6 +4,40 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.21.0] — Stage 20 (as-built) — security hardening (roadmap-21 closed) — 2026-09-24
+
+### Added
+- Prod-only backend framing denial (`X-Frame-Options: DENY` +
+  `Content-Security-Policy: frame-ancestors 'none'`) + full header
+  review: baseline trio always-on, HSTS + framing prod-only, OpenAPI
+  docs/Redoc/schema gated out of production — all asserted both ways
+  (incl. error envelopes carrying the headers).
+- Report-only CSP (`Content-Security-Policy-Report-Only`, prod-only)
+  via `frontend/src/lib/csp.ts`: `default-src 'self'`, Next inline
+  runtime under observation, `connect-src` self + API origin from
+  `NEXT_PUBLIC_API_URL`, `object-src 'none'`, `base-uri 'self'`.
+  Observe-only until real-browser data justifies enforcement.
+- `scripts/secret-scan.sh` (+ `secret-scan.allow` provably-fake
+  fixtures): provider prefixes, private keys, password DSNs, key
+  assignments, bearer/JWT shapes. Gates `verify.sh`; documented as
+  the pre-commit hook (`ln -s ../../scripts/secret-scan.sh
+  .git/hooks/pre-commit`). Ignored paths (`.env`, `*.pem`) never
+  scanned.
+
+### Changed
+- `npm audit` (0 vulnerabilities) + `pip-audit` now gate `verify.sh`;
+  `pip-audit` pinned in requirements-dev. pytest 8.3.4 → 9.1.1
+  (PYSEC-2026-1845 fixed); 7 starlette findings accepted per-ID with
+  reachability rationale (framework-major migration deferred).
+- Backend suite 533 → 538 (+5 header/posture tests). Frontend suite
+  402 → 409 (+7 CSP builder tests). Roadmap-21 fully closed.
+
+### Contract
+- SECURITY_SPEC §8 (headers/CSP/OpenAPI posture as-builts) + §10
+  (audit baseline with accepted findings, secret-scan procedure);
+  FUTURE_ROADMAP as-built note; STAGE_STATUS §20. No migration, no
+  new routes/codes/settings; no production dependency changed.
+
 ## [0.20.0] — Stage 19 (as-built) — document list/download endpoints (roadmap-09 closed) — 2026-09-24
 
 ### Added
