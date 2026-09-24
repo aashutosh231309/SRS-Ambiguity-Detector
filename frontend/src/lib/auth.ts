@@ -95,7 +95,13 @@ function refreshOnce(): Promise<AuthSession> {
   return refreshInflight;
 }
 
-async function withSessionRetry<T>(fn: () => Promise<T>): Promise<T> {
+/**
+ * Run `fn`, refreshing the session once on a 401 and retrying a single time.
+ * Safe ONLY for reads and for mutations the server rejects pre-execution on
+ * 401 (proven for `me`/`change-password`; Stage 06 extends it to analysis
+ * creation, whose guard rejects before the service runs — no double-create).
+ */
+export async function withSessionRetry<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (err) {

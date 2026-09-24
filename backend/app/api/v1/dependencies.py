@@ -95,3 +95,24 @@ def auth_user_guard(endpoint: str) -> Callable[..., Awaitable[UserInfo]]:
         return user
 
     return _guard
+
+
+def verified_user_guard(
+    bucket: str, *, limit: Callable[[], int] | None = None
+) -> Callable[..., Awaitable[UserInfo]]:
+    """Verified-user resource gate: verified identity + CSRF + per-user limit.
+
+    `bucket` names the rate-limit bucket (`{bucket}:user:{id}`); `limit` is a
+    zero-arg callable resolving the per-minute budget AT REQUEST TIME — the
+    value must never be frozen at import (env retunes + tests would break).
+    `None` keeps the auth default budget.
+    """
+
+    async def _guard(
+        request: Request, user: Annotated[UserInfo, Depends(get_current_verified_user)]
+    ) -> UserInfo:
+        await verify_origin(request)
+        check_rate_limit(f"{bucket}:user:{user.id}", limit=limit() if limit else None)
+        return user
+
+    return _guard

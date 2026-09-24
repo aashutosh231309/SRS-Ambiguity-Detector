@@ -4,6 +4,44 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.7.0] — Stage 06 — SRS Input + Segmentation + Preview — 2026-09-24
+
+### Added
+- `POST /api/v1/analysis` (TEXT-only → `201` SEGMENTED detail): verified-user
+  guard + per-user 20/min bucket → validate → conservative normalize →
+  deterministic segment → transactional persist (`analyses` + `requirements`).
+  No scores/issues/AI — `score`/`band` null, nested `issues` empty, `ai_status`
+  `skipped` (always; no AI call exists).
+- Segmenter (`services/segmentation.py`, pure, no I/O): FR/NFR/REQ-ID (0.95),
+  decimal/numbered (0.90/0.75/0.60), bullet (0.80/0.65/0.50), paragraph
+  (0.55/0.50); multi-sentence requirements, headings → section paths, source
+  offsets + line refs, span invariant (segments tile the normalized text).
+- `/analyzer` (verified, `noindex`): title + large editor (live char/word
+  counts, requirement estimate), validation/loading/rate-limit states,
+  `SegmentPreview` (requirements + evidence only — no scores/AI text), Clear /
+  Start-over / Analyze-another; session-expiry re-login preserves the draft.
+- Migration `0003`: `analyses.status`/`source_text`, NULL-until-scored
+  `score`/`band`, `requirements.section`/`segmentation`.
+- 65 backend tests (45 segmentation + 20 API/ownership/transaction) + 36
+  frontend tests (lib + form/validation/loading/preview/error/reset);
+  `vitest.setup.ts` IntersectionObserver stub (jsdom lacks it; motion needs it).
+
+### Changed
+- `lib/auth.ts` exposes the single-flight retry as `withSessionRetry`
+  (now also serving analysis creation); param-label table shared with
+  analysis field errors. Auth behavior untouched (all Stage 05 tests pass).
+- Roadmap sequencing: input/segmentation (incl. roadmap-11) shipped BEFORE
+  detectors — roadmap-06's detector criteria move to actual Stage 07
+  (see `FUTURE_ROADMAP.md` as-built note).
+
+### Contract (Stage 06 amendment to §4.3, all verified live + asserted in tests)
+- Detail gains `status: "segmented"`; requirements gain `section` +
+  `segmentation`; issues are nested-only (`[]` pre-detection — no top-level
+  `issues`); `source_excerpt` is summary-only (absent from the detail).
+- New codes: `text_too_large` (char budget or requirements cap, with counts),
+  `no_requirements_detected` (nothing persisted), `document_analysis_unavailable`
+  (non-null `document_id` before Stage 09); `options.ai_enhance` accepted + ignored.
+
 ## [0.6.0] — Stage 05 — Authentication Frontend — 2026-09-24
 
 ### Added

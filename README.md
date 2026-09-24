@@ -113,7 +113,9 @@ All settings are environment-driven and validated at boot. Copy the examples and
 PostgreSQL 16+ via SQLAlchemy 2.0 (async) + Alembic. Schema: `users`, `analyses`,
 `requirements`, `issues`, `documents`, `ai_provider_credentials` (revision `0001`) +
 `refresh_tokens`, `email_verification_tokens`, `password_reset_tokens` (revision
-`0002`) — fully documented in [`docs/DATABASE_SCHEMA.md`](docs/DATABASE_SCHEMA.md).
+`0002`) + analysis `status`/`source_text`, NULL-until-scored `score`/`band`,
+requirement `section`/`segmentation` (revision `0003`) — fully documented in
+[`docs/DATABASE_SCHEMA.md`](docs/DATABASE_SCHEMA.md).
 
 Flow: configure `DATABASE_URL` → `alembic upgrade head` → start backend.
 The schema is migration-controlled: never hand-edit the database, never `create_all()`
@@ -126,7 +128,9 @@ binding contract (envelopes, pagination, error codes). Interactive docs (non-pro
 `http://localhost:8000/api/docs`. Current surface: `GET /health` (infra alias),
 `GET /api/v1/health/live`, `GET /api/v1/health/ready` (live DB probe), and the full
 auth API (`POST /api/v1/auth/register|login|logout|refresh|verify-email|resend-verification|forgot-password|reset-password|change-password`,
-`GET /api/v1/auth/me`, `DELETE /api/v1/auth/account`).
+`GET /api/v1/auth/me`, `DELETE /api/v1/auth/account`), and `POST /api/v1/analysis`
+(TEXT-only → `201` SEGMENTED detail with requirements + segmentation evidence;
+verified-user guard, per-user 20/min; scores/issues arrive with detection).
 
 ## Security model (summary)
 
@@ -139,13 +143,17 @@ dedicated security stages do that later.
 
 ## Current limitations
 
-Backend auth + auth UI are done (`/login`, `/signup`, `/forgot-password`,
-`/reset-password`, `/verify-email`; post-auth landing is the temporary fixed `/`
-until the dashboard stage) — intentionally NOT implemented yet: deterministic
-engine, analysis API, analyzer UI, document upload/extraction, history, dashboard,
-settings, AI providers, CAPTCHA/distributed rate limits, Sentry. The home page is
-an honest placeholder (replaced by the marketing stage), and `ApiStatus` needs the
-backend running. Full plan: [`docs/FUTURE_ROADMAP.md`](docs/FUTURE_ROADMAP.md).
+Backend auth + auth UI are done, and so are SRS text input + deterministic
+segmentation + persistence + preview (`/analyzer`, verified users; `POST
+/api/v1/analysis` TEXT-only → `201` SEGMENTED detail with requirements +
+segmentation evidence, no scores yet) — intentionally NOT implemented yet:
+ambiguity detection + scoring, analysis GET/list/delete, document
+upload/extraction, history, dashboard, settings, AI providers,
+CAPTCHA/distributed rate limits, Sentry. Post-auth landing is still the temporary
+fixed `/`; the home page is an honest placeholder (replaced by the marketing
+stage), and `ApiStatus` needs the backend running. Full plan:
+[`docs/FUTURE_ROADMAP.md`](docs/FUTURE_ROADMAP.md) (see the as-built sequencing
+note — input shipped before detectors).
 
 ## Screenshots
 

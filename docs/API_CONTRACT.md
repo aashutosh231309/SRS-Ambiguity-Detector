@@ -38,7 +38,7 @@
 
 | HTTP | `code` | Meaning |
 |------|--------|---------|
-| 400 | `bad_request` / `validation_error` / `invalid_token` / `password_too_weak` / `current_password_incorrect` | Malformed input / schema failure / bad link-token / weak password / wrong current password |
+| 400 | `bad_request` / `validation_error` / `invalid_token` / `password_too_weak` / `current_password_incorrect` / `text_too_large` / `no_requirements_detected` / `document_analysis_unavailable` | Malformed input / schema failure / bad link-token / weak password / wrong current password / text over budget or requirements over cap (with counts) / segmentable text yielded zero requirements / `document_id` before Stage 09 |
 | 401 | `unauthenticated` / `invalid_credentials` | Missing/invalid session / bad email+password (indistinguishable) |
 | 403 | `forbidden` / `email_unverified` / `account_disabled` | Not owner / unverified / deactivated |
 | 404 | `<resource>_not_found` | e.g. `analysis_not_found` |
@@ -113,10 +113,10 @@ DELETE /auth/account           {confirmation:"DELETE"} → 204 (full cascade del
   TTL expiry (stateless bearers); revocation applies to refresh — the UI never
   assumes otherwise.
 
-### 4.3 Analysis — Stage 07 (engine Stage 06)
+### 4.3 Analysis — POST live (Stage 06); GET/list/delete/retry planned (detection Stage 07)
 
 ```
-POST /analysis                  Text or document-reference analysis → 201 AnalysisDetail
+POST /analysis                  Text analysis → 201 AnalysisDetail ✅ Stage 06 (TEXT ONLY)
 GET  /analysis                  List own analyses (paginated, §3) → 200 Collection<AnalysisSummary>
 GET  /analysis/{id}             Full detail incl. requirements+issues → 200 AnalysisDetail | 404
 DELETE /analysis/{id}           Delete own analysis (cascade) → 204 | 404
@@ -131,6 +131,12 @@ POST /analysis/{id}/retry-ai    Re-run ONLY the AI enhancement step → 200 {ai_
 - Exactly one of `text` / `document_id`. Limits: `text` ≤ 200 000 chars; requirements cap
   enforced after segmentation (excess → `400 text_too_large` with counts).
 - `ai_enhance:false` skips AI even if configured (deterministic-only run).
+- Stage 06 reality (TEXT ONLY): `text` is required, 1–200 000 chars after app-side
+  normalization (empty/whitespace-only → `400 validation_error`); non-null
+  `document_id` → `400 document_analysis_unavailable`; `options.ai_enhance` is
+  accepted and ignored (`ai_status` is always `skipped`). No `user_id` is accepted —
+  the analysis belongs to the session user. Segmentable text that yields zero
+  requirements → `400 no_requirements_detected`; nothing is persisted on any 4xx.
 
 **AnalysisDetail (response + GET):**
 ```json
@@ -151,6 +157,16 @@ POST /analysis/{id}/retry-ai    Re-run ONLY the AI enhancement step → 200 {ai_
 }
 ```
 `AnalysisSummary` = detail minus `requirements[]`, plus `source_excerpt`.
+
+**Stage 06 amendment (what POST actually returns today):** `status: "segmented"` is
+present; `score`/`band`/`health` are `null`, `score_breakdown` is `{}`, `ai_status`
+is `"skipped"` (no AI call exists yet — `"ok"`/`"failed"` are impossible); every
+requirement carries `section` + a `segmentation` evidence block and nested
+`"issues": []`. There is NO top-level `issues` (nested-only, as in the example
+above — PROJECT_SPEC §7's `issues[]` shorthand materializes here, not beside
+`requirements[]`) and NO `source_excerpt` in the detail (summary-only, per the
+definition above). `requirements_count` always equals `len(requirements)`. The UI
+renders requirements + evidence only — never scores, bands, or AI text (all null).
 
 ### 4.4 Documents — Stage 09/10
 

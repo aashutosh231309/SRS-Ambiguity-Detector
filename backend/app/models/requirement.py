@@ -2,10 +2,14 @@
 
 `position` (0-based, unique per analysis) preserves SRS order. `severity` is the
 denormalized worst-of-issues severity (NULL = no issues) for list filtering.
+Stage 06 writes: `text` WITHOUT the source marker prefix (identifier stored
+separately), NULL `score` (unscored until Stage 07), heading-derived `section`
+path, and the `segmentation` JSONB evidence block (strategy, confidence,
+offsets, line refs).
 """
 
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     CheckConstraint,
@@ -17,6 +21,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, CreatedMixin
@@ -53,7 +58,9 @@ class Requirement(Base, CreatedMixin):
     position: Mapped[int] = mapped_column(nullable=False)
     identifier: Mapped[str | None] = mapped_column(String(32))
     text: Mapped[str] = mapped_column(Text, nullable=False)
-    score: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    score: Mapped[int | None] = mapped_column(SmallInteger)
+    section: Mapped[str | None] = mapped_column(String(200))
+    segmentation: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     severity: Mapped[str | None] = mapped_column(String(16))
     issues_count: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
     suggested_rewrite: Mapped[str | None] = mapped_column(Text)

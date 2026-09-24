@@ -340,18 +340,89 @@ left, cookie attrs (`HttpOnly`, `SameSite=Lax`) asserted.
 **Next stage:** Stage 06 — Deterministic Engine (needs nothing from auth; verified
 `requireVerified` nudge + `ProtectedRoute` are ready for its future private UI).
 
+### Stage 06 — SRS Input + Segmentation + Preview ✅ (2026-09-24)
+Shipped input-first (absorbing roadmap-11 segmentation + the input halves of
+roadmap-07/08); detectors + scoring move to actual Stage 07. Details:
+
+**Completed:**
+- `POST /api/v1/analysis` (TEXT-only → `201` SEGMENTED detail): verified-user
+  guard (identity + CSRF + per-user 20/min bucket) → schema validation (title
+  ≤200, text 1–200 000 chars) → conservative normalization → deterministic
+  segment → transactional persist (`analyses` + ordered `requirements`, excerpt
+  ≤500). Owner comes from the session, never the client; no `user_id` accepted;
+  nothing persists on any 4xx. No scores/issues/AI: `score`/`band` null, nested
+  `issues` empty, `ai_status` always `skipped`.
+- Segmenter (`services/segmentation.py`, pure, no I/O): requirement-ID (0.95),
+  decimal (0.90/0.75) / numbered (0.60), bullet (0.80/0.65/0.50), paragraph
+  (0.55/0.50); multi-sentence requirements, headings → `section` paths, source
+  offsets + line refs, confidence per segment; span invariant (segments tile the
+  normalized text exactly). Requirements cap 2000 enforced post-segmentation.
+- `/analyzer` (verified-guard, `noindex,nofollow`): title + large editor with
+  live char/word counts, validation/loading/rate-limit states, Clear /
+  Start-over / Analyze-another; `SegmentPreview` renders requirements +
+  segmentation evidence ONLY (no scores/severity/AI text — all null); 401
+  mid-draft routes through re-login with the draft preserved.
+- Migration `0003`: `analyses.status` (+ `segmented`-only CHECK) /`source_text`,
+  NULL-until-scored `score`/`band` (analyses + requirements), requirement
+  `section`/`segmentation`; downgrade deletes unscored rows (pre-release only).
+- New error codes: `text_too_large` (char budget or cap, with counts),
+  `no_requirements_detected`, `document_analysis_unavailable` (non-null
+  `document_id` before Stage 09); `options.ai_enhance` accepted + ignored.
+
+**Architectural decisions:**
+- Input-first sequencing (roadmap as-built note): a persisted SEGMENTED analysis
+  is the honest substrate detectors score in Stage 07; roadmap numbers stay,
+  STAGE_STATUS records the mapping.
+- Contract reconciliation: issues are nested-only per the binding §4.3 example
+  (no top-level `issues` — PROJECT_SPEC §7's shorthand materializes nested);
+  `source_excerpt` is summary-only (absent from the detail); detail gains
+  `status: "segmented"`, requirements gain `section` + `segmentation`.
+- Live form counts are cheap char/word heuristics — real segmentation runs
+  server-side, on submit only (no per-keystroke segmentation, ever).
+- Silent refresh is shared via `withSessionRetry` (now also serving analysis
+  creation); the param-label table is shared with analysis field errors.
+  Auth behavior untouched — all Stage 05 tests pass unmodified.
+- Component tests that render motion's `whileInView` need the shared
+  IntersectionObserver stub (`vitest.setup.ts` — jsdom lacks it, browsers don't).
+
+**Tests:** `verify.sh` ALL GREEN — pytest 179/179 (65 new: 45 segmentation incl.
+span-invariant/confidence/edge cases, 20 API/ownership/transaction/rollback),
+vitest 165/165 (36 new: lib mapping/field-errors + form/validation/loading/
+preview/error/reset), eslint, `tsc`, prettier, `next build` (11 routes, incl.
+`/analyzer`). SSR curl: `/analyzer` 200 (`noindex,nofollow`, guard skeleton).
+Live journey through the REAL `lib/*` + real backend (temp probe, deleted
+after): register→verify→login→paste-SRS→submit→201 SEGMENTED→preview shape
+(requirements + evidence, null scores, empty nested issues)→validation-error→
+anon-401→logout→DELETE — green, 0 users left.
+
+**Known limitations (accepted, not bugs):**
+- NO browser in this sandbox (as in Stage 05) — editor/preview responsive
+  widths + visual polish NOT pixel-verified, NO screenshots ship (`screenshots/`
+  still empty). First browsed environment must capture `stage06-*` at
+  390/768/1440 + the pending `stage05-*` set.
+- Detection + scoring + GET/list/delete + history + dashboard all pending;
+  `analyses.status` CHECK admits only `segmented` until the pipeline grows.
+- Title-length UX: over-long titles show a live error and disable submit
+  (no counter on the title field — the counts belong to the editor).
+- `docker-compose.yml` STILL unvalidated (no Docker in sandbox) — recurring warning.
+
+**Next stage:** Stage 07 — Detection + scoring (fills `score`/`band`/`severity`,
+nested `issues[]`, breakdown; extends the `status` CHECK; keeps the §4.3 shape).
+
 ## Current stage
-None active — Stage 05 complete; all success conditions hold (5 auth routes, blade
-transition with a11y + reduced-motion paths, provider + silent refresh, all recovery
-flows, 129/129 frontend tests, live journey green, docs match).
-Next: **Stage 06 — Deterministic Engine**.
+None active — Stage 06 complete; all success conditions hold (TEXT-only POST →
+SEGMENTED persist, deterministic segmentation with evidence, verified `/analyzer`
+with preview, 179/179 + 165/165 tests, live journey green, docs match).
+Next: **Stage 07 — Detection + scoring**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
-Database → backend → auth backend → auth frontend → deterministic engine → analysis API →
-analyzer UI → upload → extraction → segmentation → history → report UI → dashboard data →
-dashboard viz → settings → AI vault → providers → overview/improvements → fallback →
-hardening → CAPTCHA/rate-limit → privacy → monitoring → performance → SEO foundation →
-SEO content → responsive/a11y → QA → deploy → docs/shots → audit.
+Database → backend → auth backend → auth frontend → SRS input/segmentation/preview ✅ →
+detection+scoring → analysis GET/list/delete + scored-results UI → upload → extraction →
+history → report UI → dashboard data → dashboard viz → settings → AI vault →
+providers → overview/improvements → fallback → hardening → CAPTCHA/rate-limit →
+privacy → monitoring → performance → SEO foundation → SEO content →
+responsive/a11y → QA → deploy → docs/shots → audit.
+(As-built order; roadmap numbers preserved — see the FUTURE_ROADMAP.md as-built note.)
 
 ## Major decisions log
 - `/api/v1` versioning (ADR-002) — master prompt listed unversioned paths; version now.
@@ -373,12 +444,19 @@ SEO content → responsive/a11y → QA → deploy → docs/shots → audit.
   FastAPI drops the injected `Response` in that case (logout-cookie bug, Stage 04).
 - Auth UI: `AuthProvider` is the single state; error copy switches on backend `code`
   (never `message`); `register` sets no cookies (no post-signup refresh); silent
-  refresh is single-flight + retry-once for `me`/`change-password` only.
+  refresh is single-flight + retry-once via `withSessionRetry` (Stage 05:
+  `me`/`change-password`; Stage 06: + analysis creation).
 - Motion preference reads `useReducedMotionConfig` (honors `MotionConfig`), never the
   device-only `useReducedMotion` (ignores the provider).
 - Component tests: `jsdom` per-file pragma + Testing Library (`within()`-scoped label
   queries in multi-form cards); `vitest.config.ts` mirrors `@/*` (Vitest ignores
   tsconfig paths).
+- Analysis detail: issues nested-only, `source_excerpt` summary-only, `status`
+  honest (Stage 06; reconciles PROJECT_SPEC §7 with binding contract §4.3).
+- Analyzer budgets are contract-fixed module constants (`TEXT_MAX_LENGTH`,
+  `MAX_REQUIREMENTS`); only the per-user rate limit is env-tunable (Stage 06).
+- Segmentation is pure + deterministic (span invariant); never per-keystroke —
+  server-side, on submit only (Stage 06).
 
 ## Warnings for future agents
 1. IMPLEMENTED: `app/{models,schemas,services,repositories,exceptions}/` (Stages 02–03).
@@ -396,3 +474,7 @@ SEO content → responsive/a11y → QA → deploy → docs/shots → audit.
    then `git diff`-review the rewrite line by line for silently dropped behavior.
    Stage 03 caught a rewrite that dropped status codes, security headers, and docs
    paths this way — the gate was green but the diff was wrong.
+9. `analyses.status` CHECK admits ONLY `segmented` — any stage adding a pipeline
+   state must extend the CHECK via a new migration (never hand-edit the DB).
+10. `screenshots/` is STILL EMPTY (no browser in the sandbox, Stages 05–06): the
+    first browsed environment owes `stage05-*` + `stage06-*` at 390/768/1440.

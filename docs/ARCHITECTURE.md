@@ -109,7 +109,11 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
 - `app/services/` + `app/repositories/` + `app/schemas/` + `app/exceptions/` — the
   service layer (Stage 03): business logic, data access, Pydantic boundaries, and
   `AppError` → envelope mapping. Canonical paths: `services/readiness.py`,
-  `services/auth.py` (Stage 04: sessions, rotation, recovery — pure of HTTP).
+  `services/auth.py` (Stage 04: sessions, rotation, recovery — pure of HTTP),
+  `services/segmentation.py` (Stage 06: pure deterministic segmenter — no I/O),
+  `services/analysis.py` (Stage 06: validate → normalize → segment → persist flow),
+  `repositories/analysis.py` + `schemas/analysis.py` + `api/v1/endpoints/analysis.py`
+  (Stage 06: TEXT-only POST; `dependencies.py` ownership gate).
 - `backend/alembic/` — migration env resolving the DSN exactly like the app, plus
   linear `versions/` (each with `downgrade()`).
 - `app/core/logging.py` — structured logging + `RedactingFilter` (drops API keys, tokens,
@@ -117,8 +121,10 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
 - `app/api/v1/` — one router module per resource (`health`, `auth`, `analysis`, `documents`,
   `dashboard`, `ai_providers`, `settings`, `privacy`). Routers do validation + authn/z +
   call `services/`; no SQL in routers, no HTTP in services.
-- `app/analysis/` — deterministic engine. Pure functions over text; configurable rule packs;
-  emits findings with evidence offsets. MUST have zero network calls and zero LLM calls.
+- `app/analysis/` — deterministic engine (arrives Stage 07). Pure functions over text;
+  configurable rule packs; emits findings with evidence offsets. MUST have zero network
+  calls and zero LLM calls. Its Stage 06 precursor, `services/segmentation.py`, already
+  honors that rule: pure segmentation over normalized text, no I/O, no scores.
 - `app/ai/` — provider abstraction (`AIProvider` ABC) + per-provider adapters. Called ONLY
   from an enhancement step that can fail open (deterministic result is always returned).
 - `app/email/` (Stage 04 ✅) — port (`EmailMessage` + templates + `EmailService` ABC)
@@ -150,17 +156,27 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
   `hooks/useAuth.ts`; identity resolves once via `GET /auth/me` (module-level
   in-flight guard — one request even under StrictMode). `lib/auth.ts` is the ONLY
   `/auth/*` caller (built on `lib/api.ts`); silent refresh is single-flight +
-  retry-once and applies ONLY to `me`/`change-password`. `lib/auth-errors.ts` maps
-  backend `code` → UI copy (never server strings); `lib/auth-validation.ts` mirrors
+  retry-once, shared via `withSessionRetry` (serves `me`/`change-password` since
+  Stage 05, analysis creation since Stage 06). `lib/auth-errors.ts` maps backend
+  `code` → UI copy (never server strings); `lib/auth-validation.ts` mirrors
   policy client-side for instant feedback (server authoritative). Tests: Vitest 5 +
   `jsdom` + Testing Library (`vitest.config.ts` mirrors the `@/*` alias; node env
-  default, `jsdom` per-file pragma, no globals).
+  default, `jsdom` per-file pragma, no globals; `vitest.setup.ts` stubs
+  IntersectionObserver for motion's `whileInView`).
+- Analyzer (Stage 06): `/analyzer` (verified-guard + `noindex,nofollow`) —
+  `components/analyzer/` (`AnalyzerForm` input/validation, `SegmentPreview`
+  requirements + evidence, `AnalyzerWorkspace` orchestration, `AnalyzerEntryLink`
+  home CTA) on `lib/analysis.ts` (`createAnalysis`, the ONLY `/analysis` caller)
+  with `types/analysis.ts` mirroring contract §4.3 exactly; `lib/analysis-errors.ts`
+  maps backend `code` → UI copy (reuses the auth param table for field errors).
 
 ## 6. Canonical request flows
 
-**Analyze text (planned):** `POST /api/v1/analysis` → authn → rate limit → validate →
-segment → `analysis/` engine → score → persist (`analyses`, `requirements`, `issues`) →
-optional AI enhancement (timeout-guarded, fail-open) → unified response.
+**Analyze text (Stage 06 live through persist; engine/score/AI still planned):**
+`POST /api/v1/analysis` → verified-user guard (authn + CSRF + per-user rate limit) →
+validate → normalize → deterministic segment → persist (`analyses`, `requirements`;
+`issues` from Stage 07) → `201` SEGMENTED detail (`score`/`band` null, `ai_status`
+`skipped`). Detection + scoring + AI enhancement join the same flow in later stages.
 
 **Upload (planned):** `POST /api/v1/documents/upload` → authn → size/MIME/magic-byte checks →
 extract (timeout + max-text guard) → segment → same pipeline → delete temp file.
@@ -184,7 +200,7 @@ Backend reads env via `app/core/config.py` (see `backend/.env.example` for the f
 | `ENCRYPTION_MASTER_KEY` | staging/prod (Stage 17+) | Fernet key encrypting provider API keys at rest |
 | `JWT_SECRET`, `ACCESS_TOKEN_MINUTES`, `REFRESH_TOKEN_DAYS` (+ verify/reset TTLs) | all (Stage 04 ✅) | Access/refresh signing — secret REQUIRED, fail-closed |
 | `EMAIL_PROVIDER`, `RESEND_API_KEY`, `EMAIL_FROM`, `APP_BASE_URL`, `DEV_OUTBOX_DIR` | all (Stage 04 ✅) | Transactional email (console dev-only, refused in prod) |
-| `RATE_LIMIT_*` | all (Stage 04 ✅) | Auth buckets, single-process (distributed Stage 22) |
+| `RATE_LIMIT_*` | all (Stage 04 ✅ + Stage 06 ✅) | Auth buckets + per-user analysis bucket (`RATE_LIMIT_ANALYSIS_PER_MINUTE`, default 20), single-process (distributed Stage 22) |
 | `ARGON2_*` | all (Stage 04 ✅) | Password work factors |
 | `TURNSTILE_SECRET_KEY` | Stage 22+ | Server-side CAPTCHA verify |
 | `SENTRY_DSN` | Stage 24+ | Monitoring (with scrubbing) |

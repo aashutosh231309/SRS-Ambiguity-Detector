@@ -93,20 +93,32 @@ function isValidationDetail(value: unknown): value is ValidationDetail {
   return Array.isArray(detail.loc) && typeof detail.msg === "string";
 }
 
+/** Field table a domain maps `validation_error` details onto. */
+export interface ValidationFieldTable {
+  known: Set<string>;
+  copy: Record<string, string>;
+}
+
+const AUTH_FIELD_TABLE: ValidationFieldTable = { known: KNOWN_FIELDS, copy: FIELD_COPY };
+
 /**
  * Extract per-field errors from a `validation_error` envelope
  * (`details: [{loc: [...], msg}]` — backend main.py). Unknown shapes → {}.
- * Copy is ours; server `msg` strings are never displayed.
+ * Copy is ours; server `msg` strings are never displayed. Other domains pass
+ * their own table (Stage 06: the analyzer) instead of duplicating this walk.
  */
-export function validationFieldErrors(err: unknown): Partial<Record<string, string>> {
+export function validationFieldErrors(
+  err: unknown,
+  table: ValidationFieldTable = AUTH_FIELD_TABLE,
+): Partial<Record<string, string>> {
   if (!(err instanceof ApiRequestError) || err.code !== "validation_error") return {};
   if (!Array.isArray(err.details)) return {};
   const fields: Partial<Record<string, string>> = {};
   for (const detail of err.details) {
     if (!isValidationDetail(detail)) continue;
     const tail = detail.loc[detail.loc.length - 1];
-    if (typeof tail === "string" && KNOWN_FIELDS.has(tail) && fields[tail] === undefined) {
-      const copy = FIELD_COPY[tail];
+    if (typeof tail === "string" && table.known.has(tail) && fields[tail] === undefined) {
+      const copy = table.copy[tail];
       if (copy !== undefined) fields[tail] = copy;
     }
   }

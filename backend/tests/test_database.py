@@ -88,7 +88,7 @@ def test_model_metadata_tables() -> None:
 # --- Migrations -------------------------------------------------------------
 
 
-def test_migration_head_is_0002(migrated_db: str) -> None:
+def test_migration_head_is_0003(migrated_db: str) -> None:
     from alembic.migration import MigrationContext
 
     async def _heads() -> tuple[str, ...]:
@@ -103,7 +103,7 @@ def test_migration_head_is_0002(migrated_db: str) -> None:
         finally:
             await _dispose()
 
-    assert run(_heads()) == ("0002",)
+    assert run(_heads()) == ("0003",)  # Stage 06: segmentation support
 
 
 def test_tables_exist(migrated_db: str) -> None:

@@ -97,3 +97,35 @@ class CurrentPasswordError(AppError):
 
     def __init__(self) -> None:
         super().__init__("current_password_incorrect", "Current password is incorrect.", 400)
+
+
+class NoRequirementsDetectedError(AppError):
+    """400 — TEXT input yielded zero segments (blank or signal-less prose)."""
+
+    def __init__(
+        self, message: str = "No requirements could be detected in the provided text."
+    ) -> None:
+        super().__init__("no_requirements_detected", message, 400)
+
+
+class TextTooLargeError(AppError):
+    """400 — segmentation produced more requirements than the per-analysis cap
+    (API_CONTRACT §4.3: refuse with counts, never silently truncate)."""
+
+    def __init__(self, requirements_found: int, max_requirements: int) -> None:
+        super().__init__(
+            "text_too_large",
+            "The input produced more requirements than a single analysis can hold.",
+            400,
+            details={
+                "requirements_found": requirements_found,
+                "max_requirements": max_requirements,
+            },
+        )
+
+
+class DocumentAnalysisUnavailableError(AppError):
+    """400 — `document_id` analysis before Stage 09 (documents don't exist yet)."""
+
+    def __init__(self, message: str = "Document analysis is not available yet.") -> None:
+        super().__init__("document_analysis_unavailable", message, 400)

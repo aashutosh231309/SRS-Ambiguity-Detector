@@ -42,6 +42,15 @@
 | 31 | Documentation/screenshots | PROJECT_SPEC §2 | README final, screenshots full set, API docs, user guide |
 | 32 | Final audit | ALL | Baseline checklist 12/12, security pass, DoD pass, release tag |
 
+> As-built sequencing (Stage 06, 2026-09-24): the analysis spine shipped
+> input-first. Actual Stage 06 delivered SRS text input + validation +
+> normalization + deterministic segmentation + persistence + structured preview —
+> absorbing roadmap-11 (segmentation) and the input halves of roadmap-07 (POST)
+> and roadmap-08 (input UI). Roadmap-06's detector exit criteria (≥13 detectors,
+> scoring) move to actual Stage 07; GET/list/delete and the scored-results UI
+> stay with roadmap-07/08 as planned. The table above keeps its original numbers;
+> STAGE_STATUS.md records the as-built mapping.
+
 ## Dependency notes
 
 - 02 → 03 → 04 → 05 is the auth spine; 06 → 07 → 08 is the analysis spine. 07 needs 02+04

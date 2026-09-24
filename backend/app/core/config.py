@@ -55,6 +55,8 @@ class Settings(BaseSettings):
     # Auth rate limits (single-process token buckets; Stage 22 distributes).
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_AUTH_PER_MINUTE: int = 60
+    # --- Stage 06: analysis creation budget (per verified user per minute) ---
+    RATE_LIMIT_ANALYSIS_PER_MINUTE: int = 20
     # argon2id work factors. Tests override via env (fast-but-real params).
     ARGON2_TIME_COST: int = 3
     ARGON2_MEMORY_COST: int = 65536

@@ -80,12 +80,14 @@ users 1──1 user_preferences / settings                   [PLANNED — Stage 
 | `title` | VARCHAR(200) | NOT NULL | Auto-derived, user-editable later |
 | `source_type` | VARCHAR(16) | NOT NULL, CHECK `text`/`document` | |
 | `source_excerpt` | TEXT | NULL | ≤500 chars, app-enforced (history lists) |
-| `score` | SMALLINT | NOT NULL, CHECK 0–100 | Deterministic score |
-| `band` | VARCHAR(16) | NOT NULL, CHECK `low`/`moderate`/`high`/`very_high` | |
-| `score_breakdown` | JSONB | NOT NULL DEFAULT `'{}'` | Per-issue deductions (explainability) |
+| `status` | VARCHAR(16) | NOT NULL, CHECK `segmented` (+ pipeline states from Stage 07) | Added 0003 (Stage 06): honest pipeline position |
+| `source_text` | TEXT | NULL | Added 0003: normalized input; re-segmentation reproduces identical segments |
+| `score` | SMALLINT | NULL until scored, CHECK 0–100 | Relaxed 0003: NULL pre-detection (Stage 06 persists unscored rows) |
+| `band` | VARCHAR(16) | NULL until scored, CHECK `low`/`moderate`/`high`/`very_high` | Relaxed 0003: NULL pre-detection |
+| `score_breakdown` | JSONB | NOT NULL DEFAULT `'{}'` | Per-issue deductions (explainability); `{}` until Stage 07 |
 | `requirements_count` | INT | NOT NULL DEFAULT 0, CHECK ≥ 0 | Denormalized for dashboard speed |
-| `issues_count` | INT | NOT NULL DEFAULT 0, CHECK ≥ 0 | Denormalized |
-| `health` | JSONB | NULL | Supplementary dimensions (Stage 06+) |
+| `issues_count` | INT | NOT NULL DEFAULT 0, CHECK ≥ 0 | Denormalized; 0 until Stage 07 |
+| `health` | JSONB | NULL | Supplementary dimensions (populated from Stage 07) |
 | `ai_overview` | TEXT | NULL | NULL when unconfigured/failed |
 | `ai_provider` | VARCHAR(32) | NULL | Producing provider id |
 | `ai_status` | VARCHAR(16) | NOT NULL DEFAULT `'skipped'`, CHECK | `ok`/`failed`/`skipped`/`unconfigured` |
@@ -107,12 +109,14 @@ users 1──1 user_preferences / settings                   [PLANNED — Stage 
 | `analysis_id` | UUID | FK analyses CASCADE, NOT NULL | |
 | `position` | INT | NOT NULL | 0-based SRS order; UNIQUE per analysis |
 | `identifier` | VARCHAR(32) | NULL | `FR-001`, … when detected (often absent) |
+| `section` | VARCHAR(200) | NULL | Added 0003: heading-derived section path (`Scope > Login`) |
 | `text` | TEXT | NOT NULL | Full requirement text (SRS content — see §1 + SECURITY_SPEC) |
-| `score` | SMALLINT | NOT NULL, CHECK 0–100 | Requirement-level score |
+| `score` | SMALLINT | NULL until scored, CHECK 0–100 | Relaxed 0003: NULL pre-detection |
 | `severity` | VARCHAR(16) | NULL, CHECK `low`/`medium`/`high`/`critical` | Worst-of-issues, denormalized; NULL = no issues |
-| `issues_count` | INT | NOT NULL DEFAULT 0, CHECK ≥ 0 | Denormalized |
-| `suggested_rewrite` | TEXT | NULL | Rule template and/or AI improvement |
+| `issues_count` | INT | NOT NULL DEFAULT 0, CHECK ≥ 0 | Denormalized; 0 until Stage 07 |
+| `suggested_rewrite` | TEXT | NULL | Rule template and/or AI improvement (Stage 07+) |
 | `suggestion_source` | VARCHAR(16) | NULL, CHECK `rule`/`ai` | Provenance of the rewrite |
+| `segmentation` | JSONB | NULL | Added 0003: evidence block (`strategy`, `confidence`, `start_offset`, `end_offset`, `line_start`, `line_end`) |
 | `created_at` | TIMESTAMPTZ | NOT NULL | Immutable once analyzed (no `updated_at`) |
 
 - Constraints: `UNIQUE(analysis_id, position)` (doubles as the order-by index).
@@ -266,8 +270,10 @@ in logs. Comparison is constant-time (`hmac.compare_digest` over the hash).
 
 ## 5. Migrations & local workflow (IMPLEMENTED)
 
-- Revisions: `0001` (core schema) + `0002` (auth-token tables). Linear history,
-  every revision has `downgrade()`.
+- Revisions: `0001` (core schema) + `0002` (auth-token tables) + `0003`
+  (Stage 06: `analyses.status`/`source_text`, NULL-until-scored `score`/`band`,
+  `requirements.section`/`segmentation`). Linear history, every revision has
+  `downgrade()` (`0003`'s deletes unscored rows — pre-release only).
 - DSN resolution (shared by app + Alembic): `DIRECT_DATABASE_URL` preferred (Supabase:
   bypasses the transaction pooler, which cannot run DDL), `DATABASE_URL` fallback.
   `postgresql://`/`postgres://` schemes are coerced to the asyncpg driver; anything

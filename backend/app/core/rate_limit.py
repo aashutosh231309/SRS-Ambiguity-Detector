@@ -3,9 +3,12 @@
 Contract (SECURITY_SPEC §7): sensitive ops get per-key buckets with 429 +
 Retry-After. The DISTRIBUTED store lands in Stage 22 — until then these buckets
 are exact behind one worker and fail OPEN (N workers ≈ N× budget each holding a
-full bucket). Env: RATE_LIMIT_ENABLED, RATE_LIMIT_AUTH_PER_MINUTE.
+full bucket). Env: RATE_LIMIT_ENABLED, RATE_LIMIT_AUTH_PER_MINUTE (default
+budget), RATE_LIMIT_ANALYSIS_PER_MINUTE (analysis creation, Stage 06).
 
-Keys are `{endpoint}:{client_socket_ip}` (never trust X-Forwarded-For here).
+Keys are `{endpoint}:{client_socket_ip}` (auth, anonymous) or
+`{resource}:{endpoint}:user:{user_id}` (authenticated resources) — never trust
+X-Forwarded-For here.
 Bucket math need not be lock-step exact — worst case is slight over/under
 counting, which is acceptable for a limiter (fail-open direction preferred).
 """
@@ -33,12 +36,18 @@ def reset_rate_limiter() -> None:
     _buckets.clear()
 
 
-def check_rate_limit(key: str) -> None:
-    """Consume one token from `key`'s per-minute bucket; raise 429 when empty."""
+def check_rate_limit(key: str, limit: int | None = None) -> None:
+    """Consume one token from `key`'s per-minute bucket; raise 429 when empty.
+
+    `limit` overrides the per-minute budget for this bucket (callers resolve it
+    per-request from settings, so tests can retune via env); `None` keeps the
+    auth default (`RATE_LIMIT_AUTH_PER_MINUTE`).
+    """
     settings = get_settings()
     if not settings.RATE_LIMIT_ENABLED:
         return
-    limit = max(1, settings.RATE_LIMIT_AUTH_PER_MINUTE)
+    budget = settings.RATE_LIMIT_AUTH_PER_MINUTE if limit is None else limit
+    limit = max(1, budget)
     now = time.monotonic()
     bucket = _buckets.get(key)
     if bucket is None:

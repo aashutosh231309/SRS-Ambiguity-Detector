@@ -28,6 +28,10 @@
   --color-sev-high: #c2540a;
   --color-sev-critical: #b4232a;
 
+  /* Form-error red (Stage 06: referenced by auth fields since Stage 05 but never
+     defined — auth error states and the analyzer inherit it from here). */
+  --color-critic: #b4232a;
+
   --radius-card: 10px;
   --radius-input: 8px;
 
@@ -44,6 +48,7 @@
     --color-line: #2e2a20;
     --color-signal-mist: #123528;
     --color-gold-mist: #38300f;
+    --color-critic: #e58a8a;
   }
 }
 

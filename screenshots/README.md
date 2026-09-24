@@ -12,8 +12,10 @@ Assignment deliverable: UI captures of the finished product (plus per-stage prog
 
 ## Current set
 
-_(Empty — Stage 05 (auth UI) shipped WITHOUT captures: the build sandbox has no
-browser (no Chromium/Firefox; Playwright CDN + Debian mirrors blocked), so no pixel
-QA was possible. The first browsed environment must capture the auth set
-(`stage05-*`, 390/768/1440) + re-verify the blade sweep by eye — see
-`docs/STAGE_STATUS.md` Stage 05 "Known limitations".)_
+_(Empty — Stages 05 (auth UI) and 06 (analyzer input + preview) shipped WITHOUT
+captures: the build sandbox has no browser (no Chromium/Firefox; Playwright CDN +
+Debian mirrors blocked), so no pixel QA was possible. The first browsed
+environment must capture the auth set (`stage05-*`) AND the analyzer set
+(`stage06-*`: empty editor, filled editor with counts, validation errors,
+segmented preview at 390/768/1440) + re-verify the blade sweep by eye — see
+`docs/STAGE_STATUS.md` Stages 05–06 "Known limitations".)_

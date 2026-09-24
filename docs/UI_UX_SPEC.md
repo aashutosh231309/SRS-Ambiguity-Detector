@@ -124,7 +124,8 @@ reasoning (+ optional AI explanation when available). No black boxes.
 
 - [ ] Primitives: Button, Input, Textarea, Select, Badge/Chip, Card, Dialog, Disclosure, Toast, Tooltip, Tabs, Table, EmptyState, Skeleton (Stage 05/08 — Stage 05 shipped auth-scoped fields/alerts only; shared primitives still pending)
 - [x] Product: AuthCard+Blade (Stage 05)
-- [ ] Product: Navbar, AnalyzerForm, Dropzone, ScoreGauge, IssueCard, RequirementCard, HealthBars, CategoryBars, TrendChart, HistoryTable, SettingsForms, ProviderCard, DeleteConfirm (`DELETE` typing) (owning stages)
+- [x] Product: AnalyzerForm + SegmentPreview (Stage 06 — requirements + segmentation evidence only; no scores/severity/issues text until detection lands)
+- [ ] Product: Navbar, Dropzone, ScoreGauge, IssueCard, RequirementCard, HealthBars, CategoryBars, TrendChart, HistoryTable, SettingsForms, ProviderCard, DeleteConfirm (`DELETE` typing) (owning stages)
 - [ ] Marketing: Hero, FeatureGrid, HowItWorks steps, CTA, Footer, Breadcrumbs (Stage 26+)
 
 Rules: no fake buttons (every control does something or doesn't ship); no placeholder

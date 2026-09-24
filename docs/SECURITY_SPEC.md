@@ -106,7 +106,9 @@ Sensitive ops (register, login, verify-resend, forgot/reset, analysis, upload, A
 AI retry) get server-side limits (token-bucket per IP + per-user where authed),
 configurable via env (`RATE_LIMIT_*`), returning `429` + `Retry-After`. Turnstile
 (server-verified) on register + suspicious login + reset + public endpoints if ever exposed.
-Frontend throttling is cosmetic only.
+Frontend throttling is cosmetic only. Live since Stage 06: `POST /analysis` is
+per-user bucketed (`RATE_LIMIT_ANALYSIS_PER_MINUTE`, default 20/min) inside the
+verified-user guard — anonymous callers never reach the bucket (401 first).
 
 ## 8. Headers & transport (foundation in Stage 01, hardened Stage 21)
 

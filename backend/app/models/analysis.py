@@ -1,4 +1,10 @@
-"""`analyses` — one analysis run over pasted text or a document (§3.2)."""
+"""`analyses` — one analysis run over pasted text or a document (§3.2).
+
+Stage 06 writes: `status='segmented'`, TEXT `source_text` (normalized input —
+re-segmentation reproduces identical segments), NULL `score`/`band` (no
+detection yet), `ai_status='skipped'`. Stage 07 fills scores + extends the
+`status` vocabulary via a new migration.
+"""
 
 import uuid
 from typing import TYPE_CHECKING, Any
@@ -20,6 +26,7 @@ class Analysis(Base, CreatedMixin, UpdatedMixin):
     __tablename__ = "analyses"
     __table_args__ = (
         CheckConstraint("score BETWEEN 0 AND 100", name="ck_analyses_score_range"),
+        CheckConstraint("status IN ('segmented')", name="ck_analyses_status"),
         CheckConstraint("source_type IN ('text', 'document')", name="ck_analyses_source_type"),
         CheckConstraint(
             "band IN ('low', 'moderate', 'high', 'very_high')", name="ck_analyses_band"
@@ -44,9 +51,13 @@ class Analysis(Base, CreatedMixin, UpdatedMixin):
     )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     source_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="segmented", server_default="segmented"
+    )
+    source_text: Mapped[str | None] = mapped_column(Text)  # normalized input (TEXT)
     source_excerpt: Mapped[str | None] = mapped_column(Text)  # app-capped ≤500 chars
-    score: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    band: Mapped[str] = mapped_column(String(16), nullable=False)
+    score: Mapped[int | None] = mapped_column(SmallInteger)  # NULL until Stage 07
+    band: Mapped[str | None] = mapped_column(String(16))  # NULL until Stage 07
     score_breakdown: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
     )

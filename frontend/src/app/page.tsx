@@ -1,6 +1,7 @@
 import { ArrowUpRight, BookOpenText, MonitorCheck } from "lucide-react";
 import Link from "next/link";
 
+import { AnalyzerEntryLink } from "@/components/analyzer/AnalyzerEntryLink";
 import { ApiStatus } from "@/components/ApiStatus";
 import { Reveal } from "@/components/Reveal";
 import { Container } from "@/components/layout/Container";
@@ -27,9 +28,12 @@ export default function Home() {
           </span>
           <span className="text-[15px] font-semibold tracking-tight">{SITE.name}</span>
         </p>
-        <p className="rounded-full border border-line px-3 py-1 font-mono text-xs text-ink-soft">
-          Foundation · v0.1.0
-        </p>
+        <div className="flex items-center gap-3">
+          <AnalyzerEntryLink />
+          <p className="rounded-full border border-line px-3 py-1 font-mono text-xs text-ink-soft">
+            Foundation · v0.1.0
+          </p>
+        </div>
       </header>
 
       <main className="flex-1">
