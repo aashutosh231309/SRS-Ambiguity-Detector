@@ -113,13 +113,13 @@ DELETE /auth/account           {confirmation:"DELETE"} → 204 (full cascade del
   TTL expiry (stateless bearers); revocation applies to refresh — the UI never
   assumes otherwise.
 
-### 4.3 Analysis — POST live (Stage 06); GET/list/delete/retry planned (detection Stage 07)
+### 4.3 Analysis — POST + GET/list/DELETE live (Stage 07: deterministic detection + scoring)
 
 ```
-POST /analysis                  Text analysis → 201 AnalysisDetail ✅ Stage 06 (TEXT ONLY)
-GET  /analysis                  List own analyses (paginated, §3) → 200 Collection<AnalysisSummary>
-GET  /analysis/{id}             Full detail incl. requirements+issues → 200 AnalysisDetail | 404
-DELETE /analysis/{id}           Delete own analysis (cascade) → 204 | 404
+POST /analysis                  Text → segment + detect + score → 201 AnalysisDetail ✅ (TEXT ONLY)
+GET  /analysis                  List own analyses (paginated, §3) → 200 Collection<AnalysisSummary> ✅
+GET  /analysis/{id}             Full detail incl. requirements+issues → 200 AnalysisDetail | 404 ✅
+DELETE /analysis/{id}           Delete own analysis (cascade) → 204 | 404 ✅
 POST /analysis/{id}/retry-ai    Re-run ONLY the AI enhancement step → 200 {ai_status,…} (Stage 20)
 ```
 
@@ -131,12 +131,18 @@ POST /analysis/{id}/retry-ai    Re-run ONLY the AI enhancement step → 200 {ai_
 - Exactly one of `text` / `document_id`. Limits: `text` ≤ 200 000 chars; requirements cap
   enforced after segmentation (excess → `400 text_too_large` with counts).
 - `ai_enhance:false` skips AI even if configured (deterministic-only run).
-- Stage 06 reality (TEXT ONLY): `text` is required, 1–200 000 chars after app-side
+- Stage 07 reality (TEXT ONLY): `text` is required, 1–200 000 chars after app-side
   normalization (empty/whitespace-only → `400 validation_error`); non-null
   `document_id` → `400 document_analysis_unavailable`; `options.ai_enhance` is
-  accepted and ignored (`ai_status` is always `skipped`). No `user_id` is accepted —
-  the analysis belongs to the session user. Segmentable text that yields zero
-  requirements → `400 no_requirements_detected`; nothing is persisted on any 4xx.
+  accepted and ignored (`ai_status` is always `skipped` — no AI call exists yet).
+  No `user_id` is accepted — the analysis belongs to the session user.
+  Segmentable text that yields zero requirements → `400
+  no_requirements_detected`; nothing is persisted on any 4xx. On success the
+  pipeline runs synchronously (segment → 11 detectors → score → persist) and
+  returns `201` with `status: "analyzed"` and fully populated
+  scores/issues/breakdown — `GET /analysis/{id}` returns the byte-identical
+  detail. Verified-users-only (`401 unauthenticated` / `403 email_unverified`,
+  same as every analysis route).
 
 **AnalysisDetail (response + GET):**
 ```json
@@ -158,15 +164,79 @@ POST /analysis/{id}/retry-ai    Re-run ONLY the AI enhancement step → 200 {ai_
 ```
 `AnalysisSummary` = detail minus `requirements[]`, plus `source_excerpt`.
 
-**Stage 06 amendment (what POST actually returns today):** `status: "segmented"` is
-present; `score`/`band`/`health` are `null`, `score_breakdown` is `{}`, `ai_status`
-is `"skipped"` (no AI call exists yet — `"ok"`/`"failed"` are impossible); every
-requirement carries `section` + a `segmentation` evidence block and nested
-`"issues": []`. There is NO top-level `issues` (nested-only, as in the example
-above — PROJECT_SPEC §7's `issues[]` shorthand materializes here, not beside
-`requirements[]`) and NO `source_excerpt` in the detail (summary-only, per the
-definition above). `requirements_count` always equals `len(requirements)`. The UI
-renders requirements + evidence only — never scores, bands, or AI text (all null).
+**Stage 07 amendment (shape changes vs the example above):** `status: "analyzed"` is
+present (`"segmented"`/`"failed"` remain legal values for future async/document
+stages). `score`/`band`/`health` are populated; `score_breakdown` is `{base,
+deductions[{issue_id, severity, points}], counts{low, medium, high, critical}}`
+— every deducted point links back to its issue id. Each requirement additionally
+carries `severity` (worst issue severity, `null` when clean), `issues_count`,
+`section`, and a `segmentation` evidence block (`strategy`, `confidence`,
+`start/end_offset`, `line_start/line_end`). Nested issues additionally carry
+`ai_explanation` (`null` until AI enhancement, Stage 17+); `suggested_rewrite`
+is `null` until rule rewrites land (post-Stage 07). There is NO top-level
+`issues` (nested-only — PROJECT_SPEC §7's `issues[]` shorthand materializes
+inside each requirement, not beside `requirements[]`) and NO `overall_severity`
+(the band already interprets the score). Issue offsets are
+**requirement-relative** (index into the requirement's own `text`, not the
+source). `requirements_count` always equals `len(requirements)`.
+
+**Scoring (deterministic — PROJECT_SPEC §6):** base 100; Low −5, Medium −10,
+High −15, Critical −20; requirement score clamped 0–100; analysis score =
+arithmetic mean of requirement scores (half-up rounding); bands 80–100 low ·
+60–79 moderate · 40–59 high · 0–39 very_high. Health dimensions are the same
+deductions partitioned, with each detector feeding exactly one dimension:
+`measurability` ← subjective-term, missing-measurable-criteria;
+`specificity` ← vague-quantifier, undefined-terminology, absolute-language;
+`clarity` ← pronoun-reference, ambiguous-operator, optional-language,
+passive-actor; `completeness` ← missing-constraint, incomplete-requirement.
+No hidden weighting exists anywhere. Same text + same code version ⇒
+identical scores, severities, offsets, and health (modulo generated ids).
+
+**Detector registry (fixed severities; pattern-level detail in code):**
+
+| `detector_id` | category | severity |
+|---|---|---|
+| `vague-quantifier` | Vague quantifiers | medium |
+| `subjective-term` | Subjective terms | medium |
+| `missing-measurable-criteria` | Missing measurable criteria | high |
+| `optional-language` | Optional language | low |
+| `pronoun-reference` | Pronoun references | medium (low for bare demonstratives) |
+| `ambiguous-operator` | Ambiguous operators | high multiword (`and/or`, `etc.`); low bare `or` / `as well as` |
+| `undefined-terminology` | Undefined terminology | low |
+| `absolute-language` | Absolute language | medium strong (`always`, `never`…); low bare `any`/`all` |
+| `passive-actor` | Passive voice / unclear actor | medium |
+| `missing-constraint` | Missing constraints | high |
+| `incomplete-requirement` | Incomplete requirements | critical dangling modal / placeholder; high fragment |
+
+Dedup: exact duplicates (same detector + span) collapse; identical spans from
+different detectors collapse to the higher severity (registry order breaks
+ties); overlapping-but-distinct spans are KEPT (e.g. `quickly` is vague AND
+`respond quickly` is untestable — two genuine concerns).
+
+**Honest limits (false positives are EXPECTED — the UI says so):** the detectors
+are lexical heuristics with no semantic understanding. They cannot tell a precise
+domain term from jargon (`undefined-terminology`), a deliberate choice from
+hedging (`optional-language`), or an idiom from a hedge (`could` is exempted only
+in known-safe frames like `could not`). Severity reflects pattern fixity, not
+measured impact — a HIGH is "this pattern usually needs a rewrite", never "this
+requirement is 15 points worse" in any validated sense. Scores are ranking /
+triage aids inside one analysis, not comparable quality measurements across
+documents, teams, or tool versions.
+
+**GET /analysis (list):** `§3` paging (`page` ≥ 1, `page_size` 1–100, default
+20) + `sort` ∈ `created_at | -created_at | score | -score` (default
+`-created_at`) + `band` ∈ `low | moderate | high | very_high` and `source_type`
+∈ `text | document` filters; unknown params ignored; misuse → `400
+validation_error`. Returns `Collection<AnalysisSummary>` (summary = detail
+minus `requirements[]`, plus `source_excerpt`).
+
+**GET /analysis/{id} and DELETE /analysis/{id}:** both resolve the id ONLY
+within the caller's analyses — missing AND foreign ids return identical `404
+analysis_not_found` (no existence oracle, §5 IDOR rule). GET returns the full
+detail; DELETE removes the analysis with requirements + issues cascading
+(verified by row-count, not just status) and returns `204` with no body. GETs
+are identity-authed only; DELETE additionally requires the CSRF double-submit
+(like every state-changing route).
 
 ### 4.4 Documents — Stage 09/10
 

@@ -49,6 +49,10 @@
     --color-signal-mist: #123528;
     --color-gold-mist: #38300f;
     --color-critic: #e58a8a;
+    --color-sev-low: #94a3b8;
+    --color-sev-medium: #d9a72e;
+    --color-sev-high: #e8762d;
+    --color-sev-critical: #e58a8a;
   }
 }
 

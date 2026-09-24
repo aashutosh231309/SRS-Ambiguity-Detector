@@ -1,11 +1,11 @@
-"""Analysis API E2E: POST /api/v1/analysis (TEXT segmentation only).
+"""Analysis API E2E: POST /api/v1/analysis (TEXT + deterministic engine).
 
-HTTP-level contract tests (API_CONTRACT §4.3, Stage 06 amendment): 201 shape
-(status `segmented`, NULL scores, ordered requirements with segmentation
-metadata), validation branches, verified-user gating, CSRF, ownership by
-construction, transactional rollback, requirements-cap refusal, and the
-per-user rate-limit budget. No emails flow in this suite — verification is
-flipped directly in the DB (mirrors test_auth's direct-write pattern).
+HTTP-level contract tests (API_CONTRACT §4.3, Stage 07 amendment): 201 shape
+(status `analyzed`, scored requirements with nested issues, breakdown, health),
+validation branches, verified-user gating, CSRF, ownership by construction,
+transactional rollback, requirements-cap refusal, and the per-user rate-limit
+budget. No emails flow in this suite — verification is flipped directly in the
+DB (mirrors test_auth's direct-write pattern).
 """
 
 import os
@@ -168,21 +168,32 @@ SAMPLE_SRS = (
 # --- 201 shape ----------------------------------------------------------------
 
 
-def test_create_analysis_returns_segmented_detail(analysis_client: TestClient) -> None:
+def test_create_analysis_returns_analyzed_detail(analysis_client: TestClient) -> None:
     _login_verified(analysis_client, "shape")
     resp = _analyze(analysis_client, {"title": "Login SRS", "text": SAMPLE_SRS})
     assert resp.status_code == 201
     body = resp.json()
     assert body["title"] == "Login SRS"
-    assert body["status"] == "segmented"
+    assert body["status"] == "analyzed"
     assert body["source_type"] == "text"
-    assert body["score"] is None
-    assert body["band"] is None
-    assert body["score_breakdown"] == {}
-    assert body["health"] is None
+    assert body["score"] == 96  # mean(100, 100, 90, 95), half-up
+    assert body["band"] == "low"
+    assert body["score_breakdown"]["base"] == 100
+    assert body["score_breakdown"]["counts"] == {
+        "low": 1,
+        "medium": 1,
+        "high": 0,
+        "critical": 0,
+    }
+    assert body["health"] == {
+        "measurability": 100,
+        "specificity": 90,  # `every` −10
+        "clarity": 95,  # `should` −5
+        "completeness": 100,
+    }
     assert body["ai_status"] == "skipped"
     assert body["ai_overview"] is None
-    assert body["issues_count"] == 0
+    assert body["issues_count"] == 2
     assert body["requirements_count"] == 4
     # Contract-exact shape: no top-level `issues` (nested-only), no `source_excerpt`
     # (summary-only) in the detail response.
@@ -196,7 +207,7 @@ def test_create_analysis_returns_segmented_detail(analysis_client: TestClient) -
     assert first["identifier"] == "FR-001"
     assert first["section"] == "Functional Requirements"
     assert first["text"] == "The system shall allow login with email."
-    assert first["score"] is None
+    assert first["score"] == 100  # clean: no findings
     assert first["severity"] is None
     assert first["issues_count"] == 0
     assert first["issues"] == []
@@ -207,6 +218,25 @@ def test_create_analysis_returns_segmented_detail(analysis_client: TestClient) -
     assert meta["line_start"] >= 1 and meta["line_end"] >= meta["line_start"]
     assert [r["position"] for r in body["requirements"]] == [0, 1, 2, 3]
     assert [r["identifier"] for r in rest] == ["1", None, None]
+    assert [r["score"] for r in body["requirements"]] == [100, 100, 90, 95]
+    assert [r["severity"] for r in body["requirements"]] == [None, None, "medium", "low"]
+
+    every, should = body["requirements"][2]["issues"], body["requirements"][3]["issues"]
+    assert [(i["detector_id"], i["severity"], i["phrase"]) for i in every] == [
+        ("absolute-language", "medium", "every")
+    ]
+    assert [(i["detector_id"], i["severity"], i["phrase"]) for i in should] == [
+        ("optional-language", "low", "should")
+    ]
+    flagged = every[0]
+    assert flagged["category"] == "Absolute language"
+    assert flagged["reason"] and flagged["recommendation"]  # explainability present
+    assert flagged["ai_explanation"] is None
+    assert "requirement_id" not in flagged  # nesting owns the parent link
+    # Breakdown deductions reference the exact nested issue ids.
+    nested_ids = {i["id"] for r in body["requirements"] for i in r["issues"]}
+    assert {d["issue_id"] for d in body["score_breakdown"]["deductions"]} == nested_ids
+    assert sorted(d["points"] for d in body["score_breakdown"]["deductions"]) == [5, 10]
 
 
 def test_title_falls_back_when_missing_or_blank(analysis_client: TestClient) -> None:
@@ -383,8 +413,8 @@ def test_persists_normalized_source_and_segment_rows(analysis_client: TestClient
     analyses, requirements = run(_db_snapshot())
     assert len(analyses) == 1
     stored = analyses[0]
-    assert stored["status"] == "segmented"
-    assert stored["score"] is None and stored["band"] is None
+    assert stored["status"] == "analyzed"
+    assert stored["score"] == 100 and stored["band"] == "low"  # both reqs clean
     assert stored["requirements_count"] == 2 and stored["issues_count"] == 0
     assert "\r" not in str(stored["source_text"])  # normalized form persisted
     assert str(stored["source_excerpt"]) == str(stored["source_text"])[:500]

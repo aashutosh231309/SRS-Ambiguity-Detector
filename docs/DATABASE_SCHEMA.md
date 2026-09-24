@@ -1,6 +1,6 @@
 # Database Schema
 
-> **Status:** IMPLEMENTED Stages 02–04 (Alembic revisions `0001`–`0002`). This file
+> **Status:** IMPLEMENTED Stages 02–07 (Alembic revisions `0001`–`0004`). This file
 > describes the ACTUAL schema — models in `backend/app/models/`, DDL in
 > `backend/alembic/versions/000*.py` (`alembic check` verifies they match).
 > Preferences are PLANNED (Stage 16) — see §3.8.
@@ -80,7 +80,7 @@ users 1──1 user_preferences / settings                   [PLANNED — Stage 
 | `title` | VARCHAR(200) | NOT NULL | Auto-derived, user-editable later |
 | `source_type` | VARCHAR(16) | NOT NULL, CHECK `text`/`document` | |
 | `source_excerpt` | TEXT | NULL | ≤500 chars, app-enforced (history lists) |
-| `status` | VARCHAR(16) | NOT NULL, CHECK `segmented` (+ pipeline states from Stage 07) | Added 0003 (Stage 06): honest pipeline position |
+| `status` | VARCHAR(16) | NOT NULL, CHECK `segmented`/`analyzed`/`failed` | Added 0003 (Stage 06), widened 0004 (Stage 07): POST persists `analyzed`; `failed` reserved for future async/document stages |
 | `source_text` | TEXT | NULL | Added 0003: normalized input; re-segmentation reproduces identical segments |
 | `score` | SMALLINT | NULL until scored, CHECK 0–100 | Relaxed 0003: NULL pre-detection (Stage 06 persists unscored rows) |
 | `band` | VARCHAR(16) | NULL until scored, CHECK `low`/`moderate`/`high`/`very_high` | Relaxed 0003: NULL pre-detection |

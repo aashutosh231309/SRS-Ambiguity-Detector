@@ -46,10 +46,12 @@
 > input-first. Actual Stage 06 delivered SRS text input + validation +
 > normalization + deterministic segmentation + persistence + structured preview —
 > absorbing roadmap-11 (segmentation) and the input halves of roadmap-07 (POST)
-> and roadmap-08 (input UI). Roadmap-06's detector exit criteria (≥13 detectors,
-> scoring) move to actual Stage 07; GET/list/delete and the scored-results UI
-> stay with roadmap-07/08 as planned. The table above keeps its original numbers;
-> STAGE_STATUS.md records the as-built mapping.
+> and roadmap-08 (input UI). Roadmap-06's detector exit criteria shipped in actual
+> Stage 07 as 11 production detectors + transparent scoring — and Stage 07 also
+> absorbed the roadmap-07/08 remainders (GET/list/delete, scored-results UI),
+> so the analysis spine is fully closed through scoring + CRUD + basic results.
+> The table above keeps its original numbers; STAGE_STATUS.md records the
+> as-built mapping.
 
 ## Dependency notes
 

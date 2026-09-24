@@ -1,10 +1,10 @@
-"""Analysis API boundary models (API_CONTRACT §4.3 — Stage 06 subset).
+"""Analysis API boundary models (API_CONTRACT §4.3 — Stage 07 subset).
 
-Stage 06 serves TEXT input only: `document_id` is accepted-but-rejected (400
-until the Stage 09 upload pipeline exists) and `options.ai_enhance` is
-accepted-and-ignored until Stage 19 (same posture as Stage 04's
-`turnstile_token`). Scores are NULL until the Stage 07 detection engine —
-never fabricated.
+TEXT input only: `document_id` is accepted-but-rejected (400 until the Stage 09
+upload pipeline exists) and `options.ai_enhance` is accepted-and-ignored until
+Stage 19 (same posture as Stage 04's `turnstile_token`). POST scores every
+requirement with the deterministic engine (`analyzed`); pre-Stage-07
+`segmented` rows still read back with NULL scores.
 """
 
 import uuid
@@ -57,10 +57,26 @@ class SegmentationMetaResponse(BaseModel):
     line_end: int
 
 
+class IssueResponse(BaseModel):
+    """One detector finding (contract §4.3 issue shape, exactly: no
+    `requirement_id` — the nesting already says which requirement owns it)."""
+
+    id: uuid.UUID
+    detector_id: str
+    category: str
+    severity: str
+    phrase: str
+    start_offset: int
+    end_offset: int
+    reason: str
+    recommendation: str
+    ai_explanation: str | None = None
+
+
 class RequirementResponse(BaseModel):
-    """One segmented requirement — unscored until Stage 07 (score/severity/
-    rewrite all NULL; `issues_count` 0; `issues` nested-empty per the binding
-    §4.3 example; `segmentation` always present)."""
+    """One scored requirement: `score` 0–100, `severity` = highest issue
+    severity (None when clean), `suggested_rewrite` None until rewrite
+    templates land (per-issue recommendations carry the guidance)."""
 
     id: uuid.UUID
     position: int
@@ -73,19 +89,19 @@ class RequirementResponse(BaseModel):
     suggested_rewrite: str | None = None
     suggestion_source: str | None = None
     segmentation: SegmentationMetaResponse
-    issues: list[Any] = Field(default_factory=list)  # IssueResponse lands Stage 07
+    issues: list[IssueResponse] = Field(default_factory=list)
 
 
 class AnalysisDetailResponse(BaseModel):
-    """POST /analysis result (contract §4.3 detail, Stage 06 amendment:
-    `status` added; `score`/`band` NULL pre-detection; every requirement
-    carries `section` + `segmentation` with nested-empty `issues`. No
-    top-level `issues` (nested-only per the §4.3 example) and no
-    `source_excerpt` (summary-only per the §4.3 definition)."""
+    """Analysis detail (contract §4.3, Stage 07 amendment: `status` is
+    `analyzed` for engine-scored rows (`segmented` only for pre-Stage-07
+    rows); `score`/`band`/`score_breakdown`/`health` populated by the
+    engine; issues nested per requirement; no top-level `issues`, no
+    `source_excerpt` (summary-only)."""
 
     id: uuid.UUID
     title: str
-    status: Literal["segmented"]
+    status: Literal["segmented", "analyzed"]
     source_type: Literal["text"]
     score: int | None = None
     band: str | None = None
@@ -98,5 +114,21 @@ class AnalysisDetailResponse(BaseModel):
     ai_status: Literal["skipped"] = "skipped"
     ai_error: str | None = None
     requirements: list[RequirementResponse] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+
+
+class AnalysisSummaryResponse(BaseModel):
+    """History-list row: detail minus `requirements`, plus `source_excerpt`."""
+
+    id: uuid.UUID
+    title: str
+    status: Literal["segmented", "analyzed"]
+    source_type: Literal["text"]
+    source_excerpt: str | None = None
+    score: int | None = None
+    band: str | None = None
+    requirements_count: int
+    issues_count: int
     created_at: datetime
     updated_at: datetime

@@ -42,14 +42,18 @@ function analysisResult(): AnalysisResult {
   return {
     id: "analysis-1",
     title: "Login SRS",
-    status: "segmented",
+    status: "analyzed",
     source_type: "text",
-    score: null,
-    band: null,
-    score_breakdown: {},
+    score: 100,
+    band: "low",
+    score_breakdown: {
+      base: 100,
+      deductions: [],
+      counts: { low: 0, medium: 0, high: 0, critical: 0 },
+    },
     requirements_count: 1,
     issues_count: 0,
-    health: null,
+    health: { measurability: 100, specificity: 100, clarity: 100, completeness: 100 },
     ai_overview: null,
     ai_provider: null,
     ai_status: "skipped",
@@ -61,7 +65,7 @@ function analysisResult(): AnalysisResult {
         identifier: "FR-001",
         section: null,
         text: "The system shall allow login.",
-        score: null,
+        score: 100,
         severity: null,
         issues_count: 0,
         suggested_rewrite: null,
@@ -117,9 +121,10 @@ describe("AnalyzerWorkspace", () => {
     });
     await user.click(screen.getByRole("button", { name: "Analyze requirements" }));
 
-    // Preview replaces the editor (detected requirements only).
-    expect(await screen.findByText("1 requirement detected")).toBeDefined();
+    // Result replaces the editor (score + the clean requirement).
+    expect(await screen.findByText("Analysis complete · 1 requirement · 0 issues")).toBeDefined();
     expect(screen.getByText("The system shall allow login.")).toBeDefined();
+    expect(screen.getByText("No issues — reads clearly.")).toBeDefined();
     expect(screen.queryByLabelText("SRS text")).toBeNull();
 
     // Starting over returns to the editor WITH the submission preserved.
@@ -127,7 +132,7 @@ describe("AnalyzerWorkspace", () => {
     expect(((await screen.findByLabelText("SRS text")) as HTMLTextAreaElement).value).toBe(
       "FR-001: The system shall allow login.",
     );
-    expect(screen.queryByText("1 requirement detected")).toBeNull();
+    expect(screen.queryByText("Analysis complete · 1 requirement · 0 issues")).toBeNull();
   });
 
   it("gates unverified users behind the verify nudge (no editor)", async () => {

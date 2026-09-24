@@ -1,8 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AnalysisResult, SegmentedRequirement } from "../types/analysis";
+import type { AnalysisResult, AnalysisSummary, SegmentedRequirement } from "../types/analysis";
+import type { Collection } from "./api";
 import { ApiRequestError } from "./api";
-import { ANALYZER_LIMITS, createAnalysis } from "./analysis";
+import {
+  ANALYZER_LIMITS,
+  createAnalysis,
+  deleteAnalysis,
+  getAnalysis,
+  listAnalyses,
+} from "./analysis";
 
 function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -22,7 +29,7 @@ function requirement(overrides: Partial<SegmentedRequirement> = {}): SegmentedRe
     identifier: "FR-001",
     section: "Functional Requirements",
     text: "The system shall allow login.",
-    score: null,
+    score: 100,
     severity: null,
     issues_count: 0,
     suggested_rewrite: null,
@@ -44,14 +51,18 @@ function analysisResult(): AnalysisResult {
   return {
     id: "analysis-1",
     title: "Login SRS",
-    status: "segmented",
+    status: "analyzed",
     source_type: "text",
-    score: null,
-    band: null,
-    score_breakdown: {},
+    score: 100,
+    band: "low",
+    score_breakdown: {
+      base: 100,
+      deductions: [],
+      counts: { low: 0, medium: 0, high: 0, critical: 0 },
+    },
     requirements_count: 1,
     issues_count: 0,
-    health: null,
+    health: { measurability: 100, specificity: 100, clarity: 100, completeness: 100 },
     ai_overview: null,
     ai_provider: null,
     ai_status: "skipped",
@@ -156,5 +167,117 @@ describe("analysis api layer", () => {
 
   it("mirrors the server limits", () => {
     expect(ANALYZER_LIMITS).toEqual({ maxChars: 200_000, maxTitle: 200 });
+  });
+});
+
+describe("getAnalysis", () => {
+  it("fetches one owned analysis by id", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        urls.push(String(input));
+        return jsonResponse(analysisResult());
+      }),
+    );
+    const result = await getAnalysis("analysis-1");
+    expect(result).toEqual(analysisResult());
+    expect(urls).toHaveLength(1);
+    expect(urls[0]).toMatch(/\/analysis\/analysis-1$/);
+  });
+
+  it("surfaces analysis_not_found for missing/foreign ids", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => envelope("analysis_not_found", 404)),
+    );
+    await expect(getAnalysis("someone-elses")).rejects.toMatchObject({
+      code: "analysis_not_found",
+    });
+  });
+});
+
+describe("listAnalyses", () => {
+  function pageResponse(): Collection<AnalysisSummary> {
+    return {
+      items: [
+        {
+          id: "analysis-1",
+          title: "Login SRS",
+          status: "analyzed",
+          source_type: "text",
+          source_excerpt: "FR-001: hi",
+          score: 100,
+          band: "low",
+          requirements_count: 1,
+          issues_count: 0,
+          created_at: "2026-09-24T00:00:00Z",
+          updated_at: "2026-09-24T00:00:00Z",
+        },
+      ],
+      page: 1,
+      page_size: 20,
+      total: 1,
+    };
+  }
+
+  it("requests the collection with no query when no params are given", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        urls.push(String(input));
+        return jsonResponse(pageResponse());
+      }),
+    );
+    const page = await listAnalyses();
+    expect(page.total).toBe(1);
+    expect(urls).toHaveLength(1);
+    expect(urls[0]).toMatch(/\/analysis$/);
+  });
+
+  it("encodes paging, sort, and filters into the query string", async () => {
+    let seen = "";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        seen = String(input);
+        return jsonResponse(pageResponse());
+      }),
+    );
+    await listAnalyses({ page: 2, page_size: 5, sort: "-score", band: "high" });
+    const query = new URL(seen).searchParams;
+    expect(query.get("page")).toBe("2");
+    expect(query.get("page_size")).toBe("5");
+    expect(query.get("sort")).toBe("-score");
+    expect(query.get("band")).toBe("high");
+  });
+});
+
+describe("deleteAnalysis", () => {
+  it("issues DELETE and resolves void on 204", async () => {
+    const inits: Array<RequestInit | undefined> = [];
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        urls.push(String(input));
+        inits.push(init);
+        return new Response(null, { status: 204 });
+      }),
+    );
+    await expect(deleteAnalysis("analysis-1")).resolves.toBeUndefined();
+    expect(urls[0]).toMatch(/\/analysis\/analysis-1$/);
+    expect(inits[0]?.method).toBe("DELETE");
+  });
+
+  it("surfaces analysis_not_found when the id is missing/foreign", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => envelope("analysis_not_found", 404)),
+    );
+    await expect(deleteAnalysis("someone-elses")).rejects.toMatchObject({
+      code: "analysis_not_found",
+    });
   });
 });

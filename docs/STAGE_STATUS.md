@@ -409,15 +409,90 @@ anon-401→logout→DELETE — green, 0 users left.
 **Next stage:** Stage 07 — Detection + scoring (fills `score`/`band`/`severity`,
 nested `issues[]`, breakdown; extends the `status` CHECK; keeps the §4.3 shape).
 
+### Stage 07 — Detection + Scoring + Analysis CRUD + Result UI ✅ (2026-09-24)
+Shipped the full detection stage AND absorbed the roadmap-07/08 remainders
+(GET/list/delete + scored-results UI) — the analysis spine is closed through
+scoring + CRUD + basic results. Details:
+
+**Completed:**
+- Deterministic engine (`analysis/detectors.py` + `engine.py`, pure, zero
+  I/O/network/LLM): 11 detectors → span-sorted dedup (exact-dupe collapse +
+  identical-span cross-detector merge to higher severity, registry-order
+  tiebreak; overlapping-but-distinct spans KEPT) → `100 − Σ` deductions
+  (5/10/15/20, clamp 0–100) → mean overall (half-up) + band + 4-dimension
+  health partitioned from the same deductions (measurability ←
+  subjective/measurable; specificity ← quantifier/undefined/absolute; clarity
+  ← pronoun/operator/optional/passive; completeness ←
+  constraint/incomplete). Same text ⇒ identical findings/scores/health
+  (modulo generated ids); SAMPLE_SRS pinned ([100,100,90,95], 96/low).
+- `POST /api/v1/analysis` runs segment → detect → score → transactional
+  persist (`analyses` + `requirements` + `issues`) and returns `201` ANALYZED
+  detail; `GET /analysis/{id}` returns the byte-identical detail; `GET
+  /analysis` pages newest-first (`sort`/`band`/`source_type`, unknown params
+  ignored); `DELETE /analysis/{id}` cascades (row-count verified) → `204`.
+  Missing AND foreign ids → identical `404 analysis_not_found`; GETs
+  identity-authed, DELETE CSRF-guarded; verified-gate + 20/min bucket kept.
+- `/analyzer` result UI: `AnalysisResultView` (score ring + band, severity
+  counts, heuristic footnote) + `RequirementCard` (union/clamped `<mark>`
+  highlighting, clean-state copy, provenance) + `IssueCard` ("Why was this
+  flagged?" disclosure per UI_UX_SPEC §8) + `ScoreRing` + `SeverityBadge`;
+  `SegmentPreview` + its tests deleted; `sev-*` tokens added (dark values).
+- Migration `0004` (CHECK `segmented|analyzed|failed`); new code
+  `analysis_not_found`; contract §4.3 rewritten (scoring, registry, dedup,
+  honest false-positive limits, list/detail/delete semantics).
+
+**Architectural decisions:**
+- Detectors are lexical heuristics BY DESIGN — severity reflects pattern
+  fixity, not validated impact; the contract + UI footnote say scores are
+  triage aids, not measurements (no inflated claims anywhere).
+- Overlap-Kept dedup: `quickly` (subjective) + `respond quickly`
+  (unmeasurable) are two genuine concerns — collapse only exact dupes and
+  identical spans, never distinct ones.
+- Requirement `severity` is worst-issue-or-null (clean ⇒ null, no badge);
+  overall interpretation is the score band only (NO `overall_severity`).
+- Frontend drops `requirement_id` (nesting carries ownership); offsets stay
+  requirement-relative end-to-end (highlighting foundation).
+- Same-client re-login (`cookies.clear()` for anon) is the multi-user E2E
+  pattern — nested `TestClient(app)` instances are unproven/risky.
+
+**Tests:** `verify.sh` ALL GREEN — pytest 234/234 (55 new: 26 detector incl.
+exemption frames, 16 scoring/dedup/bands/health, 13 CRUD E2E incl.
+POST==GET byte-equality, IDOR-identity, cascade row-counts, CSRF-on-DELETE,
+determinism), vitest 183/183 (22 new: 6 lib CRUD + 1 error copy + 15 across
+5 result components incl. span merge/clamp; 4 preview tests deleted with the
+component), eslint, `tsc`, prettier, `next build` (11 routes, incl.
+`/analyzer`). SSR curl: `/analyzer` 200 (`noindex,nofollow`, guard skeleton).
+Live journey through the REAL `lib/*` + real backend (temp probe, deleted
+after): register→verify→submit→201 ANALYZED (scores/issues/breakdown +
+offset-slicing asserted)→GET-detail-equality→list+filters→IDOR-404s→owner-
+DELETE→anon-401→account-deletion — green, 0 users/analyses left.
+
+**Known limitations (accepted, not bugs):**
+- NO browser in this sandbox (as in Stage 05/06) — result UI (ring, marks,
+  disclosures) responsive widths + visual polish NOT pixel-verified, NO
+  screenshots ship (`screenshots/` still empty). First browsed environment
+  must capture `stage07-*` at 390/768/1440 + the pending `stage05-*` set.
+- Detectors have known false-positive classes (domain jargon, deliberate
+  hedging, idioms) — documented as honest limits in API_CONTRACT §4.3, not
+  fixed by threshold-tuning (that would trade recalls silently).
+- `suggested_rewrite` is still `null` (rule rewrites post-Stage 07);
+  `ai_explanation`/`ai_overview` null until AI stages; no history UI yet
+  (list API ready, UI pending); `failed` status reserved, unwired.
+- `docker-compose.yml` STILL unvalidated (no Docker in sandbox) — recurring warning.
+
+**Next stage:** Stage 08 (as-built) — Document upload + extraction
+(roadmap-09/10); history UI can follow on the ready list API anytime.
+
 ## Current stage
-None active — Stage 06 complete; all success conditions hold (TEXT-only POST →
-SEGMENTED persist, deterministic segmentation with evidence, verified `/analyzer`
-with preview, 179/179 + 165/165 tests, live journey green, docs match).
-Next: **Stage 07 — Detection + scoring**.
+None active — Stage 07 complete; all success conditions hold (11 detectors →
+deterministic score/band/health, ANALYZED persist with nested issues,
+GET/list/DELETE with ownership, scored result UI with why-flagged
+explanations, 234/234 + 183/183 tests, live journey green, docs match).
+Next: **Stage 08 (as-built) — Document upload + extraction**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 Database → backend → auth backend → auth frontend → SRS input/segmentation/preview ✅ →
-detection+scoring → analysis GET/list/delete + scored-results UI → upload → extraction →
+detection+scoring+CRUD+result-UI ✅ → upload → extraction →
 history → report UI → dashboard data → dashboard viz → settings → AI vault →
 providers → overview/improvements → fallback → hardening → CAPTCHA/rate-limit →
 privacy → monitoring → performance → SEO foundation → SEO content →

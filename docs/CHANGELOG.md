@@ -4,6 +4,59 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.8.0] — Stage 07 — Detection + Scoring + Analysis CRUD + Result UI — 2026-09-24
+
+### Added
+- Deterministic detection engine (`analysis/detectors.py` + `engine.py`, pure,
+  no I/O): 11 detectors (vague-quantifier, subjective-term,
+  missing-measurable-criteria, optional-language, pronoun-reference,
+  ambiguous-operator, undefined-terminology, absolute-language, passive-actor,
+  missing-constraint, incomplete-requirement) → dedup (exact + identical-span
+  merge, registry-order tiebreak; overlapping spans kept) → 100−Σ deductions
+  (Low −5 / Medium −10 / High −15 / Critical −20, clamp 0–100) → mean overall
+  (half-up) + band + traceable 4-dimension health.
+- `POST /api/v1/analysis` now runs the full pipeline synchronously (segment →
+  detect → score → transactional persist of `analyses` + `requirements` +
+  `issues`) and returns `201` ANALYZED detail with populated scores, nested
+  issues, and `score_breakdown` (`base` + per-issue `deductions` + `counts`).
+- `GET /api/v1/analysis` (paged, newest-first, `sort`/`band`/`source_type`,
+  unknown params ignored), `GET /api/v1/analysis/{id}` (byte-identical to the
+  POST detail), `DELETE /api/v1/analysis/{id}` (`204`, requirements + issues
+  cascade). Missing AND foreign ids → identical `404 analysis_not_found`
+  (no existence oracle); GETs identity-authed, DELETE CSRF-guarded.
+- Scored result UI (`/analyzer`): `AnalysisResultView` (overall score ring +
+  band, severity counts, honest heuristic footnote) + `RequirementCard`
+  (score, worst-severity badge, `<mark>` highlighting with union/clamped
+  spans, clean-state copy, segmentation provenance) + `IssueCard` (category +
+  severity + quoted phrase, "Why was this flagged?" disclosure with detector
+  id, reason, suggested fix) + `ScoreRing` + `SeverityBadge` (dot + label,
+  never color alone). `SegmentPreview` removed.
+- Migration `0004`: `analyses.status` CHECK widened to
+  `segmented|analyzed|failed`; new error code `analysis_not_found`.
+- 55 backend tests (26 detector + 16 scoring/dedup/bands/health + 13 CRUD
+  E2E incl. IDOR-identity, cascade row-counts, CSRF-on-DELETE, determinism)
+  + 22 frontend tests (6 lib CRUD, 1 error copy, 15 across 5 result
+  components incl. span merge/clamp); 4 `SegmentPreview` tests deleted with
+  the component.
+
+### Changed
+- `/analyzer` intro copy describes detect + score (not just segment); submit
+  pending label is "Analyzing requirements…"; result replaces the editor with
+  the draft still preserved for Start-over.
+- Severity design tokens (`sev-low/medium/high/critical`) added to
+  `globals.css` with dark-mode values; frontend `AnalysisIssue` type drops
+  `requirement_id` (nesting carries it).
+
+### Contract (Stage 07 amendment to §4.3, all verified live + asserted in tests)
+- Detail gains populated `score`/`band`/`health` + `score_breakdown`
+  (`base`/`deductions`/`counts`); requirements gain `severity` (worst issue,
+  `null` when clean) + `issues_count`; nested issues gain `ai_explanation`
+  (`null` until Stage 17+); NO `overall_severity`; offsets are
+  requirement-relative; `suggested_rewrite` stays `null` (post-Stage 07).
+- Scoring formula, band edges, health partition, the 11-detector registry
+  with fixed severities, dedup rules, and the honest false-positive limits
+  are now binding contract text (§4.3).
+
 ## [0.7.0] — Stage 06 — SRS Input + Segmentation + Preview — 2026-09-24
 
 ### Added

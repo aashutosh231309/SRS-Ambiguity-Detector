@@ -26,7 +26,10 @@ class Analysis(Base, CreatedMixin, UpdatedMixin):
     __tablename__ = "analyses"
     __table_args__ = (
         CheckConstraint("score BETWEEN 0 AND 100", name="ck_analyses_score_range"),
-        CheckConstraint("status IN ('segmented')", name="ck_analyses_status"),
+        CheckConstraint(
+            "status IN ('segmented', 'analyzed', 'failed')",
+            name="ck_analyses_status",
+        ),
         CheckConstraint("source_type IN ('text', 'document')", name="ck_analyses_source_type"),
         CheckConstraint(
             "band IN ('low', 'moderate', 'high', 'very_high')", name="ck_analyses_band"

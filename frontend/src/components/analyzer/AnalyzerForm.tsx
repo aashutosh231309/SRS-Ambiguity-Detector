@@ -1,8 +1,9 @@
 "use client";
 
 /**
- * SRS text input + segmentation submit (Stage 06). Large editor with live
- * character/word counts, title field, client mirrors of server validation
+ * SRS text input + analysis submit (Stage 07: submit segments, detects, scores).
+ * Large editor with live character/word counts, title field, client mirrors of
+ * server validation
  * (instant feedback only — the server rules), pending/disabled states, and
  * server-error mapping by backend `code`. Counts are plain string math, NOT
  * segmentation — no per-keystroke analysis happens here, ever.
@@ -188,7 +189,7 @@ export function AnalyzerForm({
           {pending ? (
             <>
               <Loader2 className="size-4 animate-spin" aria-hidden />
-              Segmenting requirements…
+              Analyzing requirements…
             </>
           ) : (
             "Analyze requirements"

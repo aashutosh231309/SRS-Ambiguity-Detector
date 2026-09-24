@@ -18,6 +18,8 @@ export function analysisErrorMessage(err: unknown): string {
       return "That input produced more requirements than a single analysis can hold. Split it into smaller parts and analyze each one.";
     case "document_analysis_unavailable":
       return "Document analysis is not available yet.";
+    case "analysis_not_found":
+      return "That analysis doesn't exist or belongs to a different account.";
     case "validation_error":
       return "Please check your input and try again.";
     case "email_unverified":

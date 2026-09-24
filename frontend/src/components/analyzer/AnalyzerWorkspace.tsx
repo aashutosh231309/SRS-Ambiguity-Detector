@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * `/analyzer` workspace (Stage 06): the first private product surface.
+ * `/analyzer` workspace (Stage 07): the first private product surface.
  * Verified-users-only (`ProtectedRoute requireVerified` — the API gates the
- * same way). Owns the input→preview state: submitting swaps the editor for
- * the segmented preview; starting over returns to the editor WITH the last
- * submission preserved as a resumable draft.
+ * same way). Owns the input→result state: submitting swaps the editor for
+ * the scored analysis result; starting over returns to the editor WITH the
+ * last submission preserved as a resumable draft.
  */
 
 import { useState } from "react";
@@ -15,8 +15,8 @@ import { Container } from "@/components/layout/Container";
 import { Reveal } from "@/components/Reveal";
 
 import { ProtectedRoute } from "../auth/ProtectedRoute";
+import { AnalysisResultView } from "./AnalysisResultView";
 import { AnalyzerForm, type AnalyzerDraft } from "./AnalyzerForm";
-import { SegmentPreview } from "./SegmentPreview";
 
 export function AnalyzerWorkspace() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -32,10 +32,8 @@ export function AnalyzerWorkspace() {
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-ink-soft">
             Paste your SRS text below. We split it into individual requirements — numbered,
-            bulleted, ID-tagged, or plain paragraphs — and save the set for ambiguity detection.
-          </p>
-          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-ink-faint">
-            This build segments and saves; detection scores arrive with the next stage.
+            bulleted, ID-tagged, or plain paragraphs — then run the deterministic ambiguity
+            detectors over each one and score the set.
           </p>
         </Reveal>
 
@@ -48,7 +46,7 @@ export function AnalyzerWorkspace() {
             }}
           />
         ) : (
-          <SegmentPreview result={result} onReset={() => setResult(null)} />
+          <AnalysisResultView result={result} onReset={() => setResult(null)} />
         )}
       </Container>
     </ProtectedRoute>

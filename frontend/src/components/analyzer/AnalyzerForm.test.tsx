@@ -22,14 +22,18 @@ function analysisResult(): AnalysisResult {
   return {
     id: "analysis-1",
     title: "Login SRS",
-    status: "segmented",
+    status: "analyzed",
     source_type: "text",
-    score: null,
-    band: null,
-    score_breakdown: {},
+    score: 100,
+    band: "low",
+    score_breakdown: {
+      base: 100,
+      deductions: [],
+      counts: { low: 0, medium: 0, high: 0, critical: 0 },
+    },
     requirements_count: 1,
     issues_count: 0,
-    health: null,
+    health: { measurability: 100, specificity: 100, clarity: 100, completeness: 100 },
     ai_overview: null,
     ai_provider: null,
     ai_status: "skipped",
@@ -41,7 +45,7 @@ function analysisResult(): AnalysisResult {
         identifier: "FR-001",
         section: null,
         text: "The system shall allow login.",
-        score: null,
+        score: 100,
         severity: null,
         issues_count: 0,
         suggested_rewrite: null,
@@ -144,7 +148,7 @@ describe("AnalyzerForm", () => {
     });
     await user.click(screen.getByRole("button", { name: "Analyze requirements" }));
     expect(
-      screen.getByRole("button", { name: "Segmenting requirements…" }).getAttribute("disabled"),
+      screen.getByRole("button", { name: "Analyzing requirements…" }).getAttribute("disabled"),
     ).not.toBeNull();
     release(jsonResponse(analysisResult()));
     await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));

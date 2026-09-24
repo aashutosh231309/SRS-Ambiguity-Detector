@@ -26,6 +26,12 @@ describe("analysisErrorMessage", () => {
     );
   });
 
+  it("maps analysis_not_found to the ownership-safe copy", () => {
+    expect(analysisErrorMessage(apiError("analysis_not_found"))).toBe(
+      "That analysis doesn't exist or belongs to a different account.",
+    );
+  });
+
   it("maps session/permission codes", () => {
     expect(analysisErrorMessage(apiError("unauthenticated"))).toContain("log in again");
     expect(analysisErrorMessage(apiError("email_unverified"))).toContain("verify your email");
