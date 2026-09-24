@@ -4,6 +4,38 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.12.0] — Stage 11 — Analytics Dashboard & Statistics (`/dashboard`) — 2026-09-24
+
+### Added
+- `GET /api/v1/dashboard?range=30d|12w` (verified users): one
+  ownership-scoped aggregate snapshot — totals, scored-only average
+  (half-up 1dp), newest run, high-risk / improved counts, top category,
+  full-vocabulary band/source/severity distributions, non-zero categories,
+  zero-filled UTC trend buckets (30 days / 12 Monday-start weeks), 5 newest
+  summaries. Empty accounts get zeros/empties/nulls (never 404); unscored
+  runs count toward totals/volume only; no `user_id` param, no id leaks.
+- Authenticated `/dashboard` route (`noindex,nofollow`): type-led stats
+  strip + sources line; score-trend section (30d/12w control, lazy
+  client-only Recharts area + volume bars on honest axes, legend, spoken
+  summary, full data table, nulls as gaps); latest-run card; band strip;
+  account-wide category/severity sections; compact recent-runs list into
+  saved reports; heuristic footnote; loading / session / retryable-error /
+  first-use / partial-data states throughout.
+- `recharts` dependency (first imported — and first installed — at this
+  stage, per the architecture's dependency discipline).
+
+### Changed
+- Post-auth landing is now `/dashboard` (was the temporary fixed `/`,
+  which stays untouched for the SEO/marketing stage).
+- `CategoryBars` gains optional `caption` + `headingLevel` props for the
+  dashboard (report default preserved).
+
+### Contract (Stage 11 amendment to §4.5, all asserted in tests)
+- Five planned endpoints collapse into one `GET /dashboard` snapshot
+  (same metric vocabulary, one round trip); documented: request/response
+  shape, empty behavior, UTC bucket semantics, scored-vs-unscored
+  participation per metric, rounding, tiebreaks, ownership, errors.
+
 ## [0.11.0] — Stage 10 — Analysis History UI (`/history`) — 2026-09-24
 
 ### Added

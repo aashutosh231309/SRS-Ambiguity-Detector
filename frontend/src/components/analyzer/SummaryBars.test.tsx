@@ -29,6 +29,19 @@ describe("CategoryBars", () => {
     render(<CategoryBars counts={[]} />);
     expect(screen.queryByRole("heading", { name: "Issue categories" })).toBeNull();
   });
+
+  it("accepts a dashboard caption and heading level", () => {
+    render(
+      <CategoryBars
+        counts={[{ category: "Vague quantifiers", count: 4 }]}
+        caption="Across all your analyses."
+        headingLevel="h2"
+      />,
+    );
+    expect(screen.getByRole("heading", { level: 2, name: "Issue categories" })).toBeDefined();
+    expect(screen.getByText("Across all your analyses.")).toBeDefined();
+    expect(screen.queryByText(/this analysis only/)).toBeNull();
+  });
 });
 
 describe("HealthBars", () => {

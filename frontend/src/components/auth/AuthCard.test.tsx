@@ -209,7 +209,7 @@ describe("AuthCard", () => {
         <AuthCard initialMode="login" />
       </AuthProvider>,
     );
-    await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/dashboard"));
     expect(screen.queryByRole("form")).toBeNull();
   });
 
@@ -253,7 +253,7 @@ describe("AuthCard", () => {
     await user.type(form.getByLabelText("Email"), "ada@example.com");
     await user.type(form.getByLabelText("Password"), "correct-password-1");
     await user.click(form.getByRole("button", { name: "Log in" }));
-    await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/dashboard"));
   });
 
   it("shows the verify-pending panel after signup (no navigation)", async () => {

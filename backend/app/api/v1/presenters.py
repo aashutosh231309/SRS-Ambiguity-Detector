@@ -14,6 +14,17 @@ from app.schemas.analysis import (
     RequirementResponse,
     SegmentationMetaResponse,
 )
+from app.schemas.dashboard import (
+    DashboardBandCount,
+    DashboardCategoryCount,
+    DashboardLatestResponse,
+    DashboardResponse,
+    DashboardSeverityCount,
+    DashboardSourceCount,
+    DashboardStatsResponse,
+    DashboardTopCategoryResponse,
+    DashboardTrendBucket,
+)
 from app.services.analysis import (
     AnalysisDetail,
     AnalysisSummary,
@@ -21,6 +32,7 @@ from app.services.analysis import (
     IssueDetail,
     RequirementDetail,
 )
+from app.services.dashboard import DashboardData
 
 _VALID_STATUSES = ("segmented", "analyzed", "failed")
 _VALID_SOURCE_TYPES = ("text", "document")
@@ -122,4 +134,67 @@ def summary_response(item: AnalysisSummary) -> AnalysisSummaryResponse:
         issues_count=item.issues_count,
         created_at=item.created_at,
         updated_at=item.updated_at,
+    )
+
+
+def dashboard_response(data: DashboardData) -> DashboardResponse:
+    """Dashboard snapshot → response (Stage 11). Pydantic re-validates the
+    fixed vocabularies (bands/severities/sources) on the way out."""
+    stats = data.stats
+    return DashboardResponse(
+        range=data.range,  # type: ignore[arg-type]  # Literal["30d", "12w"] by construction
+        stats=DashboardStatsResponse(
+            analyses_total=stats.analyses_total,
+            analyses_scored=stats.analyses_scored,
+            requirements_total=stats.requirements_total,
+            issues_total=stats.issues_total,
+            avg_score=stats.avg_score,
+            latest=(
+                DashboardLatestResponse(
+                    id=stats.latest.id,
+                    title=stats.latest.title,
+                    score=stats.latest.score,
+                    band=stats.latest.band,
+                    created_at=stats.latest.created_at,
+                )
+                if stats.latest is not None
+                else None
+            ),
+            high_risk_count=stats.high_risk_count,
+            improved_count=stats.improved_count,
+            top_category=(
+                DashboardTopCategoryResponse(
+                    category=stats.top_category.category,
+                    count=stats.top_category.count,
+                )
+                if stats.top_category is not None
+                else None
+            ),
+        ),
+        bands=[
+            DashboardBandCount(band=item.band, count=item.count)  # type: ignore[arg-type]  # fixed order
+            for item in data.bands
+        ],
+        sources=[
+            DashboardSourceCount(source_type=item.source_type, count=item.count)  # type: ignore[arg-type]
+            for item in data.sources
+        ],
+        categories=[
+            DashboardCategoryCount(category=item.category, count=item.count)
+            for item in data.categories
+        ],
+        severity=[
+            DashboardSeverityCount(severity=item.severity, count=item.count)  # type: ignore[arg-type]  # fixed order
+            for item in data.severity
+        ],
+        trend=[
+            DashboardTrendBucket(
+                bucket=item.bucket,
+                avg_score=item.avg_score,
+                analyses=item.analyses,
+                requirements=item.requirements,
+            )
+            for item in data.trend
+        ],
+        recent=[summary_response(item) for item in data.recent],
     )

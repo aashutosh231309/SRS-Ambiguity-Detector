@@ -712,13 +712,77 @@ identical numbers → delete → confirm → row gone without navigation.
 (roadmap-09 remainder: no download/list/purge-by-id surface yet) and/or
 Dashboard data (roadmap-14: stats/categories/trends endpoints).
 
+### Stage 11 — Analytics Dashboard & Statistics (`/dashboard`) ✅ (2026-09-24)
+Authenticated, verified-users-only dashboard turning persisted history into
+aggregate statistics — totals, averages, band/source/category/severity
+distributions, a UTC-bucketed score trend, and recent runs. ONE aggregate
+endpoint (the planned five collapse into a single snapshot — same metric
+vocabulary, one round trip, no N+1); the UI renders server aggregates
+verbatim and derives nothing. Details:
+
+**Completed:**
+- Backend (contract §4.5 amendment): `GET /api/v1/dashboard?range=30d|12w` —
+  router → schemas → service → repository, ~9 indexed aggregate queries, zero
+  N+1. UTC day buckets (30d) / Monday-start UTC weeks (12w), trailing window
+  ending today, ALWAYS zero-filled; averages half-up 1dp over SCORED runs
+  only; unscored runs count toward totals/volume but never averages/bands/
+  improvements/risk; `latest` = newest run overall (nullable score);
+  `improved_count` = strict improvements oldest-first; `high_risk_count` =
+  persisted high/very_high; `top_category` count-desc with alphabetical
+  tiebreak; full-vocabulary bands/severities/sources (zeros included);
+  non-zero categories only (11-detector vocabulary needs no top-N cut); 5
+  newest summaries via the existing list path. No `user_id` param exists;
+  no ownership ids leak.
+- `/dashboard` route (verified-guard + `noindex,nofollow`): `DashboardScreen`
+  with loading skeleton, session-gone nudge, code-mapped error + retry,
+  wrong-shape rejection, deliberate first-use panel (no zero charts), and
+  honest partial states (unscored latest, zero issues, empty windows).
+- Sections: type-led stats strip + sources line; `DashboardTrend` (documented
+  30d/12w range control, lazy client-only Recharts area+bars with fixed 0–100
+  axis + own count axis, real legend, spoken summary, full `<details>` data
+  table, nulls as gaps/“—”, stale dimming on range change, reduced-motion
+  respected); latest-run card reusing `ScoreRing`; band strip reusing
+  `BAND_LABELS`; `CategoryBars` reuse (new optional caption + heading-level
+  props, report default preserved); `SeverityMix` (same §7 `sev-*` language
+  over aggregates); `RecentAnalyses` compact report links + history entry.
+- Post-auth landing flips `/` → `/dashboard` (UI_UX_SPEC §5: the fixed `/`
+  was temporary “until the dashboard stage”); the `/` placeholder itself is
+  untouched for the SEO/marketing stage.
+- 18 backend tests (`test_dashboard.py`: auth gating, empty shape, single/
+  multi, rounding half-up incl. the 70.25 → 70.3 banker's trap, tiebreaks,
+  failed participation, isolation, `user_id` ignorance, 12w Mondays,
+  multi-run buckets, out-of-window runs, bad range, recent cap, leak scan) +
+  19 frontend tests (screen states/range/stale/partials/a11y outline,
+  trend mapping/table/empty/stale, severity, recent, `CategoryBars` props,
+  `getDashboard` passthrough + error code).
+
+**Verification:** 360/360 pytest, 278/278 vitest (40 files), ruff + eslint +
+`tsc` + prettier + mypy clean, `./scripts/verify.sh` green (`○ /dashboard`
+in build — static shell, snapshot loads client-side behind the verified
+guard). Live journey: register → verify → text + upload analyses → dashboard
+aggregates both (totals/avg/bands/sources/categories/severity/trend/recent
+all match the persisted rows) → range switch re-buckets → recent opens the
+Stage 09 report → post-auth landing is `/dashboard`.
+
+**Known limitations (accepted, not bugs):**
+- NO browser in this sandbox (as in Stages 05–10) — dashboard route, trend
+  chart, range control, cards, and responsive widths NOT pixel-verified, NO
+  screenshots ship (`screenshots/` still empty). First browsed environment
+  must capture `stage11-*` at 390/768/1440 + the pending
+  `stage05/06/07/08/09/10-*` sets.
+- `docker-compose.yml` STILL unvalidated (no Docker in sandbox) — recurring warning.
+
+**Next stage:** Stage 12 (as-built) — document list/download endpoints
+(roadmap-09 remainder: no download/list/purge-by-id surface yet) and/or
+Settings/profile/security (roadmap-16).
+
 ## Current stage
-None active — Stage 10 complete; all success conditions hold (history page
-with server-driven search/filter/sort/paging, ownership-safe rows linking to
-the Stage 09 report, shared confirm-delete, honest empties/errors, backend
-`q` + summary `document` pointer, 342/342 + 259/259 tests, journey green,
+None active — Stage 11 complete; all success conditions hold (dashboard page
+with server-computed aggregates, ownership-safe snapshot, UTC-bucketed
+trend, honest empty/partial states, accessible lazy chart + data table,
+post-auth landing on `/dashboard`, 360/360 + 278/278 tests, journey green,
 docs match).
-Next: **Stage 11 (as-built) — document list/download and/or Dashboard data**.
+Next: **Stage 12 (as-built) — document list/download and/or Settings**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 Database → backend → auth backend → auth frontend → SRS input/segmentation/preview ✅ →

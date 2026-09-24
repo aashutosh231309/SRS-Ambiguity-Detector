@@ -23,7 +23,7 @@ import type {
  * Where successful auth lands. TEMPORARY until the dashboard stage: a fixed
  * allowlist entry (docs/SECURITY_SPEC.md §6), never a `?next=` parameter.
  */
-export const AUTH_LANDING_PATH = "/";
+export const AUTH_LANDING_PATH = "/dashboard";
 
 export async function register(input: RegisterInput): Promise<AuthSession> {
   return api<AuthSession>("/auth/register", {

@@ -61,8 +61,14 @@
 > plus the detail `document` pointer and failed/segmented read-back rules.
 > Actual Stage 10 (2026-09-24) then shipped roadmap-12 (analysis history) as
 > `/history` — server search (`q`), band/source filters, backend sort,
-> paging, per-row delete — plus the summary `document` pointer. Roadmap-09's
-> download/list/purge-by-id surface is still the outstanding remainder.
+> paging, per-row delete — plus the summary `document` pointer. Actual
+> Stage 11 (2026-09-24) absorbed roadmap-14 AND roadmap-15 together as
+> `/dashboard` — one aggregate `GET /dashboard` endpoint (the planned five
+> collapse into a single snapshot) plus the statistics UI (totals, trend,
+> distributions, recent runs; Recharts lands here, its earmarked stage) —
+> and flipped the post-auth landing to `/dashboard` per UI_UX_SPEC §5.
+> Roadmap-09's download/list/purge-by-id surface is still the outstanding
+> remainder.
 > The table above keeps its original numbers; STAGE_STATUS.md records the
 > as-built mapping.
 

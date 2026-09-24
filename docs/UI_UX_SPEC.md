@@ -83,7 +83,7 @@ reset never auto-logs-in. Copy rules: switch on backend `code` (never `message`)
 anti-enumeration responses stay non-committal ("If an account exists…"); tokens are
 never displayed or logged. `ProtectedRoute` (+ `requireVerified` nudge) and an
 unmounted-but-tested `ChangePasswordForm` ship for later stages; post-auth landing
-is the temporary fixed `/` until the dashboard stage.
+is `/dashboard` (Stage 11 — the fixed `/` was temporary until the dashboard stage).
 
 ## 6. Motion language (one system, used selectively)
 
@@ -133,7 +133,8 @@ reasoning (+ optional AI explanation when available). No black boxes.
 - [x] Product: AnalyzerWorkspace tabs + DocumentUploadForm dropzone (Stage 08 — feature-local input-method tabs with arrow-key nav; dropzone + picker for exactly one PDF/DOCX/TXT with honest indeterminate progress; shared Tabs/Dropzone primitives still pending)
 - [x] Product: HealthBars, CategoryBars, DeleteConfirm dialog (Stage 09 — explicit-confirm delete on the report route; `DELETE`-typing variant still future; Stage 10 — compact row variant + `onDeleted` refetch path for history)
 - [x] Product: HistoryScreen + HistoryToolbar + HistoryTable + HistoryPagination (Stage 10 — authenticated `/history` on the list API: debounced server search, band/source filters, backend sort, envelope-driven paging, semantic table → CSS cards, distinct no-analyses/no-match empties)
-- [ ] Product: Navbar, TrendChart, SettingsForms, ProviderCard (owning stages)
+- [x] Product: DashboardScreen + DashboardTrend + TrendChart + SeverityMix + RecentAnalyses (Stage 11 — authenticated `/dashboard` on one aggregate snapshot: stats strip, lazy client-only Recharts area + volume bars with legend + spoken summary + data table, latest-run gauge, band/category/severity distributions, recent links, first-use + partial states)
+- [ ] Product: Navbar, SettingsForms, ProviderCard (owning stages)
 - [ ] Marketing: Hero, FeatureGrid, HowItWorks steps, CTA, Footer, Breadcrumbs (Stage 26+)
 
 Rules: no fake buttons (every control does something or doesn't ship); no placeholder

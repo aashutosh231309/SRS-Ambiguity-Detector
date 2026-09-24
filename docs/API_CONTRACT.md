@@ -321,16 +321,79 @@ New codes: `unsupported_file_type`, `invalid_filename`, `empty_file`,
 (`{max_chars}`), `too_many_files` (`{max_files}`), `extraction_failed`,
 `no_extractable_text`, `document_processing_timeout`, `document_not_found`.
 
-### 4.5 Dashboard — Stage 14
+### 4.5 Dashboard — Stage 11 ✅ (as-built; absorbs planned Stage 14–15)
+
+**Stage 11 amendment (transport consolidation):** the planned five endpoints
+collapsed into ONE aggregate snapshot — one round trip, one deterministic
+snapshot, no N+1. The metric vocabulary is unchanged (totals, average score,
+band/source/category/severity distributions, trend + activity buckets, recent
+summaries); only the transport differs from the original five-endpoint plan
+(`/stats`, `/categories`, `/trends`, `/severity`, `/activity`).
 
 ```
-GET /dashboard/stats       → {totals:{analyses,requirements,issues}, avg_score, high_risk_count, top_category, improved_count}
-GET /dashboard/categories  → [{category,count}] (top N + "Other")
-GET /dashboard/trends      → [{bucket:"2026-09-01", avg_score, analyses}] (bucket=day|week, `range` param)
-GET /dashboard/severity    → [{severity,count}]
-GET /dashboard/activity    → [{bucket, analyses, requirements}]
+GET /dashboard?range=30d|12w → 200 DashboardSnapshot (verified users only)
 ```
-All scoped to the authenticated user. Empty-state: zeros + empty arrays, never 404.
+
+**Request:** `range` ∈ `30d` (default) | `12w`. Unknown params ignored; a bad
+`range` → `400 validation_error`. No `user_id` param exists — the snapshot
+always describes the caller.
+
+**Response shape:**
+```json
+{
+  "range": "30d",
+  "stats": {
+    "analyses_total": 12, "analyses_scored": 10,
+    "requirements_total": 96, "issues_total": 41,
+    "avg_score": 76.5,
+    "latest": {"id": "uuid", "title": "…", "score": 82, "band": "low",
+               "created_at": "iso"},
+    "high_risk_count": 2, "improved_count": 4,
+    "top_category": {"category": "Vague quantifiers", "count": 11}
+  },
+  "bands": [{"band": "low", "count": 5}],
+  "sources": [{"source_type": "text", "count": 9}],
+  "categories": [{"category": "Vague quantifiers", "count": 11}],
+  "severity": [{"severity": "medium", "count": 20}],
+  "trend": [{"bucket": "2026-09-01", "avg_score": 76.5, "analyses": 2,
+             "requirements": 9}],
+  "recent": ["…up to 5 AnalysisSummary, newest first…"]
+}
+```
+
+**Ownership:** every aggregate filters the caller's `owner_id` (analyses,
+denormalized issue ownership, document join for recent summaries). No
+`owner_id` / `user_id` appears anywhere in the response. IDOR-style probing
+is impossible — there is no target selector to tamper with.
+
+**Empty history:** `200` (never 404) — zeros, `[]` categories / recent,
+`avg_score` / `latest` / `top_category` null, all-four bands/severities and
+both sources at zero, and a zero-filled trend window.
+
+**Time semantics:** buckets are UTC calendar days (`30d`: 30 trailing days
+ending today) or Monday-start UTC weeks (`12w`: 12 trailing weeks ending this
+week); `bucket` is `YYYY-MM-DD` (the day, or the week's Monday). The window
+is ALWAYS zero-filled — every bucket present, empty ones carrying
+`analyses: 0, requirements: 0, avg_score: null`. Totals (`stats`) are
+all-time; only `trend` is windowed.
+
+**Scored-vs-unscored participation (locked by tests):** `failed`/legacy
+unscored runs count toward `analyses_total`, trend-bucket `analyses`, and
+`requirements_total`, but NEVER toward `avg_score` (bucket or overall),
+`bands`, `improved_count`, or `high_risk_count`. `latest` is the newest run
+overall — its `score`/`band` may be null. `avg_score` rounds half-up to 1
+decimal (score-scale convention). `improved_count` = scored runs
+(oldest-first) scoring STRICTLY above the preceding scored run — a neutral
+count, not a verdict. `high_risk_count` = scored runs with persisted band
+`high`/`very_high`. `top_category` = highest count, ties broken
+alphabetically; `categories` lists non-zero categories only (the fixed
+11-detector vocabulary needs no top-N cut), count desc.
+
+**Errors:** `401 unauthenticated` (no/expired session) / `403
+email_unverified` (unverified accounts can't read aggregates) / `400
+validation_error` (bad `range`) / `5xx` generic. No paged envelope — the
+snapshot is bounded by construction (fixed vocabularies + zero-filled window
++ 5 recents).
 
 ### 4.6 AI providers — Stage 17/18
 

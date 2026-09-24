@@ -122,7 +122,7 @@ describe("VerifyEmailForm", () => {
     ).toHaveLength(1);
     expect(document.body.textContent?.includes(TOKEN)).toBe(false);
     await user.click(screen.getByRole("button", { name: "Continue" }));
-    expect(nav.replace).toHaveBeenCalledWith("/");
+    expect(nav.replace).toHaveBeenCalledWith("/dashboard");
   });
 
   it("offers resend recovery on an expired link (token never shown)", async () => {
