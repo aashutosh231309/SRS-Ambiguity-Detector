@@ -107,6 +107,12 @@ class Settings(BaseSettings):
     TURNSTILE_SECRET_KEY: str | None = None
     TURNSTILE_VERIFY_URL: str = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
     TURNSTILE_TIMEOUT_SECONDS: float = 3.0
+    # --- Stage 24: monitoring / Sentry (optional; never required for local dev) ---
+    SENTRY_DSN: str | None = None
+    SENTRY_ENVIRONMENT: str | None = None
+    SENTRY_RELEASE: str | None = None
+    # Tracing is disabled by default; operators can enable a low sample rate.
+    SENTRY_TRACES_SAMPLE_RATE: float = 0.0
     # --- Stage 14: AI enhancement budgets (AI_PROVIDER_SPEC §2) ---
     # Per-call provider timeout (seconds); adapters clamp every `timeout_s`
     # into [1, AI_MAX_TIMEOUT_S]. DEFAULT > MAX is operator misconfig and
@@ -166,6 +172,12 @@ class Settings(BaseSettings):
         # override above that fails boot loudly rather than silently.
         if not 1 <= self.DOCUMENT_DOWNLOAD_URL_MINUTES <= 15:
             raise ValueError("DOCUMENT_DOWNLOAD_URL_MINUTES must be within [1, 15].")
+        return self
+
+    @model_validator(mode="after")
+    def _sentry_sampling_valid(self) -> "Settings":
+        if not 0 <= self.SENTRY_TRACES_SAMPLE_RATE <= 1:
+            raise ValueError("SENTRY_TRACES_SAMPLE_RATE must be within [0, 1].")
         return self
 
     @property

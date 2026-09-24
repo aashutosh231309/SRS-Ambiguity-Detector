@@ -335,6 +335,7 @@ async def analyze_text(
         len(segments),
         len(all_findings),
         overall,
+        extra={"analysis_stage": "deterministic"},
     )
     return AnalysisDetail(
         id=analysis.id,
@@ -515,7 +516,12 @@ async def delete_analysis(
     await AnalysisRepository(session).delete(row)
     if document_id is not None:
         await _delete_orphaned_document(session, owner_id=owner_id, document_id=document_id)
-    logger.info("analysis deleted analysis_id=%s owner_id=%s", analysis_id, owner_id)
+    logger.info(
+        "analysis deleted analysis_id=%s owner_id=%s",
+        analysis_id,
+        owner_id,
+        extra={"analysis_stage": "delete"},
+    )
 
 
 async def _delete_orphaned_document(
@@ -535,7 +541,12 @@ async def _delete_orphaned_document(
         return
     await DocumentRepository(session).delete(doc)
     get_storage_backend().delete(doc.storage_path)
-    logger.info("orphaned document purged document_id=%s owner_id=%s", document_id, owner_id)
+    logger.info(
+        "orphaned document purged document_id=%s owner_id=%s",
+        document_id,
+        owner_id,
+        extra={"document_stage": "orphan_purge", "storage_operation": "delete"},
+    )
 
 
 async def retry_analysis_ai(

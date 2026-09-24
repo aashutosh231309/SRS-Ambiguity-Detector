@@ -51,6 +51,7 @@ from app.ai.providers import (
 from app.ai.registry import PROVIDER_METADATA, resolve_adapter
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.core.monitoring import capture_message
 from app.core.vault import VaultError, decrypt_secret
 from app.repositories.ai_providers import AICredentialRepository
 from app.repositories.analysis import AnalysisRepository, RequirementRepository
@@ -148,6 +149,20 @@ async def enhance_analysis(
                 detail.id,
                 owner_id,
                 provider_id,
+                extra={
+                    "analysis_stage": "ai_enhancement",
+                    "ai_provider": provider_id,
+                    "error_code": "vault_error",
+                },
+            )
+            capture_message(
+                "ai enhancement vault failure",
+                level="error",
+                context={
+                    "analysis_stage": "ai_enhancement",
+                    "ai_provider": provider_id,
+                    "error_code": "vault_error",
+                },
             )
             if first_message is None:
                 first_message = _VAULT_MESSAGE
@@ -158,11 +173,25 @@ async def enhance_analysis(
             )
         except ProviderError as exc:
             logger.info(
-                "ai enhancement provider failed analysis_id=%s owner_id=%s " "provider=%s code=%s",
+                "ai enhancement provider failed analysis_id=%s owner_id=%s provider=%s code=%s",
                 detail.id,
                 owner_id,
                 provider_id,
                 exc.code,
+                extra={
+                    "analysis_stage": "ai_enhancement",
+                    "ai_provider": provider_id,
+                    "error_code": exc.code,
+                },
+            )
+            capture_message(
+                "ai enhancement provider failed",
+                level="warning",
+                context={
+                    "analysis_stage": "ai_enhancement",
+                    "ai_provider": provider_id,
+                    "error_code": exc.code,
+                },
             )
             if first_message is None:
                 first_message = exc.user_message
@@ -177,6 +206,20 @@ async def enhance_analysis(
                 owner_id,
                 provider_id,
                 type(exc).__name__,
+                extra={
+                    "analysis_stage": "ai_enhancement",
+                    "ai_provider": provider_id,
+                    "exception_class": type(exc).__name__,
+                },
+            )
+            capture_message(
+                "ai enhancement crashed",
+                level="error",
+                context={
+                    "analysis_stage": "ai_enhancement",
+                    "ai_provider": provider_id,
+                    "exception_class": type(exc).__name__,
+                },
             )
             if first_message is None:
                 first_message = _UNEXPECTED_MESSAGE
@@ -208,6 +251,12 @@ async def enhance_analysis(
             overview.model,
             len(rewrites),
             overview.latency_ms,
+            extra={
+                "analysis_stage": "ai_enhancement",
+                "ai_provider": provider_id,
+                "ai_model": overview.model,
+                "duration_ms": overview.latency_ms,
+            },
         )
         return replace(
             detail,
@@ -232,6 +281,7 @@ async def enhance_analysis(
         detail.id,
         owner_id,
         ",".join(attempted),
+        extra={"analysis_stage": "ai_enhancement", "error_code": "ai_unavailable"},
     )
     return replace(detail, ai_status="failed", ai_error=message)
 
@@ -262,21 +312,39 @@ async def _improve_requirements(
                 )
             except ProviderError as exc:
                 logger.info(
-                    "ai improvement skipped analysis_id=%s requirement_id=%s "
-                    "provider=%s code=%s",
+                    "ai improvement skipped analysis_id=%s requirement_id=%s provider=%s code=%s",
                     detail.id,
                     item.id,
                     provider_id,
                     exc.code,
+                    extra={
+                        "analysis_stage": "ai_improvement",
+                        "ai_provider": provider_id,
+                        "error_code": exc.code,
+                    },
                 )
                 return None
             except Exception as exc:
                 logger.error(
-                    "ai improvement crashed analysis_id=%s requirement_id=%s " "provider=%s exc=%s",
+                    "ai improvement crashed analysis_id=%s requirement_id=%s provider=%s exc=%s",
                     detail.id,
                     item.id,
                     provider_id,
                     type(exc).__name__,
+                    extra={
+                        "analysis_stage": "ai_improvement",
+                        "ai_provider": provider_id,
+                        "exception_class": type(exc).__name__,
+                    },
+                )
+                capture_message(
+                    "ai improvement crashed",
+                    level="error",
+                    context={
+                        "analysis_stage": "ai_improvement",
+                        "ai_provider": provider_id,
+                        "exception_class": type(exc).__name__,
+                    },
                 )
                 return None
             return (item.id, result.text)

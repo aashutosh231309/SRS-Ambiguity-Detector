@@ -1,13 +1,18 @@
 """Structured logging with aggressive secret redaction.
 
-``RedactingFilter`` scrubs sensitive key=value pairs and bearer tokens from every log
-record. Installed in :func:`configure_logging`, which ``app.main`` calls at startup —
-before any request is handled. See ``docs/SECURITY_SPEC.md`` §2.5.
+``RedactingFilter`` scrubs sensitive key=value pairs and bearer tokens from every
+record. The root handler emits JSON lines with an allowlist of low-cardinality
+operational fields so logs are machine-readable without becoming a privacy leak.
 """
 
+from __future__ import annotations
+
+import json
 import logging
 import re
 import sys
+from datetime import UTC, datetime
+from typing import Any
 
 _REDACTED = "***REDACTED***"
 
@@ -16,21 +21,34 @@ _KEY_ALTERNATION = (
     r"|set-cookie|access[_-]?token|refresh[_-]?token|client[_-]?secret"
 )
 
-# Authorization headers: redact the whole credential, preserving the scheme word.
-#   Authorization: Bearer <tok>  →  Authorization: Bearer ***REDACTED***
 _AUTH_HEADER_PATTERN = re.compile(
     r"(?i)([\"']?authorization[\"']?)(\s*[:=]\s*)(Bearer\s+)?\S+(?:\s+\S+)?"
 )
-
-# Generic pairs, incl. quoted JSON/Python keys and Bearer-prefixed values:
-#   api_key=... / "password": "..." / 'token': '...' / secret:'...'
-# The trailing \4 consumes the closing value-quote so it isn't duplicated.
 _PAIR_PATTERN = re.compile(
     rf"(?i)([\"']?)({_KEY_ALTERNATION})\1(\s*[:=]\s*)([\"']?)(Bearer\s+)?([^\s,;\"'}}\]]+)\4"
 )
-
-# Bare "Bearer <token>" fragments outside any key context.
 _BEARER_PATTERN = re.compile(r"(?i)(Bearer\s+)[A-Za-z0-9\-._~+/]+=*")
+
+_STRUCTURED_FIELD_ALLOWLIST = {
+    "request_id",
+    "http_method",
+    "http_path",
+    "http_route",
+    "status_code",
+    "duration_ms",
+    "error_code",
+    "exception_class",
+    "analysis_stage",
+    "document_stage",
+    "ai_provider",
+    "ai_model",
+    "retry_count",
+    "storage_operation",
+    "database_operation",
+    "rate_limit_bucket",
+    "email_template",
+    "email_provider",
+}
 
 
 def _scrub_pair(match: re.Match[str]) -> str:
@@ -63,20 +81,41 @@ class RedactingFilter(logging.Filter):
         return True
 
 
+class JsonFormatter(logging.Formatter):
+    """JSON-line formatter with explicit extra-field allowlist."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        payload: dict[str, Any] = {
+            "timestamp": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": redact(record.getMessage()),
+            "request_id": getattr(record, "request_id", "-"),
+        }
+        for field in _STRUCTURED_FIELD_ALLOWLIST:
+            if field == "request_id":
+                continue
+            if hasattr(record, field):
+                value = getattr(record, field)
+                if isinstance(value, str):
+                    payload[field] = redact(value)
+                elif isinstance(value, int | float | bool) or value is None:
+                    payload[field] = value
+        if record.exc_info and record.exc_info[0] is not None:
+            payload["exception_class"] = record.exc_info[0].__name__
+        return json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
+
+
 def configure_logging(level: str = "INFO") -> None:
-    """Install a single stdout handler with the redacting filter (idempotent)."""
+    """Install a single stdout handler with redaction and structured formatting."""
     root = logging.getLogger()
     root.setLevel(getattr(logging, level.upper(), logging.INFO))
     for handler in root.handlers:
         handler.addFilter(RedactingFilter())
+        handler.setFormatter(JsonFormatter())
     if not root.handlers:
         handler = logging.StreamHandler(sys.stdout)
-        handler.setFormatter(
-            logging.Formatter(
-                fmt="%(asctime)s %(levelname)s [%(name)s] [req=%(request_id)s] %(message)s",
-                defaults={"request_id": "-"},
-            )
-        )
+        handler.setFormatter(JsonFormatter())
         handler.addFilter(RedactingFilter())
         root.addHandler(handler)
 

@@ -108,6 +108,7 @@ All settings are environment-driven and validated at boot. Copy the examples and
 | `DIRECT_DATABASE_URL` | *(falls back to `DATABASE_URL`)* | Direct connection for Alembic (bypasses Supabase pooler) |
 | `JWT_SECRET` | *(required for auth)* | 256-bit-minimum HS256 signing secret (fail-closed) |
 | `EMAIL_PROVIDER` | `console` | `console` (local dev outbox) / `resend` (production delivery) |
+| `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` | *(unset — monitoring disabled)* | Optional backend/frontend Sentry projects; scrubbers strip bodies, query strings, tokens, credentials, SRS text, uploads, and AI payloads |
 
 ## Database
 
@@ -147,9 +148,11 @@ Cookie sessions (httpOnly, rotating refresh) · argon2id passwords · email veri
 ownership checks on every resource (cross-user IDs → 404) · user AI keys Fernet-encrypted
 at rest, never returned/logged · uploads validated (type/size/magic-bytes) · account
 deletion purges owned storage via the storage abstraction before DB cascade · privacy
-export is owner-scoped and redacted · rate limits + Cloudflare Turnstile on public
-high-abuse auth ops · audits/secret scan. Details: [`docs/SECURITY_SPEC.md`](docs/SECURITY_SPEC.md).
-Distributed limiter storage and monitoring remain future hardening work.
+export is owner-scoped and redacted · privacy-first Sentry/error monitoring (optional DSN,
+scrubbed, no body/token/content capture) · bounded request IDs + JSON logs · rate limits +
+Cloudflare Turnstile on public high-abuse auth ops · audits/secret scan. Details:
+[`docs/SECURITY_SPEC.md`](docs/SECURITY_SPEC.md). Distributed limiter storage remains
+future hardening work.
 
 ## Current limitations
 
@@ -158,9 +161,10 @@ input + document upload/extraction + deterministic segmentation +
 11-detector ambiguity analysis + transparent scoring + persistence), history,
 dashboard, settings, AI providers/enhancement/retry, report experience, document
 list/download/delete, Turnstile on sensitive public auth ops, and privacy lifecycle
-controls (retention/export/purge/storage-aware account deletion). Still intentionally
-NOT implemented yet: distributed limiter storage, monitoring/Sentry, performance/SEO
-polish, responsive/a11y final pass, production deployment, screenshots/docs finalization. Scores are heuristic triage aids, not validated measurements
+controls (retention/export/purge/storage-aware account deletion), and monitoring/Sentry
+with privacy scrubbers. Still intentionally NOT implemented yet: distributed limiter
+storage, performance/SEO polish, responsive/a11y final pass, production deployment,
+screenshots/docs finalization. Scores are heuristic triage aids, not validated measurements
 (see [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) §4.3 honest limits).
 Post-auth landing is still the temporary fixed `/`; the home page is an
 honest placeholder (replaced by the marketing stage), and `ApiStatus` needs

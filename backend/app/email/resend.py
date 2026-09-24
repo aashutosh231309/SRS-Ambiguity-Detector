@@ -36,14 +36,20 @@ class ResendEmailService(EmailService):
                 )
             if response.status_code >= 300:
                 logger.error(
-                    "Resend delivery failed (status=%s to=%s template=%s)",
+                    "Resend delivery failed (status=%s template=%s)",
                     response.status_code,
-                    message.to,
                     message.template,
+                    extra={
+                        "email_provider": "resend",
+                        "email_template": message.template,
+                        "status_code": response.status_code,
+                    },
                 )
         except Exception:
             # Swallowed by port contract: auth flows already committed; the resend
             # endpoints are the recovery path. Log carries no token/link/body.
             logger.exception(
-                "Resend delivery error (to=%s template=%s)", message.to, message.template
+                "Resend delivery error (template=%s)",
+                message.template,
+                extra={"email_provider": "resend", "email_template": message.template},
             )

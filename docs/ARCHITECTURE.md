@@ -116,8 +116,13 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
   (Stage 06: TEXT-only POST; `dependencies.py` ownership gate).
 - `backend/alembic/` — migration env resolving the DSN exactly like the app, plus
   linear `versions/` (each with `downgrade()`).
-- `app/core/logging.py` — structured logging + `RedactingFilter` (drops API keys, tokens,
-  passwords, email bodies). Installed before any request handling.
+- `app/core/logging.py` — JSON structured logging + `RedactingFilter` (drops API keys,
+  tokens, passwords, email bodies). Installed before any request handling; access logs
+  carry method/path/route/status/duration and never query strings.
+- `app/core/monitoring.py` (Stage 24 ✅) — optional Sentry initialization and capture
+  helpers. `before_send` strips request bodies, query strings, cookies, auth headers,
+  tokens, AI prompt/response-like fields, storage paths, exception messages, and long
+  arbitrary strings. Monitoring failures are swallowed.
 - `app/api/v1/` — one router module per resource (`health`, `auth`, `analysis`, `documents`,
   `dashboard`, `ai_providers`, `settings`, `privacy`). Routers do validation + authn/z +
   call `services/`; no SQL in routers, no HTTP in services.
@@ -249,12 +254,14 @@ Backend reads env via `app/core/config.py` (see `backend/.env.example` for the f
 | `ARGON2_*` | all (Stage 04 ✅) | Password work factors |
 | `MAX_UPLOAD_SIZE_BYTES` (10 MiB) + `MAX_EXTRACTED_TEXT_CHARS` (200 000) + `MAX_FILES_PER_REQUEST` (1) + `DOCUMENT_PROCESSING_TIMEOUT_SECONDS` (60) | all (Stage 08 ✅) | Upload/validate/extract budgets (request-time resolution, retunable per env) |
 | `TURNSTILE_ENABLED`, `TURNSTILE_SECRET_KEY`, `TURNSTILE_VERIFY_URL`, `TURNSTILE_TIMEOUT_SECONDS` | all (Stage 22 ✅) | Backend-only Turnstile siteverify config for public high-abuse auth routes; secret never reaches frontend; disabled by default outside prod |
-| `SENTRY_DSN` | Stage 24+ | Monitoring (with scrubbing) |
+| `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `SENTRY_RELEASE`, `SENTRY_TRACES_SAMPLE_RATE` | Stage 24 ✅ | Optional backend Sentry error tracking; initialized only when DSN is set; scrubber strips bodies/query/headers/tokens/content |
 | `STORAGE_BACKEND` + `STORAGE_LOCAL_DIR` + `DOCUMENT_DOWNLOAD_URL_MINUTES` (15) | all (Stage 08 ✅ + Stage 19 ✅) | `local` dev adapter (server-generated keys under the dir); Supabase adapter with prod stages; signed-download TTL (spec-capped ≤15 — higher fails boot) |
 
 Frontend (`frontend/.env.example`): `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL`,
-`NEXT_PUBLIC_TURNSTILE_SITE_KEY` (public by design; pairs with backend verification);
-later: Sentry DSN. `NEXT_PUBLIC_*` MUST NEVER hold secrets.
+`NEXT_PUBLIC_TURNSTILE_SITE_KEY` (public by design; pairs with backend verification),
+`NEXT_PUBLIC_SENTRY_DSN` (public Sentry project DSN only, no auth tokens), and optional
+`SENTRY_ENVIRONMENT`/`SENTRY_RELEASE` for server-side Next monitoring metadata.
+`NEXT_PUBLIC_*` MUST NEVER hold secrets.
 
 ## 8. Data ownership rule
 
@@ -302,3 +309,9 @@ health. Each has an owning stage in `FUTURE_ROADMAP.md`. Scaffolds added now are
   object deletion is idempotent). Privacy export uses a short-lived signed owner ticket and
   generates allowlisted JSON live instead of persisting export artifacts, avoiding another
   sensitive storage lifecycle surface in v1.
+- **ADR-009 (S24): Privacy-first Sentry + JSON logs.** Sentry is optional and DSN-driven;
+  it is never a runtime dependency for serving requests. Backend and frontend both use
+  before-send scrubbers, disable body capture/tracing by default, and report only unexpected
+  failures or explicitly sanitized operational events. Logs are JSON lines with a fixed
+  low-cardinality field allowlist; request correlation uses a bounded `X-Request-ID` header
+  or a generated 12-hex id.

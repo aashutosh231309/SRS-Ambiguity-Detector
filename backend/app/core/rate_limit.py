@@ -17,6 +17,7 @@ import time
 from dataclasses import dataclass
 
 from app.core.config import get_settings
+from app.core.logging import get_logger
 from app.exceptions import RateLimitedError
 
 _MAX_BUCKETS = 100_000  # memory cap; overflow clears (fail open, documented)
@@ -29,6 +30,14 @@ class _Bucket:
 
 
 _buckets: dict[str, _Bucket] = {}
+logger = get_logger(__name__)
+
+
+def _bucket_category(key: str) -> str:
+    parts = key.split(":")
+    if parts and parts[0] == "auth" and len(parts) >= 2:
+        return f"auth:{parts[1]}"
+    return parts[0] if parts else "unknown"
 
 
 def reset_rate_limiter() -> None:
@@ -60,5 +69,11 @@ def check_rate_limit(key: str, limit: int | None = None) -> None:
     bucket.updated_at = now
     if bucket.tokens < 1.0:
         retry_after = int((1.0 - bucket.tokens) * (60.0 / limit)) + 1
+        logger.warning(
+            "rate limit exceeded bucket=%s retry_after=%d",
+            _bucket_category(key),
+            retry_after,
+            extra={"rate_limit_bucket": _bucket_category(key), "error_code": "rate_limited"},
+        )
         raise RateLimitedError(max(1, retry_after))
     bucket.tokens -= 1.0

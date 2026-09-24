@@ -4,6 +4,39 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.25.0] — Stage 24 — Monitoring, observability & production error tracking — 2026-09-24
+
+### Added
+- Optional backend Sentry integration (`SENTRY_DSN`) with FastAPI integration,
+  explicit capture of unexpected exceptions/database request failures/500 app errors,
+  and a tested `before_send` scrubber that strips request bodies, query strings,
+  cookies, auth headers, tokens, provider credentials, storage paths, prompt/response
+  fields, exception messages, and long arbitrary strings.
+- Optional frontend Sentry integration (`NEXT_PUBLIC_SENTRY_DSN`/`SENTRY_DSN`) for
+  unexpected route-render failures, with a matching scrubber and no source-map upload
+  or external alerting credentials committed.
+- Bounded request correlation: `X-Request-ID` is accepted only when it is 1–64 chars of
+  `[A-Za-z0-9._-]`; otherwise a generated 12-hex id is returned on normal and error
+  responses.
+- JSON structured backend logs with safe low-cardinality fields for HTTP request
+  duration/status/route, analysis/document stages, storage operations, AI provider/model
+  outcomes, email provider/template, and rate-limit events.
+- Regression tests for monitoring privacy scrubbing, capture/no-capture taxonomy,
+  request-id behavior, structured access-log fields, and frontend scrubber behavior.
+
+### Changed
+- Expected business errors (validation, auth, ownership/not-found, rate limits, and other
+  normal control-flow errors) remain standard API envelopes and are not reported as
+  catastrophic Sentry exceptions. 500 `AppError`s and unhandled exceptions are captured
+  with safe context only.
+- Email delivery logs no longer include recipient addresses; template/provider/status are
+  enough for deliverability diagnosis without adding PII to logs.
+
+### Contract
+- API_CONTRACT now documents request-correlation headers. ARCHITECTURE, SECURITY_SPEC,
+  SEO_SPEC, DEVELOPMENT_RULES, README, FUTURE_ROADMAP, and STAGE_STATUS updated for the
+  as-built Stage 24 observability/privacy posture.
+
 ## [0.24.0] — Stage 23 — Privacy, data lifecycle & account deletion completion — 2026-09-24
 
 ### Added

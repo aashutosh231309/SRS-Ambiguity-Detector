@@ -10,6 +10,10 @@
 - All paths below are relative to `/api/v1`. Breaking changes require `/api/v2` + dual-serve
   window; additive changes (new optional fields/endpoints) do not.
 - `Content-Type: application/json; charset=utf-8` for JSON bodies. Multipart only for uploads.
+- Request correlation (Stage 24): clients MAY send `X-Request-ID` if it is 1–64 chars
+  of `[A-Za-z0-9._-]`; otherwise the backend generates a safe id. Responses expose
+  `X-Request-ID` for normal and error envelopes. IDs are for support/debugging only and
+  never contain credentials or user content.
 - Auth: httpOnly cookies (`access_token`, `refresh_token`) sent with `credentials: "include"`.
   Same-origin + `SameSite=Lax` + origin allowlist (see `SECURITY_SPEC.md`).
 

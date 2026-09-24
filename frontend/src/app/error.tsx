@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 
 import { Container } from "@/components/layout/Container";
+import { reportRouteError } from "@/lib/monitoring";
 
 /**
  * Global error fallback (App Router `error.tsx` convention).
@@ -17,8 +18,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Local diagnostics only (no PII beyond what the route already held).
-    console.error("Route error:", error);
+    reportRouteError(error);
   }, [error]);
 
   return (

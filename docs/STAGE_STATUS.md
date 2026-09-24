@@ -1476,19 +1476,64 @@ remaining roadmap-22 production-limiter-storage slice if prioritized first.
 **Next stage:** Stage 24 — monitoring/error reporting, or the separately documented
 future distributed limiter storage slice if explicitly prioritized.
 
+## Stage 24 — Monitoring, observability & production error tracking (COMPLETE)
+
+**Scope delivered:**
+- Reconciled Stage 23 as complete (`c3f6650`); no privacy lifecycle fixes were required
+  before Stage 24. Distributed limiter storage remains explicitly deferred from Stage 22.
+- Backend Sentry: optional `SENTRY_DSN` initialization with FastAPI integration, no request
+  body capture, no local variables, traces disabled by default, and a tested `before_send`
+  scrubber. Unexpected exceptions, database request failures, and 500 `AppError`s are
+  captured with allowlisted safe context only; expected business errors are not reported as
+  catastrophic exceptions.
+- Frontend Sentry: optional `NEXT_PUBLIC_SENTRY_DSN`/`SENTRY_DSN` config for route-render
+  errors. API envelope failures handled by UI state remain non-crash paths. Source-map upload
+  was not added because no Sentry auth/org/project credentials are available and the current
+  contract does not require it.
+- Request correlation: incoming `X-Request-ID` is accepted only when bounded to 1–64 chars
+  of `[A-Za-z0-9._-]`; invalid/missing ids are replaced with generated 12-hex ids. Error
+  handlers now return the header even when request processing raises.
+- Structured logs: backend logs are JSON lines with redaction and an allowlist of fields for
+  request method/path/route/status/duration, safe error code, exception class, analysis and
+  document stages, storage operations, AI provider/model/latency, email provider/template,
+  and rate-limit bucket categories. Query strings, bodies, tokens, credentials, raw SRS text,
+  uploaded bytes, and AI prompts/responses are not logged.
+- Safe operational events: AI provider/vault/unexpected failures, document storage/download
+  failures, retention/account storage cleanup failures, rate-limit rejections, Turnstile
+  failures, and email delivery failures are distinguishable by safe category/provider/status
+  fields without raw payloads.
+
+**Verification:**
+- Targeted backend: ruff/mypy over monitoring/logging/config/main/AI/document/privacy/rate-limit
+  modules passed; `tests/test_monitoring.py tests/test_middleware.py tests/test_logging.py
+  tests/test_health.py tests/test_auth_security.py` → 48 passed, 1 Starlette warning.
+- Targeted frontend: eslint/typecheck passed; `src/lib/monitoring.test.ts` → 2 passed.
+- Full gate: `PATH="$HOME/.local/bin:$PATH" TEST_DATABASE_URL="postgresql+asyncpg://postgres@/postgres?host=/home/user/pgdata" DATABASE_URL="postgresql+asyncpg://postgres@/postgres?host=/home/user/pgdata" ./scripts/verify.sh` → ALL CHECKS PASSED. Backend pytest summary in this sandbox: 225 passed, 347 skipped, 1 Starlette warning because no PostgreSQL server/socket is installed/running at `/home/user/pgdata`. Frontend Vitest: 50 files / 412 tests passed. Secret scan, npm audit, pip-audit, and Next production build passed.
+
+**Known limitations (accepted, not bugs):**
+- Sentry DSNs/organization/project credentials are not available in the sandbox, so tests mock
+  capture boundaries and no live Sentry event was sent.
+- No alerting integration was added; external Sentry alert rules are an operations/deployment
+  configuration item, not a repository secret.
+- Search Console/Core Web Vitals/SEO measurement remain Stage 27 per SEO_SPEC; Stage 24 covers
+  application observability, not marketing analytics.
+- Distributed rate-limit storage remains future. Docker/Supabase storage/browser validation remain
+  unvalidated in this sandbox unless separately reported.
+
+**Next stage:** Stage 25 — Performance, or the separately documented future distributed limiter
+storage slice if explicitly prioritized.
+
 ## Current stage
-None active — Stage 23 complete; privacy/data lifecycle success conditions hold and
-full verification is green in this working branch. Distributed limiter storage remains
-future.
-Next: **Stage 24 — monitoring/error reporting** (unless the next prompt explicitly
-prioritizes the remaining distributed limiter-store slice).
+None active — Stage 24 complete in this working branch. Distributed limiter storage remains future.
+Next: **Stage 25 — Performance** (unless the next prompt explicitly prioritizes the remaining
+distributed limiter-store slice).
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 Database → backend → auth backend → auth frontend → SRS input/segmentation/preview ✅ →
 detection+scoring+CRUD+result-UI ✅ → upload+extraction+upload-UI ✅ →
 history UI → report UI → dashboard data → dashboard viz → settings → AI vault →
 providers → overview/improvements → fallback → hardening → Turnstile CAPTCHA ✅
-(+ distributed limiter storage still future) → privacy → monitoring → performance → SEO foundation → SEO content →
+(+ distributed limiter storage still future) → privacy → monitoring ✅ → performance → SEO foundation → SEO content →
 responsive/a11y → QA → deploy → docs/shots → audit.
 (As-built order; roadmap numbers preserved — see the FUTURE_ROADMAP.md as-built note.)
 

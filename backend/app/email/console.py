@@ -26,10 +26,10 @@ class ConsoleEmailService(EmailService):
     async def send(self, message: EmailMessage) -> None:
         subject, html = render_email(message, self._app_base_url)
         logger.info(
-            "DEV-ONLY email (NOT delivered): to=%s template=%s subject=%s",
-            message.to,
+            "DEV-ONLY email (NOT delivered): template=%s subject=%s",
             message.template,
             subject,
+            extra={"email_provider": "console", "email_template": message.template},
         )
         try:
             self._outbox_dir.mkdir(parents=True, exist_ok=True)
@@ -37,4 +37,8 @@ class ConsoleEmailService(EmailService):
             path = self._outbox_dir / f"{stamp}-{message.template}-{uuid.uuid4().hex[:8]}.html"
             path.write_text(f"<!-- To: {message.to} -->\n{html}", encoding="utf-8")
         except OSError:
-            logger.exception("Dev outbox write failed (dir=%s)", self._outbox_dir)
+            logger.exception(
+                "Dev outbox write failed (dir=%s)",
+                self._outbox_dir,
+                extra={"email_provider": "console", "email_template": message.template},
+            )

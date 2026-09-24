@@ -207,7 +207,32 @@ anonymous callers never reach the bucket (401 first).
 - Retention enforcement exists outside the UI via `python -m app.cli.purge_retention`;
   it prints aggregate counts only and logs no document contents, secrets, or tokens.
 
-## 11. Dependency & secret hygiene
+## 11. Monitoring & observability (IMPLEMENTED Stage 24)
+
+- Request correlation: the backend accepts `X-Request-ID` only when it is 1–64 chars of
+  `[A-Za-z0-9._-]`; otherwise it generates a 12-hex id. The id is safe to expose and is
+  returned on normal and error responses.
+- Structured logs: backend logs are JSON lines with timestamp, level, logger, request id,
+  message, and an allowlist of low-cardinality fields (method, path without query, route,
+  status, duration, safe error code, exception class, analysis/document stage, AI provider/
+  model, storage operation, email provider/template, rate-limit bucket). Logs never include
+  query strings, auth headers, cookies, raw request bodies, passwords, provider keys,
+  tokens, raw SRS text, upload bytes, AI prompts, or AI responses.
+- Sentry: optional, DSN-driven, and non-critical. Backend capture is explicit for
+  unexpected exceptions, database request failures, and 500 `AppError`s; expected business
+  errors (validation/auth/ownership/rate-limit/missing-resource) are not reported as
+  crashes. AI provider failures are observable through sanitized low-cardinality messages
+  (`provider`, safe code), never through raw exception/provider payloads. Monitoring capture
+  errors are swallowed.
+- Frontend monitoring: route render errors are captured only when Sentry is configured.
+  API envelope failures handled by the UI are not crash reports. The frontend scrubber strips
+  URL query strings, request data/cookies/headers, form-like secret fields, prompt/response
+  fields, and exception values.
+- Health: liveness remains process-only; readiness remains a bounded DB probe returning only
+  `ok`/`error`/`not_configured`. Sentry/AI/email/storage providers are deliberately not part
+  of liveness so observability or third-party outages do not restart a healthy process.
+
+## 12. Dependency & secret hygiene
 
 - Pinned versions (`package-lock.json`, `requirements*.txt`); `npm audit` + `pip-audit`
   gate `scripts/verify.sh` since Stage 20 (roadmap-21) — the build fails on NEW
@@ -234,10 +259,14 @@ anonymous callers never reach the bucket (401 first).
   `scripts/secret-scan.allow`) gates `verify.sh` and is the recommended pre-commit hook:
   `ln -s ../../scripts/secret-scan.sh .git/hooks/pre-commit`. Ignored paths (`.env`,
   `*.pem`, `secrets/`) are never scanned — local secrets belong there, never in git.
-- Sentry scrubbing (Stage 24) is a RELEASE BLOCKER: no DSN enabled until `before_send`
-  redaction + PII flags are tested.
+- Sentry scrubbing (Stage 24 ✅) is implemented and tested. Backend Sentry initializes
+  only when `SENTRY_DSN` is set; frontend Sentry initializes only when
+  `NEXT_PUBLIC_SENTRY_DSN`/`SENTRY_DSN` is set. Both scrubbers remove request bodies,
+  query strings, cookies, auth headers, token/password/API-key/CSRF fields,
+  prompt/response-like fields, storage paths, exception messages, and long arbitrary
+  strings before capture. Body capture/local variables/tracing are off by default.
 
-## 12. Security review checklist (every stage touching auth/data/crypto/upload/AI)
+## 13. Security review checklist (every stage touching auth/data/crypto/upload/AI)
 
 - [ ] Ownership checks + IDOR tests for new `{id}` routes
 - [ ] Schemas cap lengths; errors use envelope with safe messages
@@ -245,7 +274,7 @@ anonymous callers never reach the bucket (401 first).
 - [ ] Rate limit considered for new expensive endpoint
 - [ ] STAGE_STATUS "Security notes" updated
 
-## 13. Database security (IMPLEMENTED Stage 02 — schema layer)
+## 14. Database security (IMPLEMENTED Stage 02 — schema layer)
 
 - **Ownership:** every user-owned row carries `owner_id` (FK `users.id`, CASCADE).
   Endpoints MUST filter by it; cross-user ids return 404 (no existence oracle).

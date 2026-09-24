@@ -81,7 +81,11 @@ def _delete_storage_refs(refs: list[DocumentStorageRef]) -> None:
         try:
             backend.delete(ref.storage_path)
         except Exception:
-            logger.error("storage cleanup failed document_id=%s", ref.id)
+            logger.error(
+                "storage cleanup failed document_id=%s",
+                ref.id,
+                extra={"storage_operation": "delete", "error_code": "storage_cleanup_failed"},
+            )
             raise InternalError("Data cleanup failed. Please try again.") from None
 
 

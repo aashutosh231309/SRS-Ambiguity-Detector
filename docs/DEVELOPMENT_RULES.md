@@ -60,6 +60,9 @@
 - `ruff check` + `ruff format --check` clean; `mypy` clean on `app/` (config in `pyproject.toml`).
 - Settings ONLY via `app/core/config.py`; logging ONLY via configured logger (redacting);
   no `print()`; no f-string SQL; Pydantic schemas validate every input/output boundary.
+- Monitoring/Sentry additions MUST use `app/core/monitoring.py` or `frontend/src/lib/monitoring.ts`;
+  never attach request bodies, uploaded files, raw SRS text, AI prompts/responses, tokens,
+  cookies, provider credentials, or arbitrary exception messages.
 - Routers: thin (auth → validate → service → response). Services: no FastAPI imports.
 - Layers: routers (HTTP only) → services (logic, `@transactional`, `AppError`) →
   repositories (SQLAlchemy only, no business rules) → models. Sessions arrive via DI
@@ -75,7 +78,7 @@ user-owned; never trust client IDs.
 - [ ] Requested scope implemented; NOTHING else half-built (or explicitly marked experimental + fenced).
 - [ ] Existing functionality still works (run `scripts/verify.sh`: frontend lint + typecheck + build; backend lint + typecheck + tests).
 - [ ] API changes reflected in `API_CONTRACT.md`; DB changes in `DATABASE_SCHEMA.md` + migration; env changes in BOTH `.env.example` files.
-- [ ] Security checklist (`SECURITY_SPEC.md` §11) completed for auth/data/crypto/upload/AI changes.
+- [ ] Security checklist (`SECURITY_SPEC.md` §13) completed for auth/data/crypto/upload/AI/monitoring changes.
 - [ ] Docs updated: `STAGE_STATUS.md` (what/where/decisions/tests/limits/next), `CHANGELOG.md` (contract-relevant changes), specs touched by the stage.
 - [ ] `screenshots/` updated when UI changed (naming: `stageNN-short-desc--viewportWxH.png`).
 - [ ] No secrets committed (`git status` + diff review for `.env`, keys, tokens).

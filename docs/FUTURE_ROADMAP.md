@@ -32,7 +32,7 @@
 | 21 | Security hardening | SECURITY_SPEC | CSP, OpenAPI prod posture, audits (npm/pip), secret-scan docs, header review |
 | 22 | CAPTCHA/rate limiting | SECURITY_SPEC §7 | Turnstile verify + buckets on sensitive routes; 429 envelope + tests |
 | 23 | Privacy/data lifecycle ✅ | DATABASE_SCHEMA §4 | Delivered: retention settings/CLI, purge, signed live export, storage-aware account-deletion cascade regression tests |
-| 24 | Monitoring | SECURITY_SPEC §2.5/§10 | Sentry + scrubbers (BLOCKER-gated), health/metrics, email deliverability view |
+| 24 | Monitoring ✅ | SECURITY_SPEC §2.5/§11 | Delivered: optional Sentry backend/frontend with scrubbers, bounded request IDs, JSON logs, safe health/readiness semantics, AI/storage/email/rate-limit observability |
 | 25 | Performance | UI_UX_SPEC §6, SEO_SPEC §3 | Bundle audit, code-split, caching, DB indexes review, slow-query log |
 | 26 | SEO foundation | SEO_SPEC §2–3 | Public routes + metadata + OG + robots/sitemap + 404 + JSON-LD core |
 | 27 | SEO content | SEO_SPEC §4 | Evergreen content, internal links, breadcrumbs, validation (Rich Results) |

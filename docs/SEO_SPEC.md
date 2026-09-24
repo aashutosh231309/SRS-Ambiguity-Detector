@@ -52,6 +52,9 @@ analyzer, analysis detail, history, dashboard, settings. Auth pages: noindex.
 
 ## 5. Measurement (Stage 24/27)
 
-Search Console + sitemap submission, Core Web Vitals monitoring, OG card validation,
-structured-data validation (Rich Results Test), broken-link checks in `verify.sh`.
-All analytics privacy-respecting (no requirement text in events — see SECURITY_SPEC).
+Stage 24 establishes privacy-first application error monitoring (Sentry scrubbers,
+request IDs, safe logs) only. Search Console + sitemap submission, Core Web Vitals
+monitoring, OG card validation, structured-data validation (Rich Results Test), and
+broken-link checks remain Stage 27/SEO work unless a later stage explicitly pulls them
+forward. All analytics must be privacy-respecting: no requirement text, uploaded document
+content, AI prompts/responses, credentials, or tokens in events (see SECURITY_SPEC §11).

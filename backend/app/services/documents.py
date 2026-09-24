@@ -265,6 +265,11 @@ async def upload_and_analyze(
         analysis.requirements_count,
         analysis.issues_count,
         analysis.score,
+        extra={
+            "document_stage": "upload_analyze",
+            "storage_operation": "store",
+            "analysis_stage": "deterministic",
+        },
     )
     # Same post-commit AI step as the TEXT path (lazy import matches the
     # TEXT orchestrator — provider-adjacent imports stay out of module scope).
@@ -337,7 +342,12 @@ async def delete_document(
         raise NotFoundError("document")
     await DocumentRepository(session).delete(doc)
     get_storage_backend().delete(doc.storage_path)
-    logger.info("document purged document_id=%s owner_id=%s", document_id, owner_id)
+    logger.info(
+        "document purged document_id=%s owner_id=%s",
+        document_id,
+        owner_id,
+        extra={"document_stage": "purge", "storage_operation": "delete"},
+    )
 
 
 @dataclass(frozen=True)
@@ -368,7 +378,12 @@ async def mint_download_url(
     expires_at = utcnow() + timedelta(minutes=ttl_minutes)
     prefix = get_settings().API_V1_PREFIX.rstrip("/")
     url = f"{prefix}/documents/{document_id}/download?token={token}"
-    logger.info("download URL minted document_id=%s owner_id=%s", document_id, owner_id)
+    logger.info(
+        "download URL minted document_id=%s owner_id=%s",
+        document_id,
+        owner_id,
+        extra={"document_stage": "download_token", "storage_operation": "sign"},
+    )
     return url, expires_at
 
 
@@ -387,9 +402,27 @@ async def read_document_bytes(
     try:
         data = get_storage_backend().read_bytes(doc.storage_path)
     except (OSError, ValueError):
-        logger.error("download bytes missing document_id=%s owner_id=%s", document_id, owner_id)
+        logger.error(
+            "download bytes missing document_id=%s owner_id=%s",
+            document_id,
+            owner_id,
+            extra={
+                "document_stage": "download_read",
+                "storage_operation": "read",
+                "error_code": "storage_missing",
+            },
+        )
         raise InternalError("The file is temporarily unavailable.") from None
     if hashlib.sha256(data).hexdigest() != doc.sha256:
-        logger.error("download bytes corrupt document_id=%s owner_id=%s", document_id, owner_id)
+        logger.error(
+            "download bytes corrupt document_id=%s owner_id=%s",
+            document_id,
+            owner_id,
+            extra={
+                "document_stage": "download_read",
+                "storage_operation": "read",
+                "error_code": "storage_corrupt",
+            },
+        )
         raise InternalError("The file is temporarily unavailable.") from None
     return DocumentBytes(data=data, filename=doc.filename, mime_type=doc.mime_type)

@@ -6,6 +6,7 @@ CORS), lifespan (engine disposal), the uniform error envelope
 ``app/api/``, ``app/services/``, etc. — never here.
 """
 
+import re
 import time
 import uuid
 from collections.abc import AsyncGenerator, Awaitable, Callable
@@ -23,11 +24,14 @@ from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.database import dispose_engine
 from app.core.logging import configure_logging, get_logger
+from app.core.monitoring import capture_exception, init_monitoring
 from app.email import get_email_service
 from app.exceptions import AppError, RateLimitedError
 from app.schemas.system import LiveResponse
 
 logger = get_logger(__name__)
+
+_REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 
 _STATUS_TO_CODE = {
     status.HTTP_400_BAD_REQUEST: "bad_request",
@@ -47,6 +51,21 @@ def error_envelope(code: str, message: str, details: object = None) -> dict[str,
     return {"error": {"code": code, "message": message, "details": details}}
 
 
+def _request_id_from_header(value: str | None) -> str:
+    """Accept bounded caller ids for upstream correlation; generate otherwise."""
+    if value is not None and _REQUEST_ID_RE.fullmatch(value):
+        return value
+    return uuid.uuid4().hex[:12]
+
+
+def _error_headers(request: Request, headers: dict[str, str] | None = None) -> dict[str, str]:
+    merged = dict(headers or {})
+    request_id = getattr(request.state, "request_id", None)
+    if isinstance(request_id, str) and request_id:
+        merged["X-Request-ID"] = request_id
+    return merged
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Startup needs no I/O by design; shutdown disposes the pooled engine."""
@@ -58,6 +77,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.LOG_LEVEL)
+    init_monitoring(settings)
 
     docs_kwargs: dict[str, str | None] = (
         {"docs_url": "/api/docs", "redoc_url": "/api/redoc", "openapi_url": "/api/openapi.json"}
@@ -81,7 +101,7 @@ def create_app() -> FastAPI:
     async def request_id_middleware(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex[:12]
+        request_id = _request_id_from_header(request.headers.get("X-Request-ID"))
         request.state.request_id = request_id
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
@@ -114,13 +134,23 @@ def create_app() -> FastAPI:
         response = await call_next(request)
         duration_ms = (time.perf_counter() - start) * 1000
         # Path only (never query params) + status + latency; correlation via request_id.
+        route = request.scope.get("route")
+        route_path = getattr(route, "path", request.url.path)
+        request_id = getattr(request.state, "request_id", "-")
         logger.info(
             "%s %s -> %s %.1fms",
             request.method,
             request.url.path,
             response.status_code,
             duration_ms,
-            extra={"request_id": getattr(request.state, "request_id", "-")},
+            extra={
+                "request_id": request_id,
+                "http_method": request.method,
+                "http_path": request.url.path,
+                "http_route": route_path,
+                "status_code": response.status_code,
+                "duration_ms": round(duration_ms, 1),
+            },
         )
         return response
 
@@ -135,13 +165,19 @@ def create_app() -> FastAPI:
     )
 
     @app.exception_handler(StarletteHTTPException)
-    async def http_exception_handler(_: Request, exc: StarletteHTTPException) -> JSONResponse:
+    async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
         code = _STATUS_TO_CODE.get(exc.status_code, "internal_error")
         message = str(exc.detail) if exc.status_code < 500 else "Internal server error."
-        return JSONResponse(status_code=exc.status_code, content=error_envelope(code, message))
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=error_envelope(code, message),
+            headers=_error_headers(request),
+        )
 
     @app.exception_handler(RequestValidationError)
-    async def validation_exception_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
+    async def validation_exception_handler(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
         # Contract: schema failures are 400 + "validation_error" (422 is reserved for
         # semantically-unprocessable FILES, e.g. extraction failures). Details are
         # field-level locators only — never echo secrets (Pydantic already masks SecretStr).
@@ -152,10 +188,26 @@ def create_app() -> FastAPI:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content=error_envelope("validation_error", "Request validation failed.", details),
+            headers=_error_headers(request),
         )
 
     @app.exception_handler(AppError)
-    async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
+    async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
+        request_id = getattr(request.state, "request_id", "-")
+        if exc.status_code >= 500:
+            logger.error(
+                "Application error",
+                extra={
+                    "request_id": request_id,
+                    "error_code": exc.code,
+                    "exception_class": type(exc).__name__,
+                },
+            )
+            capture_exception(
+                exc,
+                request_id=request_id,
+                context={"error_code": exc.code, "exception_class": type(exc).__name__},
+            )
         headers = (
             {"Retry-After": str(exc.retry_after_seconds)}
             if isinstance(exc, RateLimitedError)
@@ -164,7 +216,7 @@ def create_app() -> FastAPI:
         return JSONResponse(
             status_code=exc.status_code,
             content=error_envelope(exc.code, exc.message, exc.details),
-            headers=headers,
+            headers=_error_headers(request, headers),
         )
 
     @app.exception_handler(SQLAlchemyError)
@@ -172,20 +224,45 @@ def create_app() -> FastAPI:
         # Sanitized: driver errors may carry SQL/DSN fragments — log server-side only.
         _ = exc
         request_id = getattr(request.state, "request_id", "-")
-        logger.exception("Database error", extra={"request_id": request_id})
+        logger.exception(
+            "Database error",
+            extra={
+                "request_id": request_id,
+                "error_code": "internal_error",
+                "database_operation": "request",
+            },
+        )
+        capture_exception(
+            exc,
+            request_id=request_id,
+            context={"error_code": "internal_error", "database_operation": "request"},
+        )
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content=error_envelope("internal_error", "Internal server error."),
+            headers=_error_headers(request),
         )
 
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         request_id = getattr(request.state, "request_id", "-")
-        logger.exception("Unhandled exception", extra={"request_id": request_id})
-        _ = exc  # never serialized — no internals leak (SECURITY_SPEC §2.5)
+        logger.exception(
+            "Unhandled exception",
+            extra={
+                "request_id": request_id,
+                "error_code": "internal_error",
+                "exception_class": type(exc).__name__,
+            },
+        )
+        capture_exception(
+            exc,
+            request_id=request_id,
+            context={"error_code": "internal_error", "exception_class": type(exc).__name__},
+        )
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content=error_envelope("internal_error", "Internal server error."),
+            headers=_error_headers(request),
         )
 
     @app.get("/health", include_in_schema=False)
