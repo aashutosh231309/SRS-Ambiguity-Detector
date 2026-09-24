@@ -1809,10 +1809,66 @@ user explicitly prioritizes the deferred distributed limiter-store slice first.
 
 **Next stage:** Stage 29 — Testing/QA, or the separately documented future distributed limiter-storage slice if explicitly prioritized.
 
+## Stage 29 — Comprehensive testing & quality assurance (COMPLETE)
+
+**Scope delivered:**
+
+- Reconciled the actual repository after Stage 28 (`eec905c`): major implementation stages through
+  responsive/accessibility refinement are present, the branch was clean, and Stage 29 is a
+  pre-production QA baseline rather than a redesign. Stage 28's code/docs/tests were present and
+  its final full gate had passed.
+- Audited specs, roadmap/status/changelog, backend routes/services/repositories/analysis engine,
+  migrations, scripts, frontend routes/components/lib clients, and the current test inventory.
+  The repository contains 30 backend test files and 53 frontend test files after this stage.
+- Added `backend/tests/test_stage29_quality_baseline.py` with four high-risk QA baselines:
+  a documented `/api/v1` route-surface test (new routes must update API/security/docs), a compact
+  deterministic golden corpus spanning clean requirements, multi-pattern ambiguity, URLs/UUIDs,
+  optional language, incomplete fragments, and missing constraints, and AI prompt/payload privacy
+  tests that pin overview minimization plus capped improvement context.
+- Verified Alembic metadata without a live database: `alembic heads` reports single head `0006`;
+  `alembic history --verbose` shows the linear `0001` → `0006` chain. Real upgrade/downgrade
+  execution was not possible because PostgreSQL tooling/server is unavailable in this sandbox.
+- Test-pyramid audit summary: pure analysis/detector/scoring/validation/error-mapping tests exist;
+  DB/API/service integration suites exist but skip when PostgreSQL is unreachable; frontend
+  component suites cover auth/analyzer/report/history/dashboard/settings and SEO libs; no browser
+  E2E runner or axe stack is configured.
+
+**Defects found/fixed:**
+
+- No product correctness/security defect requiring an application-code fix was found during this
+  QA pass. The main actionable gap was absence of a compact cross-engine golden corpus and
+  route-surface sentinel, now covered by the new Stage 29 tests.
+
+**Verification:**
+
+- New focused Stage 29 tests: `PYTHONPATH=backend pytest -q backend/tests/test_stage29_quality_baseline.py` → 4 passed, 1 Starlette warning.
+- Alembic metadata: `cd backend && alembic heads && alembic history --verbose` → single head `0006` and linear migration history displayed.
+- Final full gate: `PATH="$HOME/.local/bin:$PATH" TEST_DATABASE_URL="postgresql+asyncpg://postgres@/postgres?host=/home/user/pgdata" DATABASE_URL="postgresql+asyncpg://postgres@/postgres?host=/home/user/pgdata" ./scripts/verify.sh` → ALL CHECKS PASSED. Backend ruff/format clean (139 files); backend mypy clean (99 source files); backend pytest 234 passed, 347 skipped, 1 Starlette warning because no PostgreSQL server/socket exists at `/home/user/pgdata`; FastAPI import/OpenAPI sanity passed. Frontend eslint/typecheck clean; Vitest 53 files / 432 tests passed; Prettier clean; Next production build passed with 19 routes. Secret scan clean; `npm audit` 0 vulnerabilities; `pip-audit` clean (14 ignored advisories as configured).
+- Practical flakiness rerun: `cd backend && python -m pytest -q` → 234 passed, 347 skipped, 1 Starlette warning; `cd frontend && npm test --silent` → 53 files / 432 tests passed.
+
+**Known limitations / remaining production blockers:**
+
+- PostgreSQL, `initdb`/`pg_ctl`/`psql`, and Docker are unavailable in this sandbox. Therefore real
+  migration application, rollback, DB-backed integration execution, clean-database E2E smoke, and
+  Docker compose validation were not performed here; the existing DB-dependent suites remain ready
+  and skipped by design when `TEST_DATABASE_URL` is unreachable.
+- No browser automation, screenshot capture, real viewport validation, manual screen-reader pass,
+  or axe-equivalent accessibility tooling is configured/available. Frontend validation remains
+  jsdom/component/build based.
+- No real external Supabase, Cloudflare Turnstile, Sentry, email, or AI provider calls were made;
+  existing tests use fakes/mocked HTTP as intended.
+- Rate limiting remains process-local; distributed limiter storage is still the deferred Stage 22
+  production-hardening slice.
+- Coverage tooling (`pytest-cov`, Vitest coverage provider) is not configured, so no coverage
+  percentage is claimed.
+
+**Next stage:** Stage 30 — Production deployment, or the separately documented distributed
+limiter-storage slice if explicitly prioritized first.
+
 ## Current stage
 
-None active — Stage 28 complete in this working branch. Distributed limiter storage remains future.
-Next: **Stage 29 — Testing/QA** (unless the next prompt explicitly prioritizes the remaining
+None active — Stage 29 complete in this working branch. Distributed limiter storage remains future.
+Next: **Stage 30 — Production deployment** (unless the next prompt explicitly prioritizes the remaining
 distributed limiter-store slice).
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
@@ -1822,7 +1878,7 @@ detection+scoring+CRUD+result-UI ✅ → upload+extraction+upload-UI ✅ →
 history UI → report UI → dashboard data → dashboard viz → settings → AI vault →
 providers → overview/improvements → fallback → hardening → Turnstile CAPTCHA ✅
 (+ distributed limiter storage still future) → privacy → monitoring ✅ → performance ✅ → SEO foundation ✅ → SEO content ✅ →
-responsive/a11y ✅ → QA → deploy → docs/shots → audit.
+responsive/a11y ✅ → QA ✅ → deploy → docs/shots → audit.
 (As-built order; roadmap numbers preserved — see the FUTURE_ROADMAP.md as-built note.)
 
 ## Major decisions log

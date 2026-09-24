@@ -4,6 +4,25 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.30.0] — Stage 29 — Comprehensive testing & quality assurance — 2026-09-24
+
+### Added
+
+- Stage 29 QA baseline tests covering the documented `/api/v1` route surface, a compact
+  deterministic golden analysis corpus, and AI prompt/privacy payload minimization and caps.
+
+### Changed
+
+- Roadmap/status docs now mark Testing/QA complete and record the actual validation scope: full
+  repository gate, second backend/frontend test-suite rerun, Alembic metadata check, and explicit
+  environment limitations for PostgreSQL, Docker, browser/accessibility automation, and external
+  providers.
+
+### Contract
+
+- No API, database, security, auth, SEO, or UI contract changed. The new route-surface test is a
+  contract sentinel: future endpoint additions must update API/security/docs deliberately.
+
 ## [0.29.0] — Stage 28 — Responsive & accessibility refinement — 2026-09-24
 
 ### Added

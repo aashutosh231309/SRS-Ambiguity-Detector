@@ -37,7 +37,7 @@
 | 26    | SEO foundation ✅                   | SEO_SPEC §2–3                           | Delivered: public `/` landing foundation, centralized metadata/canonicals, OG/Twitter, robots/sitemap, noindex private/auth policy, JSON-LD core                                                                   |
 | 27    | SEO content ✅                      | SEO_SPEC §4                             | Delivered: public content routes, educational resources, internal links, breadcrumbs/Article JSON-LD, sitemap/robots expansion, content/privacy tests                                                              |
 | 28    | Responsive/a11y refinement ✅       | UI_UX_SPEC §10–11                       | Delivered repository slice: dialog close/scroll/focus refinements, 44px touch targets, long-content wrapping, switch names, focused tests; browser/AT visual validation remains ops/QA                             |
-| 29    | Testing/QA                          | DEVELOPMENT_RULES §4                    | Coverage review, e2e smoke (auth→analyze→history), contract tests, bug bash                                                                                                                                        |
+| 29    | Testing/QA ✅                       | DEVELOPMENT_RULES §4                    | Delivered QA baseline: route-surface sentinel, deterministic golden corpus, AI prompt privacy/cap tests, full gate + flakiness rerun; DB/browser/Docker validation remains environment/deployment work             |
 | 30    | Production deployment               | ARCHITECTURE §3                         | Vercel + Supabase topology validated, env runbook, backups, rollback plan                                                                                                                                          |
 | 31    | Documentation/screenshots           | PROJECT_SPEC §2                         | README final, screenshots full set, API docs, user guide                                                                                                                                                           |
 | 32    | Final audit                         | ALL                                     | Baseline checklist 12/12, security pass, DoD pass, release tag                                                                                                                                                     |
@@ -156,6 +156,14 @@
 > names. Browser/device screenshots, live assistive-technology checks, and deployment-host
 > visual validation remain Stage 29/operations work because no browser tooling was available
 > in this sandbox.
+
+> Actual Stage 29 (2026-09-24) established a repository-level QA baseline: the full
+> verification gate passed after adding a compact deterministic analysis golden corpus, a
+> documented `/api/v1` route-surface sentinel, and AI prompt privacy/cap regression tests.
+> Backend/frontend suites were rerun for a practical flakiness check. PostgreSQL, Docker,
+> browser automation, axe/manual screen-reader validation, Supabase, Cloudflare, Sentry,
+> email, and real AI provider validation remain deployment/operations work in this sandbox;
+> distributed limiter storage remains the deferred Stage 22 production-hardening slice.
 
 ## Dependency notes
 
