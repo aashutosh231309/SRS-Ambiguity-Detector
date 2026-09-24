@@ -7,13 +7,14 @@
  */
 
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import { useAuth } from "@/hooks/useAuth";
 import { authErrorMessage, validationFieldErrors } from "@/lib/auth-errors";
 import { normalizeEmail, validateEmail } from "@/lib/auth-validation";
 
 import { FormAlert, PasswordField, SubmitButton, TextField } from "./fields";
+import { TurnstileWidget, isTurnstileConfigured } from "./TurnstileWidget";
 
 interface FieldErrors {
   email?: string;
@@ -26,7 +27,20 @@ export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
   const [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileReset, setTurnstileReset] = useState(0);
   const [pending, setPending] = useState(false);
+
+  const clearTurnstile = useCallback(() => setTurnstileToken(null), []);
+  const turnstileError = useCallback(() => {
+    setTurnstileToken(null);
+    setFormError("Security verification failed. Please try again.");
+  }, []);
+
+  function resetTurnstile() {
+    setTurnstileToken(null);
+    setTurnstileReset((value) => value + 1);
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,10 +53,18 @@ export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
     setFieldErrors(errors);
     setFormError(null);
     if (errors.email ?? errors.password) return;
+    if (isTurnstileConfigured() && turnstileToken === null) {
+      setFormError("Complete the security verification and try again.");
+      return;
+    }
 
     setPending(true);
     try {
-      await login({ email: normalizeEmail(email), password });
+      await login({
+        email: normalizeEmail(email),
+        password,
+        turnstile_token: turnstileToken ?? undefined,
+      });
       onSuccess();
     } catch (err) {
       const serverFields = validationFieldErrors(err);
@@ -51,6 +73,7 @@ export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
         password: serverFields.password ?? serverFields.current_password,
       });
       setFormError(authErrorMessage(err, "login"));
+      resetTurnstile();
     } finally {
       setPending(false);
     }
@@ -98,6 +121,12 @@ export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
             </Link>
           </p>
         </div>
+        <TurnstileWidget
+          onToken={setTurnstileToken}
+          onExpired={clearTurnstile}
+          onError={turnstileError}
+          resetSignal={turnstileReset}
+        />
         <SubmitButton pending={pending} pendingLabel="Logging in…">
           Log in
         </SubmitButton>

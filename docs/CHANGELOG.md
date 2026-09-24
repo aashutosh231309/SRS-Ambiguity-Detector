@@ -4,6 +4,39 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.23.0] — Stage 22 (as-built) — Turnstile CAPTCHA abuse defense — 2026-09-24
+
+### Added
+- Cloudflare Turnstile verification boundary (`app/services/turnstile.py`) for
+  public high-abuse auth operations. The backend posts to Cloudflare's
+  siteverify endpoint with a strict timeout, backend-only secret, no redirects,
+  response-size cap, and stable app-level failures; tests mock all provider I/O.
+- Turnstile protection on register, login, resend-verification, forgot-password,
+  and reset-password. This is additive abuse defense only — auth, CSRF,
+  Origin/Referer checks, authorization, anti-enumeration, and rate limits remain
+  unchanged.
+- Frontend `TurnstileWidget` using public `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, wired
+  into signup/login/resend/forgot/reset forms; widgets are hidden when the site
+  key is unset and reset on backend failures/expiry/error.
+
+### Changed
+- Auth schemas/clients now carry optional `turnstile_token` for resend,
+  forgot-password, and reset-password in addition to register/login. Stable error
+  codes added: `turnstile_required`, `turnstile_invalid`,
+  `turnstile_unavailable`, `turnstile_configuration_error`.
+- Environment templates document backend `TURNSTILE_ENABLED`,
+  `TURNSTILE_SECRET_KEY`, `TURNSTILE_VERIFY_URL`, `TURNSTILE_TIMEOUT_SECONDS`,
+  and frontend `NEXT_PUBLIC_TURNSTILE_SITE_KEY`.
+- Backend focused Turnstile suite added (+17); full backend suite 541 → 558.
+  Frontend auth-token plumbing test added (frontend suite 409 → 410). Full
+  `./scripts/verify.sh` passed, including lint/typecheck/format/build/audits.
+  Distributed limiter storage remains future.
+
+### Contract
+- API_CONTRACT §4.2, SECURITY_SPEC §3/§7, ARCHITECTURE §7,
+  FUTURE_ROADMAP/STAGE_STATUS updated for the as-built Stage 22 Turnstile slice.
+  No migration, no new routes, no live Cloudflare verification in tests.
+
 ## [0.22.0] — Stage 21 (as-built) — remaining AI slices + retry bucket — 2026-09-24
 
 ### Added

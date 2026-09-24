@@ -246,7 +246,8 @@ design (documented infrastructure exception, not a request transaction).
   frontend routes `/verify-email?token=…` / `/reset-password?token=…` (Stage 05).
 - Guards: `Origin`/`Referer` allowlist on every mutating route (safe-method GET
   exempt); per-endpoint+IP single-process buckets (429 + `Retry-After`, fail-open
-  documented); `turnstile_token` accepted-and-ignored until Stage 22.
+  documented); at Stage 04 time, `turnstile_token` was accepted-and-ignored until
+  the Stage 22 verifier shipped.
 - Two real bugs found by the new tests and fixed: (1) FastAPI drops the injected
   `Response` when an endpoint returns a `Response` — logout/delete now set cookies
   on the RETURNED response (logout previously never cleared cookies); (2) the
@@ -272,9 +273,10 @@ register → console-outbox link → verify → login → refresh rotation → l
 compare; cookies `HttpOnly; Secure (prod); SameSite=Lax; Path=/`; no tokens in logs
 (console adapter logs metadata only — tested); DSN/secret hygiene unchanged.
 
-**Known limitations:** single-process buckets (≈N× budget behind N workers — Stage 22
-distributes); no Turnstile verification yet (Stage 22); no auth UI (Stage 05);
-`docker-compose.yml` STILL unvalidated (no Docker in sandbox) — recurring warning.
+**Known limitations at Stage 04 time:** single-process buckets (≈N× budget behind N workers —
+Stage 22+ distributes); no Turnstile verification yet (later shipped in Stage 22);
+no auth UI (Stage 05); `docker-compose.yml` STILL unvalidated (no Docker in sandbox) —
+recurring warning.
 
 **Next stage:** Stage 05 — Authentication Frontend.
 
@@ -1367,18 +1369,73 @@ limits (dedicated retry bucket). No final freeze/release claim is made.
 (Turnstile + distributed limiter store / production abuse posture) or the next
 repo-authoritative slice from FUTURE_ROADMAP.md.
 
+### Stage 22 (as-built) — Turnstile CAPTCHA abuse defense ✅ (2026-09-24)
+
+Scope note: roadmap-22 is `CAPTCHA/rate limiting` with exit criteria
+"Turnstile verify + buckets on sensitive routes; 429 envelope + tests". Earlier
+stages already shipped the live single-process buckets for auth, analysis,
+upload, provider TEST, document-download mints, and retry-AI. This as-built
+Stage 22 closes the Turnstile slice only; distributed limiter storage / broader
+production abuse posture remains future.
+
+- Backend: added `app/services/turnstile.py` as the Cloudflare Turnstile
+  siteverify boundary. Protected endpoints pass only the opaque client response
+  token plus the socket peer IP. The verifier uses the official
+  `https://challenges.cloudflare.com/turnstile/v0/siteverify` endpoint,
+  backend-only `TURNSTILE_SECRET_KEY`, strict `TURNSTILE_TIMEOUT_SECONDS`,
+  no redirects, provider response-size cap, and stable app errors. It never
+  returns/logs raw provider payloads or secrets. Production fails closed if
+  Turnstile is disabled or enabled without a secret; non-production may keep it
+  disabled for local/test.
+- Backend: public high-abuse auth routes now verify Turnstile before auth-service
+  work: register, login, resend verification, forgot password, reset password.
+  No global CAPTCHA was added; authenticated/read-only/deterministic analysis
+  requests are unchanged. Existing CSRF, Origin/Referer, auth, authorization,
+  anti-enumeration, and rate-limit semantics remain in place.
+- API/errors: request schemas now accept `turnstile_token` on resend/forgot/reset
+  in addition to register/login. Stable error codes are
+  `turnstile_required`, `turnstile_invalid`, `turnstile_unavailable`, and
+  `turnstile_configuration_error`; raw Cloudflare responses are not surfaced.
+- Frontend: added `TurnstileWidget` (explicit-render Cloudflare script loader)
+  using public `NEXT_PUBLIC_TURNSTILE_SITE_KEY`; it renders nothing when the key
+  is unset. Signup, login, resend, forgot-password, and reset-password forms
+  require a token only when configured, send it as `turnstile_token`, and reset
+  the widget after backend failures/expiry/error. The Turnstile secret remains
+  backend-only.
+- Tests: focused backend Turnstile suite 17/17 passed (disabled non-prod no-op,
+  production fail-closed, missing secret/token, request payload incl. remote IP,
+  invalid/provider-failure mappings, endpoint integration/order). Full
+  `./scripts/verify.sh` green: backend 558/558 pytest, ruff/mypy/OpenAPI sanity,
+  frontend eslint/typecheck/vitest 410/410/prettier/build, secret scan, npm audit,
+  and pip-audit all passed.
+
+**Known limitations (accepted, not bugs):**
+- Distributed limiter storage / per-account production buckets remain future;
+  current buckets are still single-process as documented.
+- NO live Cloudflare calls were made in tests; all provider interactions are
+  mocked by design. Operators must configure real site/secret keys per
+  environment before enabling Turnstile in production.
+- NO browser in this sandbox (as in Stages 05–21) — widget rendering is covered
+  by type/build and existing form tests, not visual CAPTCHA challenge capture.
+- `docker-compose.yml` STILL unvalidated (no Docker in sandbox); Supabase storage
+  remains unexercised here.
+
+**Next stage:** Stage 23 — Privacy/data lifecycle, or a repo-authoritative
+remaining roadmap-22 production-limiter-storage slice if prioritized first.
+
 ## Current stage
-None active — Stage 21 complete; all success conditions hold (remaining AI
-slices closed: create proof + what-was-sent disclosure + dedicated retry bucket;
-541/541 + 409/409 tests, verify.sh green, docs match).
-Next: **Stage 22 (as-built) — CAPTCHA/rate limiting remainder**.
+None active — Stage 22 complete; all success conditions hold for the Turnstile
+slice (`./scripts/verify.sh` green: backend 558/558, frontend 410/410,
+Turnstile docs/env updated). Distributed limiter storage remains future.
+Next: **Stage 23 — Privacy/data lifecycle** (unless the next prompt explicitly
+prioritizes the remaining distributed limiter-store slice).
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 Database → backend → auth backend → auth frontend → SRS input/segmentation/preview ✅ →
 detection+scoring+CRUD+result-UI ✅ → upload+extraction+upload-UI ✅ →
 history UI → report UI → dashboard data → dashboard viz → settings → AI vault →
-providers → overview/improvements → fallback → hardening → CAPTCHA/rate-limit →
-privacy → monitoring → performance → SEO foundation → SEO content →
+providers → overview/improvements → fallback → hardening → Turnstile CAPTCHA ✅
+(+ distributed limiter storage still future) → privacy → monitoring → performance → SEO foundation → SEO content →
 responsive/a11y → QA → deploy → docs/shots → audit.
 (As-built order; roadmap numbers preserved — see the FUTURE_ROADMAP.md as-built note.)
 

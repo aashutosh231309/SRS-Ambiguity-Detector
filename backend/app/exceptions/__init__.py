@@ -92,6 +92,42 @@ class RateLimitedError(AppError):
         self.retry_after_seconds = retry_after_seconds
 
 
+class TurnstileRequiredError(AppError):
+    """400 — a protected public-auth action omitted the Turnstile token."""
+
+    def __init__(self) -> None:
+        super().__init__("turnstile_required", "Verification is required.", 400)
+
+
+class TurnstileInvalidError(AppError):
+    """400 — Cloudflare rejected the client token (bad/expired/reused)."""
+
+    def __init__(self) -> None:
+        super().__init__("turnstile_invalid", "Verification failed. Please try again.", 400)
+
+
+class TurnstileUnavailableError(AppError):
+    """503 — verification could not be completed safely; fail closed."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "turnstile_unavailable",
+            "Verification is temporarily unavailable. Please try again shortly.",
+            503,
+        )
+
+
+class TurnstileConfigurationError(AppError):
+    """503 — protected endpoint called with Turnstile misconfigured server-side."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "turnstile_configuration_error",
+            "Verification is not configured correctly.",
+            503,
+        )
+
+
 class CurrentPasswordError(AppError):
     """400 — wrong current password on change (authenticated: honesty is safe)."""
 

@@ -1,8 +1,8 @@
 /**
  * Auth API layer — the ONLY module that talks to `/auth/*`. Built exclusively on
  * the canonical client (`lib/api.ts`): cookies flow via `credentials: "include"`
- * and session tokens never touch JS. There is intentionally no `turnstile_token`
- * plumbing (backend accepts-and-ignores it; Stage 05 sends no such field).
+ * and session tokens never touch JS. Stage 22 adds optional Turnstile tokens
+ * to public auth actions; secrets stay server-side only.
  */
 
 import { api, ApiRequestError } from "./api";
@@ -28,14 +28,19 @@ export const AUTH_LANDING_PATH = "/dashboard";
 export async function register(input: RegisterInput): Promise<AuthSession> {
   return api<AuthSession>("/auth/register", {
     method: "POST",
-    body: { name: input.name, email: input.email, password: input.password },
+    body: {
+      name: input.name,
+      email: input.email,
+      password: input.password,
+      turnstile_token: input.turnstile_token,
+    },
   });
 }
 
 export async function login(input: LoginInput): Promise<AuthSession> {
   return api<AuthSession>("/auth/login", {
     method: "POST",
-    body: { email: input.email, password: input.password },
+    body: { email: input.email, password: input.password, turnstile_token: input.turnstile_token },
   });
 }
 
@@ -58,21 +63,25 @@ export async function verifyEmail(input: VerifyEmailInput): Promise<AuthSession>
 export async function resendVerification(input: ResendVerificationInput): Promise<EmptyResponse> {
   return api<EmptyResponse>("/auth/resend-verification", {
     method: "POST",
-    body: { email: input.email },
+    body: { email: input.email, turnstile_token: input.turnstile_token },
   });
 }
 
 export async function requestPasswordReset(input: ForgotPasswordInput): Promise<EmptyResponse> {
   return api<EmptyResponse>("/auth/forgot-password", {
     method: "POST",
-    body: { email: input.email },
+    body: { email: input.email, turnstile_token: input.turnstile_token },
   });
 }
 
 export async function resetPassword(input: ResetPasswordInput): Promise<EmptyResponse> {
   return api<EmptyResponse>("/auth/reset-password", {
     method: "POST",
-    body: { token: input.token, new_password: input.new_password },
+    body: {
+      token: input.token,
+      new_password: input.new_password,
+      turnstile_token: input.turnstile_token,
+    },
   });
 }
 

@@ -78,13 +78,13 @@ GET /health/ready   → 200 {"status":"ready"|"degraded","checks":{"database":"n
 ```
 POST /auth/register            {name, email, password, turnstile_token?} → 201 {id,email,is_verified:false}
 POST /auth/verify-email        {token} → 200 {id,email,is_verified:true} (+ sets session cookies)
-POST /auth/resend-verification {email} → 202 {} (always 202: no account enumeration)
+POST /auth/resend-verification {email, turnstile_token?} → 202 {} (always 202: no account enumeration)
 POST /auth/login               {email, password, turnstile_token?} → 200 {id,email,is_verified} (+ cookies)
 POST /auth/refresh             (refresh cookie) → 200 {id,email,is_verified} (+ rotates cookies)
 POST /auth/logout              (refresh cookie, optional) → 204 (clears cookies, revokes refresh)
 GET  /auth/me                  → 200 {id,email,display_name,is_verified,is_active,created_at} | 401
-POST /auth/forgot-password     {email} → 202 {} (always 202)
-POST /auth/reset-password      {token, new_password} → 200 {}
+POST /auth/forgot-password     {email, turnstile_token?} → 202 {} (always 202)
+POST /auth/reset-password      {token, new_password, turnstile_token?} → 200 {}
 POST /auth/change-password     {current_password, new_password} → 200 {} (auth required)
 DELETE /auth/account           {confirmation:"DELETE"} → 204 (full cascade delete, auth required)
 ```
@@ -93,10 +93,15 @@ DELETE /auth/account           {confirmation:"DELETE"} → 204 (full cascade del
   Re-presenting a rotated refresh token revokes its whole family (theft response).
 - `/me` also returns `display_name` / `is_active` (additive); `register` takes `name`.
 - Validation (server): email format; password 12–256 chars + common-password denylist
-  + must not contain the email local part; link tokens 16–128 chars. `turnstile_token`
-  is accepted-and-ignored until Stage 22 verifies it.
+  + must not contain the email local part; link tokens 16–128 chars. Stage 22:
+  `turnstile_token` is verified server-side with Cloudflare Turnstile on public
+  high-abuse auth operations (register/login/resend/forgot/reset) when enabled;
+  secrets remain backend-only. Turnstile failures return stable app codes
+  (`turnstile_required`, `turnstile_invalid`, `turnstile_unavailable`,
+  `turnstile_configuration_error`) and never expose raw provider responses.
 - Anti-enumeration: duplicate register → synthetic `201` (+ `account_exists` notice to
-  the real inbox); forgot/resend → always `202` (+ uniform timing); token endpoints
+  the real inbox); forgot/resend → always `202` (+ uniform timing) after successful
+  Turnstile verification when configured; token endpoints
   (256-bit, unguessable) return honest `400 invalid_token`.
 - Unverified accounts CAN log in (sessions issued); app resources gate on verification
   per-endpoint (`403 email_unverified`). Logout works with an expired access token
@@ -109,8 +114,10 @@ DELETE /auth/account           {confirmation:"DELETE"} → 204 (full cascade del
   return `{id,email,is_verified}`; `/me` returns the full identity row; logout is
   `204` (empty body); resend/forgot are `202 {}`; reset/change are `200 {}`.
   `validation_error` details are `[{loc:[…], msg}]` — the UI maps known `loc` tails
-  to fields. The UI sends NO `turnstile_token` field and implements NO remember-me
-  (neither exists server-side). Outstanding access JWTs survive reset/logout until
+  to fields. Stage 22 UI renders Cloudflare Turnstile only when
+  `NEXT_PUBLIC_TURNSTILE_SITE_KEY` is configured, sends `turnstile_token` on the
+  protected public auth submissions, and resets the widget on backend failure. The
+  UI implements NO remember-me. Outstanding access JWTs survive reset/logout until
   TTL expiry (stateless bearers); revocation applies to refresh — the UI never
   assumes otherwise.
 

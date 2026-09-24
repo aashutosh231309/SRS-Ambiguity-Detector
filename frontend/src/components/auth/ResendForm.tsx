@@ -6,7 +6,7 @@
  * answers 202 (anti-enumeration), so success copy never claims delivery.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { resendVerification } from "@/lib/auth";
 import { authErrorMessage } from "@/lib/auth-errors";
@@ -14,6 +14,7 @@ import { normalizeEmail, validateEmail } from "@/lib/auth-validation";
 import { cn } from "@/lib/utils";
 
 import { FormAlert, SubmitButton, TextField } from "./fields";
+import { TurnstileWidget, isTurnstileConfigured } from "./TurnstileWidget";
 
 const COOLDOWN_SECONDS = 30;
 
@@ -27,6 +28,8 @@ export function ResendForm({
   const [email, setEmail] = useState(defaultEmail);
   const [emailError, setEmailError] = useState<string | undefined>(undefined);
   const [formError, setFormError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileReset, setTurnstileReset] = useState(0);
   const [sent, setSent] = useState(false);
   const [pending, setPending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
@@ -38,6 +41,17 @@ export function ResendForm({
     },
     [],
   );
+
+  const clearTurnstile = useCallback(() => setTurnstileToken(null), []);
+  const turnstileError = useCallback(() => {
+    setTurnstileToken(null);
+    setFormError("Security verification failed. Please try again.");
+  }, []);
+
+  function resetTurnstile() {
+    setTurnstileToken(null);
+    setTurnstileReset((value) => value + 1);
+  }
 
   function startCooldown() {
     setCooldown(COOLDOWN_SECONDS);
@@ -62,14 +76,22 @@ export function ResendForm({
     setFormError(null);
     setSent(false);
     if (error) return;
+    if (isTurnstileConfigured() && turnstileToken === null) {
+      setFormError("Complete the security verification and try again.");
+      return;
+    }
 
     setPending(true);
     try {
-      await resendVerification({ email: normalizeEmail(email) });
+      await resendVerification({
+        email: normalizeEmail(email),
+        turnstile_token: turnstileToken ?? undefined,
+      });
       setSent(true);
       startCooldown();
     } catch (err) {
       setFormError(authErrorMessage(err, "resend"));
+      resetTurnstile();
     } finally {
       setPending(false);
     }
@@ -101,6 +123,12 @@ export function ResendForm({
             setEmailError(undefined);
           }}
           error={emailError}
+        />
+        <TurnstileWidget
+          onToken={setTurnstileToken}
+          onExpired={clearTurnstile}
+          onError={turnstileError}
+          resetSignal={turnstileReset}
         />
         {cooldown > 0 ? (
           <p aria-live="polite" className="text-[13px] font-medium text-ink-faint tabular-nums">

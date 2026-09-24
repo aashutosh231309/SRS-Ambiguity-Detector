@@ -123,9 +123,13 @@
 > Actual Stage 21 (2026-09-24) closed the remaining AI-product slices from
 > roadmap-19/20 and part of roadmap-22's AI surface: creation-time provider
 > key proof before encrypted storage, per-run what-was-sent disclosure copy,
-> and a dedicated retry-AI rate bucket. Still open from roadmap-22: Turnstile
-> + distributed limiter storage / production deployment posture.
-> The table above keeps its original numbers; STAGE_STATUS.md records the
+> and a dedicated retry-AI rate bucket.
+> Actual Stage 22 (2026-09-24) closed roadmap-22's Turnstile slice:
+> frontend token collection + backend Cloudflare siteverify on public
+> high-abuse auth routes (register/login/resend/forgot/reset), fail-closed
+> production posture, stable app errors, mocked-provider tests. Still open
+> from roadmap-22: distributed limiter storage / production deployment
+> posture. The table above keeps its original numbers; STAGE_STATUS.md records the
 > as-built mapping.
 
 ## Dependency notes

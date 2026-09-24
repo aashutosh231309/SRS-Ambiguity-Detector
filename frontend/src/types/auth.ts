@@ -28,11 +28,13 @@ export interface RegisterInput {
   name: string;
   email: string;
   password: string;
+  turnstile_token?: string;
 }
 
 export interface LoginInput {
   email: string;
   password: string;
+  turnstile_token?: string;
 }
 
 export interface VerifyEmailInput {
@@ -41,15 +43,18 @@ export interface VerifyEmailInput {
 
 export interface ResendVerificationInput {
   email: string;
+  turnstile_token?: string;
 }
 
 export interface ForgotPasswordInput {
   email: string;
+  turnstile_token?: string;
 }
 
 export interface ResetPasswordInput {
   token: string;
   new_password: string;
+  turnstile_token?: string;
 }
 
 export interface ChangePasswordInput {

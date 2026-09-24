@@ -41,7 +41,7 @@ afterEach(() => {
 });
 
 describe("auth api layer", () => {
-  it("registers with exactly name/email/password (no turnstile field, no extras)", async () => {
+  it("registers with exactly name/email/password when Turnstile token is absent", async () => {
     const inits: Array<RequestInit | undefined> = [];
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       inits.push(init);
@@ -60,7 +60,7 @@ describe("auth api layer", () => {
     });
   });
 
-  it("logs in with email/password only", async () => {
+  it("logs in with email/password only when Turnstile token is absent", async () => {
     const inits: Array<RequestInit | undefined> = [];
     vi.stubGlobal(
       "fetch",
@@ -75,6 +75,53 @@ describe("auth api layer", () => {
       email: "ada@example.com",
       password: "long-enough-1",
     });
+  });
+
+  it("sends optional Turnstile tokens on public auth abuse targets", async () => {
+    const bodies: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        bodies.push(JSON.parse(String(init?.body)));
+        return jsonResponse({});
+      }),
+    );
+
+    await register({
+      name: "Ada",
+      email: "ada@example.com",
+      password: "long-enough-1",
+      turnstile_token: "captcha-register",
+    });
+    await login({
+      email: "ada@example.com",
+      password: "long-enough-1",
+      turnstile_token: "captcha-login",
+    });
+    await resendVerification({ email: "a@b.co", turnstile_token: "captcha-resend" });
+    await requestPasswordReset({ email: "a@b.co", turnstile_token: "captcha-forgot" });
+    await resetPassword({
+      token: "tok",
+      new_password: "new-password-12",
+      turnstile_token: "captcha-reset",
+    });
+
+    expect(bodies).toEqual([
+      {
+        name: "Ada",
+        email: "ada@example.com",
+        password: "long-enough-1",
+        turnstile_token: "captcha-register",
+      },
+      {
+        email: "ada@example.com",
+        password: "long-enough-1",
+        turnstile_token: "captcha-login",
+      },
+      { email: "a@b.co", turnstile_token: "captcha-resend" },
+      { email: "a@b.co", turnstile_token: "captcha-forgot" },
+      { token: "tok", new_password: "new-password-12", turnstile_token: "captcha-reset" },
+    ]);
   });
 
   it("resolves undefined on logout 204", async () => {

@@ -53,6 +53,7 @@ class VerifyEmailRequest(BaseModel):
 
 class ResendVerificationRequest(BaseModel):
     email: EmailStr = Field(max_length=320)
+    turnstile_token: str | None = Field(default=None, max_length=2048)
 
     @field_validator("email")
     @classmethod
@@ -62,6 +63,7 @@ class ResendVerificationRequest(BaseModel):
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr = Field(max_length=320)
+    turnstile_token: str | None = Field(default=None, max_length=2048)
 
     @field_validator("email")
     @classmethod
@@ -72,6 +74,7 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str = Field(min_length=16, max_length=128)
     new_password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH)
+    turnstile_token: str | None = Field(default=None, max_length=2048)
 
 
 class ChangePasswordRequest(BaseModel):

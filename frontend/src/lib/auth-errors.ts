@@ -47,6 +47,14 @@ export function authErrorMessage(err: unknown, context: AuthErrorContext): strin
       return "Please check the highlighted fields and try again.";
     case "rate_limited":
       return "Too many attempts. Please try again later.";
+    case "turnstile_required":
+      return "Complete the verification challenge and try again.";
+    case "turnstile_invalid":
+      return "Verification expired or failed. Please try again.";
+    case "turnstile_unavailable":
+      return "Verification is temporarily unavailable. Please try again shortly.";
+    case "turnstile_configuration_error":
+      return "Verification is not configured correctly. Please contact support.";
     case "forbidden":
       return "You don't have permission to do that.";
     case "unauthenticated":

@@ -143,21 +143,20 @@ per-user 20/min; missing/foreign ids → identical `404`).
 Cookie sessions (httpOnly, rotating refresh) · argon2id passwords · email verification ·
 ownership checks on every resource (cross-user IDs → 404) · user AI keys Fernet-encrypted
 at rest, never returned/logged · uploads validated (type/size/magic-bytes) · rate limits +
-Turnstile on sensitive ops · Sentry with aggressive scrubbing. Details:
-[`docs/SECURITY_SPEC.md`](docs/SECURITY_SPEC.md). The app is NOT yet production-hardened —
-dedicated security stages do that later.
+Cloudflare Turnstile on public high-abuse auth ops · audits/secret scan. Details:
+[`docs/SECURITY_SPEC.md`](docs/SECURITY_SPEC.md). Distributed limiter storage,
+privacy lifecycle, and monitoring remain future hardening work.
 
 ## Current limitations
 
 Backend auth + auth UI are done, and so are the analysis spine (SRS text
 input + document upload/extraction + deterministic segmentation +
-11-detector ambiguity analysis + transparent scoring + persistence) and the
-report experience (scored result UI inline in `/analyzer` + a saved-report
-route `/analysis/[id]`, verified users; `POST /api/v1/analysis` TEXT-only →
-`201` ANALYZED detail with scores + nested issues + breakdown; `GET`
-detail/list + `DELETE` included) — intentionally NOT implemented yet:
-history UI, dashboard, settings, AI providers, CAPTCHA/distributed rate
-limits, Sentry. Scores are heuristic triage aids, not validated measurements
+11-detector ambiguity analysis + transparent scoring + persistence), history,
+dashboard, settings, AI providers/enhancement/retry, report experience, document
+list/download/delete, and Turnstile on sensitive public auth ops. Still
+intentionally NOT implemented yet: distributed limiter storage, privacy lifecycle,
+monitoring/Sentry, performance/SEO polish, responsive/a11y final pass, production
+deployment, screenshots/docs finalization. Scores are heuristic triage aids, not validated measurements
 (see [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) §4.3 honest limits).
 Post-auth landing is still the temporary fixed `/`; the home page is an
 honest placeholder (replaced by the marketing stage), and `ApiStatus` needs

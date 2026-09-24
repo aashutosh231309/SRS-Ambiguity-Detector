@@ -28,6 +28,7 @@ from app.schemas.auth import (
 )
 from app.services import auth as auth_service
 from app.services.auth import AuthResult, UserInfo
+from app.services.turnstile import verify_turnstile_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -94,6 +95,11 @@ def _request_context(request: Request) -> tuple[str | None, str | None]:
     return request.headers.get("user-agent"), ip
 
 
+def _client_ip(request: Request) -> str | None:
+    """Socket IP for Turnstile remoteip/session context; never trust XFF here."""
+    return request.client.host if request.client else None
+
+
 def _auth_user(result: AuthResult) -> AuthUserResponse:
     return AuthUserResponse(
         id=result.user.id, email=result.user.email, is_verified=result.user.is_verified
@@ -112,6 +118,7 @@ async def register(
     tasks: BackgroundTasks,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AuthUserResponse:
+    await verify_turnstile_token(body.turnstile_token, remote_ip=_client_ip(request))
     result = await auth_service.register(
         session, name=body.name, email=str(body.email), password=body.password
     )
@@ -130,6 +137,7 @@ async def login(
     response: Response,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AuthUserResponse:
+    await verify_turnstile_token(body.turnstile_token, remote_ip=_client_ip(request))
     user_agent, ip = _request_context(request)
     result = await auth_service.login(
         session, email=str(body.email), password=body.password, user_agent=user_agent, ip=ip
@@ -218,6 +226,7 @@ async def resend_verification(
     tasks: BackgroundTasks,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, object]:
+    await verify_turnstile_token(body.turnstile_token, remote_ip=_client_ip(request))
     emails = await auth_service.resend_verification(session, email=str(body.email))
     _schedule_email(tasks, _email_service(request), emails)
     return {}
@@ -234,6 +243,7 @@ async def forgot_password(
     tasks: BackgroundTasks,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, object]:
+    await verify_turnstile_token(body.turnstile_token, remote_ip=_client_ip(request))
     emails = await auth_service.forgot_password(session, email=str(body.email))
     _schedule_email(tasks, _email_service(request), emails)
     return {}
@@ -249,6 +259,7 @@ async def reset_password(
     tasks: BackgroundTasks,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> dict[str, object]:
+    await verify_turnstile_token(body.turnstile_token, remote_ip=_client_ip(request))
     emails = await auth_service.reset_password(
         session, token=body.token, new_password=body.new_password
     )

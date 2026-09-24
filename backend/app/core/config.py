@@ -100,6 +100,13 @@ class Settings(BaseSettings):
     # Explicit retry budget: retry-ai can trigger the same provider work as a
     # fresh enhanced run, so it gets its own AI bucket (Stage 21 as-built).
     RATE_LIMIT_AI_RETRY_PER_MINUTE: int = 10
+    # --- Stage 22: Cloudflare Turnstile anti-bot (SECURITY_SPEC §7) ---
+    # Local/dev default is OFF; production protected endpoints fail closed unless
+    # enabled with a backend-only secret. The site key is public frontend config.
+    TURNSTILE_ENABLED: bool = False
+    TURNSTILE_SECRET_KEY: str | None = None
+    TURNSTILE_VERIFY_URL: str = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+    TURNSTILE_TIMEOUT_SECONDS: float = 3.0
     # --- Stage 14: AI enhancement budgets (AI_PROVIDER_SPEC §2) ---
     # Per-call provider timeout (seconds); adapters clamp every `timeout_s`
     # into [1, AI_MAX_TIMEOUT_S]. DEFAULT > MAX is operator misconfig and
@@ -145,6 +152,12 @@ class Settings(BaseSettings):
             raise ValueError("AI_MAX_TIMEOUT_S must be at least 1.")
         if not 1 <= self.AI_DEFAULT_TIMEOUT_S <= self.AI_MAX_TIMEOUT_S:
             raise ValueError("AI_DEFAULT_TIMEOUT_S must be within [1, AI_MAX_TIMEOUT_S].")
+        return self
+
+    @model_validator(mode="after")
+    def _turnstile_timeout_positive(self) -> "Settings":
+        if self.TURNSTILE_TIMEOUT_SECONDS < 1:
+            raise ValueError("TURNSTILE_TIMEOUT_SECONDS must be at least 1.")
         return self
 
     @model_validator(mode="after")

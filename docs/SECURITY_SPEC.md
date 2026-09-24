@@ -49,10 +49,11 @@ their own keys; we disclose what is sent — see `AI_PROVIDER_SPEC.md` §Privacy
   mutating route (safe-method `GET /me` exempt); consider double-submit in Stage 21
   if threat review demands it.
 - Login hardening (as built): per-endpoint+IP token buckets, single-process exact
-  (per-account buckets + distributed store in Stage 22); `turnstile_token`
-  accepted-and-ignored until Stage 22; constant-time compare; byte-identical 401s for
-  bad-email vs bad-password; no enumeration (synthetic-201 register + always-202
-  forgot/resend + dummy-hash uniform timing).
+  (per-account buckets + distributed store still future); Stage 22 server-side
+  Cloudflare Turnstile verification on public high-abuse auth operations
+  (register/login/resend/forgot/reset) when configured; constant-time compare;
+  byte-identical 401s for bad-email vs bad-password; no enumeration
+  (synthetic-201 register + always-202 forgot/resend + dummy-hash uniform timing).
 - Password policy: 12–256 chars + common-password denylist + email-local-part rule;
   change requires the current password; reset links ≤1 h, single-use, and trigger
   logout-everywhere; security notices on verify/reset/change/delete.
@@ -136,12 +137,21 @@ Sensitive ops (register, login, verify-resend, forgot/reset, analysis, upload, A
 AI retry) get server-side limits (token-bucket per IP + per-user where authed),
 configurable via env (`RATE_LIMIT_*`), returning `429` + `Retry-After`. As-built:
 auth default, analysis-create, upload, provider-TEST, document-download-mint, and
-retry-AI all have dedicated/env-backed buckets; distributed storage + Turnstile remain
-roadmap-22. Turnstile
-(server-verified) on register + suspicious login + reset + public endpoints if ever exposed.
-Frontend throttling is cosmetic only. Live since Stage 06: `POST /analysis` is
-per-user bucketed (`RATE_LIMIT_ANALYSIS_PER_MINUTE`, default 20/min) inside the
-verified-user guard — anonymous callers never reach the bucket (401 first).
+retry-AI all have dedicated/env-backed buckets; distributed storage remains future.
+Stage 22 adds Cloudflare Turnstile as an additional abuse-defense layer for the
+public high-abuse auth operations only: register, login, resend verification,
+forgot password, and reset password. It does NOT replace authentication, CSRF,
+Origin/Referer checks, authorization, or rate limits and is not applied globally to
+authenticated/read-only/deterministic analysis requests. The backend verifies
+server-side via the official siteverify endpoint with a strict timeout, sends the
+backend-only secret plus response token (and socket peer IP when available), caps
+provider response size, fails closed when enabled, and maps failures to stable app
+codes without leaking raw provider responses. Outside production it is a no-op when
+`TURNSTILE_ENABLED=false`; in production, enabling without a secret is a boot/runtime
+configuration error for protected requests. Frontend throttling is cosmetic only.
+Live since Stage 06: `POST /analysis` is per-user bucketed
+(`RATE_LIMIT_ANALYSIS_PER_MINUTE`, default 20/min) inside the verified-user guard —
+anonymous callers never reach the bucket (401 first).
 
 ## 8. Headers & transport (foundation Stage 01, hardened Stage 20 as-built / roadmap-21)
 
