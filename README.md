@@ -365,6 +365,8 @@ Stage 30 chose single-instance/process-local rate limiting for v1 production. Do
 - [`docs/SECURITY_SPEC.md`](docs/SECURITY_SPEC.md) — threat model and controls.
 - [`docs/AI_PROVIDER_SPEC.md`](docs/AI_PROVIDER_SPEC.md) — AI architecture and providers.
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — production deployment runbook.
+- [`docs/REQUIREMENTS_TRACEABILITY.md`](docs/REQUIREMENTS_TRACEABILITY.md) — final requirement-to-implementation evidence matrix.
+- [`docs/FINAL_AUDIT.md`](docs/FINAL_AUDIT.md) — Stage 32 final audit, security review, validation split, and limitations.
 - [`docs/FUTURE_ROADMAP.md`](docs/FUTURE_ROADMAP.md) — staged roadmap and future scope.
 - [`docs/STAGE_STATUS.md`](docs/STAGE_STATUS.md) — implementation ledger.
 - [`screenshots/README.md`](screenshots/README.md) — final screenshot catalog and procedure.

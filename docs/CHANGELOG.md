@@ -4,6 +4,32 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [1.0.0] — Stage 32 — Final audit & release readiness — 2026-09-24
+
+### Added
+
+- Final release-readiness audit in `docs/FINAL_AUDIT.md`, covering Stage 00–31 reconciliation,
+  security review answers, external-validation split, remaining limitations, and final project state.
+- Requirement-to-implementation traceability matrix in `docs/REQUIREMENTS_TRACEABILITY.md`, mapping
+  core SRS Ambiguity Detector requirements to implementation and tests.
+
+### Changed
+
+- README documentation index now links the final audit and traceability matrix.
+- `docs/UI_UX_SPEC.md` now reflects the as-built Stage 26–27 marketing/content route work instead
+  of listing those components as pending.
+- `docs/STAGE_STATUS.md` now points future screenshot work at the final Stage 31 capture catalog
+  rather than obsolete per-stage screenshot names.
+- Roadmap/status docs record Stage 32 as the final planned stage, with remaining work limited to
+  documented external validation or optional future enhancements.
+
+### Contract
+
+- No API, database, authentication, storage, AI-provider, or frontend behavior changed in Stage 32.
+  The audit found no product-code security/correctness blocker requiring behavior changes.
+- Live PostgreSQL/Docker/browser/Supabase/Turnstile/Resend/Sentry/AI-provider validation remains
+  unclaimed in this sandbox where the required tools or credentials were unavailable.
+
 ## [0.32.0] — Stage 31 — Documentation, screenshots & final presentation assets — 2026-09-24
 
 ### Added

@@ -1984,19 +1984,113 @@ limiter-storage slice if explicitly prioritized first.
 
 **Next stage:** Stage 32 — Final Audit.
 
+### Stage 32 — Final Audit & Release Readiness ✅ (2026-09-24)
+
+**Reconciliation before editing:**
+
+- Verified the branch/status/recent commits after Stage 31; work stayed on
+  `arena/01a0cebe-srs-ambiguity-detector`.
+- Read canonical docs including status, roadmap, changelog, README, project/deployment/API/security
+  docs, AI/provider docs, UI/SEO/schema docs, and screenshot documentation.
+- Inventoried actual frontend routes, dynamic FastAPI route surface, Alembic migrations, backend
+  models, tests, and golden-corpus references before making changes.
+- Confirmed external tooling limitations in the sandbox: Docker, PostgreSQL local tools, Chromium,
+  Chrome, and Playwright were unavailable.
+
+**Audit areas:**
+
+- Stage 00–31 scope reconciliation against actual source, tests, migrations, routes, and docs.
+- Core requirements: text input, document upload, extraction, segmentation, deterministic detectors,
+  explanations, recommendations, scoring, severity, auth, persistence, ownership isolation, history,
+  dashboard, AI credential/enhancement/fallback/retry/privacy, and account deletion lifecycle.
+- Backend `/api/v1` route contracts, schemas, errors, pagination, auth, ownership, CSRF/rate-limit
+  posture, upload/download controls, and frontend client alignment.
+- Auth/session security: registration, login/logout, refresh-token rotation/reuse revocation,
+  verification/reset/change/delete flows, cookies, Origin/Referer CSRF checks, anti-enumeration,
+  Turnstile, and rate limits.
+- Mandatory IDOR/ownership review for analyses, documents, download tokens, provider credentials,
+  settings, dashboard, privacy export, and purge/delete flows.
+- Document security: filename/path safety, extension/MIME/magic checks, OOXML/text/NUL checks,
+  size/extraction/member/decompression/time limits, attachment downloads, token expiry, and storage
+  deletion behavior.
+- AI privacy/provider contracts: no global provider keys, encrypted per-user credentials, no
+  unrelated data/secrets/cookies/tokens in provider payloads, prompt caps/sanitization, fallback and
+  retry behavior, and scrubbed logs/Sentry.
+- Database/migration integrity: single Alembic head (`0006`), ordered revision chain, documented
+  model/schema consistency, FKs/indexes/uniques/cascades/ownership/timestamps.
+- Frontend SEO/private-route boundary, metadata, noindex/sitemap policy, auth behavior,
+  responsive/a11y repository refinements, and documented browser-validation limitations.
+- Security/tooling/reproducibility: secret scan, npm audit, pip-audit, full verify gate,
+  Markdown links, ignored local artifacts, and Git cleanliness.
+
+**Defects found/fixed:**
+
+- No product-code security, auth, authorization, privacy, analysis-correctness, API-contract,
+  migration, or deployment-blocker defect was found that required a behavior change.
+- Fixed stale documentation in `docs/UI_UX_SPEC.md`: marketing/content components are now marked as
+  complete for Stages 26–27 instead of pending.
+- Fixed stale future-agent warning in this file: screenshot debt now points to the final
+  `screenshots/README.md` catalog instead of obsolete per-stage screenshot names.
+- Added `docs/FINAL_AUDIT.md` with the final audit, security review, validation split, limitations,
+  and Stage 00–31 completion matrix.
+- Added `docs/REQUIREMENTS_TRACEABILITY.md` with requirement-to-implementation/test evidence.
+- Updated README, changelog, and roadmap to link/record final audit deliverables and Stage 32
+  completion.
+
+**Verification:**
+
+- Focused golden/detector/scoring/segmentation suite:
+  `cd backend && PATH="$PWD/.venv/bin:$PATH" PYTHONPATH=. pytest -q tests/test_stage29_quality_baseline.py tests/test_detectors.py tests/test_scoring.py tests/test_segmentation.py`
+  → `91 passed, 1 warning`.
+- Focused auth/security/document/privacy/AI/storage/Turnstile suite:
+  `cd backend && PATH="$PWD/.venv/bin:$PATH" PYTHONPATH=. pytest -q tests/test_auth.py tests/test_auth_security.py tests/test_analysis_crud.py tests/test_documents.py tests/test_privacy.py tests/test_ai_adapters.py tests/test_ai_providers.py tests/test_ai_enhancement.py tests/test_retry_ai.py tests/test_storage_supabase.py tests/test_turnstile.py`
+  → `76 passed, 250 skipped, 1 warning`; skips were PostgreSQL-backed tests because no reachable
+  test DB was available.
+- Alembic metadata: `cd backend && PATH="$PWD/.venv/bin:$PATH" alembic heads` → `0006 (head)`;
+  history inspection confirmed a linear revision chain through `0006`.
+- Secret scan: `./scripts/secret-scan.sh` → `secret-scan: clean`.
+- Markdown relative links across README/docs/screenshots: `markdown links ok`.
+- Final full gate after Stage 32 doc fixes: `PATH="$PWD/backend/.venv/bin:$HOME/.local/bin:$PATH" ./scripts/verify.sh` → ALL CHECKS PASSED. Backend ruff/format clean (141 files), mypy clean (100 source files), pytest green; a concise rerun recorded `244 passed, 347 skipped, 1 warning in 11.59s`, with skips caused by the unreachable PostgreSQL test database. FastAPI import/OpenAPI sanity passed. Frontend eslint/typecheck clean; Vitest `53 files / 432 tests passed`; Prettier clean; Next production build passed with 19 routes. Secret scan clean; `npm audit` 0 vulnerabilities; `pip-audit` clean with the repository's configured ignored advisories.
+
+**External validation status:**
+
+- Live in sandbox: repository lint/type/test/build/audit gates, route import sanity, deterministic
+  golden corpus, secret scan, Markdown link validation, Alembic metadata.
+- Mocked only: AI provider HTTP behavior, Supabase Storage behavior, Turnstile verification behavior,
+  and email/Sentry integration paths.
+- Unavailable/not claimed: runtime PostgreSQL migration validation, DB-backed integration tests,
+  Docker Compose validation, browser screenshots, manual responsive/device/a11y validation, live
+  Supabase/Turnstile/Resend/Sentry/AI-provider validation.
+
+**Remaining limitations:**
+
+- Process-local rate limiting remains the v1 deployment posture; distributed/shared limiter storage
+  is optional future hardening.
+- OCR, multilingual analysis, team workspaces/sharing, report export, and CLI/batch API remain
+  optional future enhancements.
+- Heuristic English-first detection can produce false positives/false negatives.
+- No open-source license is declared.
+- Screenshot images and live external-service validation must be completed by an operator in an
+  environment with browser/runtime credentials; no fabricated evidence is claimed.
+
+**Final project state:**
+
+Stage 32 is complete and is the final planned stage. The repository is release-ready within the
+honest limitations documented above and in `docs/FINAL_AUDIT.md`; no Stage 33 is required.
+
 ## Current stage
 
-None active — Stage 31 complete in this working branch. Distributed limiter storage remains future.
-Next: **Stage 32 — Final Audit**.
+None active — Stage 32 complete in this working branch. This is the final planned stage.
+Distributed/shared limiter storage and live external validation remain documented future/operator work.
 
-## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
+## Completed staged sequence (summary — authority: FUTURE_ROADMAP.md)
 
 Database → backend → auth backend → auth frontend → SRS input/segmentation/preview ✅ →
 detection+scoring+CRUD+result-UI ✅ → upload+extraction+upload-UI ✅ →
 history UI → report UI → dashboard data → dashboard viz → settings → AI vault →
 providers → overview/improvements → fallback → hardening → Turnstile CAPTCHA ✅
 (+ distributed limiter storage still future) → privacy → monitoring ✅ → performance ✅ → SEO foundation ✅ → SEO content ✅ →
-responsive/a11y ✅ → QA ✅ → deploy ✅ → docs/screenshot-catalog ✅ → audit.
+responsive/a11y ✅ → QA ✅ → deploy ✅ → docs/screenshot-catalog ✅ → final audit ✅.
 (As-built order; roadmap numbers preserved — see the FUTURE_ROADMAP.md as-built note.)
 
 ## Major decisions log
@@ -2061,6 +2155,7 @@ responsive/a11y ✅ → QA ✅ → deploy ✅ → docs/screenshot-catalog ✅ �
 9. `analyses.status` CHECK admits `segmented|analyzed|failed` (0004) and
    `documents.file_type` admits `pdf|docx|txt` (0005) — any stage adding a
    state/type must extend the CHECK via a new migration (never hand-edit the DB).
-10. `screenshots/` is STILL EMPTY (no browser in the sandbox, Stages 05–08): the
-    first browsed environment owes `stage05-*` + `stage06-*` + `stage07-*` +
-    `stage08-*` at 390/768/1440.
+10. `screenshots/` is STILL EMPTY because no browser tooling was available in the sandbox.
+    Stage 31 replaced the old per-stage screenshot debt with a final capture catalog and
+    privacy checklist in `screenshots/README.md`; use that procedure in the first browsed
+    environment.

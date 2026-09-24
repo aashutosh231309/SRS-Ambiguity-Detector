@@ -40,7 +40,7 @@
 | 29    | Testing/QA ✅                       | DEVELOPMENT_RULES §4                    | Delivered QA baseline: route-surface sentinel, deterministic golden corpus, AI prompt privacy/cap tests, full gate + flakiness rerun; DB/browser/Docker validation remains environment/deployment work             |
 | 30    | Production deployment ✅            | ARCHITECTURE §3                         | Delivered: Vercel + separate FastAPI host + Supabase Postgres/Storage topology documented, Supabase storage adapter, env runbook, backups, rollback, smoke tests; live external validation remains operator-run |
 | 31    | Documentation/screenshots ✅        | PROJECT_SPEC §2                         | Delivered: final README, project summary, user guide, API overview, detection-engine docs, screenshot catalog/capture procedure; screenshots not captured because no browser runtime was available |
-| 32    | Final audit                         | ALL                                     | Baseline checklist 12/12, security pass, DoD pass, release tag                                                                                                                                                     |
+| 32    | Final audit ✅                      | ALL                                     | Delivered: actual-repository reconciliation, final security/doc/test audit, requirement traceability, limitations register, full verification gate, and release-readiness docs. No Stage 33 is planned.             |
 
 > As-built sequencing (Stage 06, 2026-09-24): the analysis spine shipped
 > input-first. Actual Stage 06 delivered SRS text input + validation +
@@ -181,6 +181,13 @@
 > procedure. Browser screenshot capture was not fabricated: the sandbox still lacks Chromium,
 > Chrome, Playwright, or equivalent browser tooling, so screenshots remain an owner-run capture
 > task using the documented safe demo account/data procedure.
+
+> Actual Stage 32 (2026-09-24) completed the final planned audit/release-readiness pass:
+> source/docs/tests/routes/models/migrations/security/deployment limitations were reconciled
+> against the actual repository, `docs/FINAL_AUDIT.md` and
+> `docs/REQUIREMENTS_TRACEABILITY.md` were added, stale documentation was corrected, and the
+> full verification gate was rerun. Remaining items are documented external validation or
+> optional parking-lot enhancements, not a required Stage 33.
 
 ## Dependency notes
 

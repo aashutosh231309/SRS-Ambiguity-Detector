@@ -146,8 +146,8 @@ rewrites, §13). No black boxes.
 - [x] Product: SettingsScreen + ProviderCard + ProviderDialog + DeleteProviderDialog + CredentialField + DialogShell (Stage 13 — authenticated `/settings` AI-providers section per §12; settings-local dialog shell — the SHARED Dialog primitive is still pending)
 - [x] Product: AiOverviewSection + analyzer AI checkboxes + requirement rewrite block (Stage 14 — four-state AI outcome block on the report per §13, opt-in checkbox + Settings link on both analyzer forms, labeled additive-only rewrite in RequirementCard; history/dashboard untouched)
 - [x] Product: SettingsForms (Stage 16 — profile/password/privacy/delete-account sections in `/settings` per §12a; shared Dialog primitive still pending, settings-local DialogShell reused)
-- [ ] Product: Navbar, shared Dialog/Toast/Select/Switch primitives (owning stages)
-- [ ] Marketing: Hero, FeatureGrid, HowItWorks steps, CTA, Footer, Breadcrumbs (Stage 26+)
+- [ ] Product: Shared Dialog/Toast/Select/Switch primitives (feature-local implementations exist where needed; a generalized primitive library remains optional future cleanup)
+- [x] Marketing/content: public header/footer, homepage hero/CTA, feature/how-it-works/resources pages, breadcrumbs, and article/content structures (Stages 26–27)
 
 Rules: no fake buttons (every control does something or doesn't ship); no placeholder
 lorem; destructive actions confirm; async actions show pending → success/error states.
