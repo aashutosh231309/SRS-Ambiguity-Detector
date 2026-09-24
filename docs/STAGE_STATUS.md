@@ -1272,7 +1272,7 @@ remaining distributed limiter-store slice first.
 
 **Next stage:** Stage 28 — responsive/accessibility refinement, unless the user explicitly prioritizes the remaining distributed limiter-store slice first.
 
-## Current stage
+## Additional completed stages (as-built continuation)
 
 ### Stage 17 (as-built) — `retry-ai` endpoint + report Retry button ✅ (2026-09-24)
 
@@ -1762,11 +1762,58 @@ storage slice if explicitly prioritized.
 **Next stage:** Stage 26 — SEO foundation/marketing-page foundation per FUTURE_ROADMAP, unless the
 user explicitly prioritizes the deferred distributed limiter-store slice first.
 
+## Stage 28 — Responsive & accessibility refinement (COMPLETE)
+
+**Scope delivered:**
+
+- Reconciled the repository after Stage 27 (`2dfb85c1`): SEO content/public routes were complete,
+  the working tree was clean, and the active Stage 28 scope was the existing application UI rather
+  than a redesign. No backend/API/database contract changes were required.
+- Baseline before edits: frontend `npm run lint && npm run typecheck && npm test && npm run build`
+  passed with 53 test files / 432 tests and 19 generated Next routes.
+- Dialog accessibility/mobile fit: settings `DialogShell` now has a visible, named close button,
+  retains focus trap/return-focus/Escape/overlay behavior, disables dismissal while mutations are
+  pending, locks background scroll, and constrains internal scrolling with dynamic viewport and
+  safe-area padding. Report/history delete confirmation dialogs now use the same viewport-safe
+  max-height, overscroll containment, and safe-area padding.
+- Touch targets/focus: primary buttons now inherit a 44px minimum target; analyzer text/upload
+  submits, clear/cancel/destructive dialog actions, copy actions, and upload remove controls have
+  explicit 44px targets and visible `focus-visible` rings where local classes previously suppressed
+  reliance on the global outline.
+- Long-content resilience: requirement text, requirement identifiers/sections, AI rewrites, issue
+  category/phrase summaries, category bars, dashboard recent/latest rows, and history mobile cards
+  now wrap unbroken technical tokens/filenames/titles/URLs instead of clipping or forcing horizontal
+  overflow. Desktop truncation is retained only where the table/list layout benefits from it, with
+  `title` text preserved for truncated labels.
+- Mobile report/history/dashboard refinements: requirement copy actions stack on narrow phones;
+  history cards preserve full title/source information before the desktop table truncation rules;
+  dashboard recent analyses stack score metadata below long titles on phones. Existing chart
+  accessibility (spoken summaries + data tables) and responsive Recharts containers were preserved.
+- Semantics/a11y fixes: provider enablement switch names now reflect the action available
+  (`Disable …` when currently enabled, `Enable …` when disabled), reducing screen-reader ambiguity;
+  icon-only/compact delete and upload-remove controls remain named. Dangerous actions continue to
+  require explicit confirmation and are distinguished by copy, borders/icons/labels, and color.
+- Motion posture preserved: no normal animations were removed; existing `MotionProvider` /
+  `useReducedMotionConfig` architecture remains the reduced-motion contract.
+
+**Verification:**
+
+- Focused regression after edits: `cd frontend && npm test -- --run src/components/settings/ProviderCard.test.tsx src/components/settings/SettingsScreen.test.tsx src/components/settings/DeleteAccountDialog.test.tsx src/components/analyzer/DeleteAnalysisButton.test.tsx` → 4 files / 64 tests passed.
+- Final full gate: `PATH="$HOME/.local/bin:$PATH" TEST_DATABASE_URL="postgresql+asyncpg://postgres@/postgres?host=/home/user/pgdata" DATABASE_URL="postgresql+asyncpg://postgres@/postgres?host=/home/user/pgdata" ./scripts/verify.sh` → ALL CHECKS PASSED. Backend ruff/format clean; backend mypy clean (99 source files); backend pytest 230 passed, 347 skipped, 1 Starlette warning because no PostgreSQL server/socket exists at `/home/user/pgdata`; FastAPI import/OpenAPI sanity passed. Frontend eslint/typecheck clean; Vitest 53 files / 432 tests passed; Prettier clean; Next production build passed with 19 routes. Secret scan clean; `npm audit` 0 vulnerabilities; `pip-audit` clean (14 ignored advisories as configured).
+
+**Known limitations (accepted, not bugs):**
+
+- Browser/device visual validation at 390/768/1024/1440, screenshots, Docker, and live assistive-technology/manual screen-reader checks are not claimed in this sandbox unless separately reported. Stage 28 validation is repository/test/build based.
+- No axe/jest-axe dependency was added: the repo had no existing axe stack, and the targeted improvements were covered with component behavior tests instead of adding a new dependency for a narrow slice.
+- Distributed rate-limit storage remains future from Stage 22 and unrelated to this UI refinement stage.
+
+**Next stage:** Stage 29 — Testing/QA, or the separately documented future distributed limiter-storage slice if explicitly prioritized.
+
 ## Current stage
 
-None active — Stage 27 complete in this working branch. Distributed limiter storage remains future.
-Next: **Stage 28 — responsive/accessibility refinement** (unless the next prompt explicitly
-prioritizes the remaining distributed limiter-store slice).
+None active — Stage 28 complete in this working branch. Distributed limiter storage remains future.
+Next: **Stage 29 — Testing/QA** (unless the next prompt explicitly prioritizes the remaining
+distributed limiter-store slice).
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 
@@ -1775,7 +1822,7 @@ detection+scoring+CRUD+result-UI ✅ → upload+extraction+upload-UI ✅ →
 history UI → report UI → dashboard data → dashboard viz → settings → AI vault →
 providers → overview/improvements → fallback → hardening → Turnstile CAPTCHA ✅
 (+ distributed limiter storage still future) → privacy → monitoring ✅ → performance ✅ → SEO foundation ✅ → SEO content ✅ →
-responsive/a11y → QA → deploy → docs/shots → audit.
+responsive/a11y ✅ → QA → deploy → docs/shots → audit.
 (As-built order; roadmap numbers preserved — see the FUTURE_ROADMAP.md as-built note.)
 
 ## Major decisions log

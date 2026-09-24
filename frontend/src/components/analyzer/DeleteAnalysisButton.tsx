@@ -125,7 +125,7 @@ export function DeleteAnalysisButton({
         {compact ? null : "Delete"}
       </button>
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 [padding-bottom:max(1rem,env(safe-area-inset-bottom))] [padding-top:max(1rem,env(safe-area-inset-top))]">
           <div aria-hidden className="absolute inset-0 bg-ink/45" />
           <div
             role="dialog"
@@ -133,7 +133,7 @@ export function DeleteAnalysisButton({
             aria-labelledby="delete-analysis-title"
             aria-describedby="delete-analysis-description"
             onKeyDown={handleDialogKeyDown}
-            className="relative w-full max-w-md rounded-card border border-line bg-paper p-6 shadow-xl"
+            className="relative max-h-[min(90vh,calc(100dvh-2rem))] w-full max-w-md overflow-y-auto overscroll-contain rounded-card border border-line bg-paper p-6 shadow-xl"
           >
             <h2 id="delete-analysis-title" className="text-lg font-semibold tracking-[-0.01em]">
               Delete this analysis?
@@ -170,7 +170,7 @@ export function DeleteAnalysisButton({
                 type="button"
                 onClick={handleConfirm}
                 disabled={pending}
-                className="inline-flex items-center justify-center rounded-full bg-critic px-5 py-2 text-sm font-semibold text-white transition outline-none hover:brightness-110 focus-visible:ring-2 focus-visible:ring-critic/50 disabled:opacity-60"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-full bg-critic px-5 py-2 text-sm font-semibold text-white transition outline-none hover:brightness-110 focus-visible:ring-2 focus-visible:ring-critic/50 disabled:opacity-60"
               >
                 {pending ? "Deleting…" : "Delete analysis"}
               </button>

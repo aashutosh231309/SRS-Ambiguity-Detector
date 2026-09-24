@@ -4,6 +4,32 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.29.0] — Stage 28 — Responsive & accessibility refinement — 2026-09-24
+
+### Added
+
+- Visible accessible close affordance in the settings dialog shell, while preserving focus trap,
+  Escape/overlay dismissal, return-focus, background scroll lock, and pending-mutation dismissal lock.
+- Regression coverage for the visible close control, provider switch accessible names, and updated
+  dialog keyboard trapping semantics.
+
+### Changed
+
+- Primary/copy/dialog/analyzer/upload actions now consistently meet 44px touch-target sizing and
+  keep explicit focus-visible treatment.
+- Long technical text, filenames, titles, URLs, requirement identifiers/sections, issue phrases,
+  category labels, AI rewrites, history mobile cards, and dashboard recent/latest rows wrap on
+  narrow screens instead of clipping or causing horizontal overflow.
+- Provider switches now expose action-accurate labels (`Disable …` when enabled, `Enable …` when
+  disabled). Dialogs and destructive confirmations fit small/dynamic viewports with internal scroll
+  and safe-area padding.
+
+### Contract
+
+- UI_UX_SPEC, DEVELOPMENT_RULES, FUTURE_ROADMAP, STAGE_STATUS, and CHANGELOG updated for the
+  Stage 28 as-built responsive/accessibility refinement and the remaining browser/manual AT
+  validation limitation. No API, database, auth, SEO, or security posture changes.
+
 ## [0.28.0] — Stage 27 — SEO content & public discoverability — 2026-09-24
 
 ### Added

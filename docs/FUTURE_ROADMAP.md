@@ -36,7 +36,7 @@
 | 25    | Performance ✅                      | UI_UX_SPEC §6, SEO_SPEC §3              | Delivered: DB pool tuning, summary-query projections, SQL dashboard improved-count, bounded extraction workers, frontend memoized derivations, build/audit verification                                            |
 | 26    | SEO foundation ✅                   | SEO_SPEC §2–3                           | Delivered: public `/` landing foundation, centralized metadata/canonicals, OG/Twitter, robots/sitemap, noindex private/auth policy, JSON-LD core                                                                   |
 | 27    | SEO content ✅                      | SEO_SPEC §4                             | Delivered: public content routes, educational resources, internal links, breadcrumbs/Article JSON-LD, sitemap/robots expansion, content/privacy tests                                                              |
-| 28    | Responsive/a11y refinement          | UI_UX_SPEC §10–11                       | Width matrix 320→2560+, keyboard/SR pass, contrast, motion-reduced                                                                                                                                                 |
+| 28    | Responsive/a11y refinement ✅       | UI_UX_SPEC §10–11                       | Delivered repository slice: dialog close/scroll/focus refinements, 44px touch targets, long-content wrapping, switch names, focused tests; browser/AT visual validation remains ops/QA                             |
 | 29    | Testing/QA                          | DEVELOPMENT_RULES §4                    | Coverage review, e2e smoke (auth→analyze→history), contract tests, bug bash                                                                                                                                        |
 | 30    | Production deployment               | ARCHITECTURE §3                         | Vercel + Supabase topology validated, env runbook, backups, rollback plan                                                                                                                                          |
 | 31    | Documentation/screenshots           | PROJECT_SPEC §2                         | README final, screenshots full set, API docs, user guide                                                                                                                                                           |
@@ -146,6 +146,16 @@
 > breadcrumbs + Article JSON-LD, and expanded sitemap/robots coverage. External Search
 > Console, Rich Results, OG crawler, deployment-domain, and Core Web Vitals validation remain
 > deployment/operations work because no browser/search-console tooling is available here.
+
+> Actual Stage 28 (2026-09-24) closed roadmap-28's repository refinement slice:
+> settings/report delete dialogs gained viewport-safe internal scrolling and visible close
+> affordances where appropriate; analyzer/upload/copy/dialog actions were normalized to
+> 44px touch targets with visible focus; long requirements, filenames, titles, URLs,
+> issue text, category labels, AI rewrites, history cards, and dashboard recent rows now wrap
+> on narrow screens instead of clipping/overflowing; provider switches expose action-accurate
+> names. Browser/device screenshots, live assistive-technology checks, and deployment-host
+> visual validation remain Stage 29/operations work because no browser tooling was available
+> in this sandbox.
 
 ## Dependency notes
 

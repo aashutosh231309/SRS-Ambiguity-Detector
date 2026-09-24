@@ -292,7 +292,8 @@ function DashboardContent() {
                       <p className="mt-4">
                         <Link
                           href={`/analysis/${snapshot.stats.latest.id}`}
-                          className="text-[15px] font-semibold text-ink underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-signal/50"
+                          title={snapshot.stats.latest.title}
+                          className="text-[15px] font-semibold [overflow-wrap:anywhere] text-ink underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-signal/50"
                         >
                           {snapshot.stats.latest.title}
                         </Link>

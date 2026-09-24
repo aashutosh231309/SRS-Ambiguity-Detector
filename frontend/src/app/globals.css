@@ -75,6 +75,7 @@ body {
      the same signal pill from here). */
   .btn-primary {
     display: inline-flex;
+    min-height: 44px;
     align-items: center;
     gap: 0.5rem;
     border-radius: 9999px;

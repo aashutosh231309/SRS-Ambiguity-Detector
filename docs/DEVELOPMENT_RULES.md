@@ -41,12 +41,14 @@
 ## 3. Code standards
 
 **Frontend (`frontend/`):**
+
 - TypeScript `strict`, no `any` without justification comment; ESLint clean; Prettier formatted.
 - All API calls via `src/lib/api.ts` (typed, envelope-aware). No raw `fetch` to the API.
 - No secrets in `NEXT_PUBLIC_*`; no tokens in storage; React-escaped rendering of all
   untrusted text (requirement text, AI output, filenames).
-- Components: accessible (labels, focus, `aria-*` where needed), responsive (390/768/1280
-  considered), motion via shared tokens only.
+- Components: accessible (labels, focus, `aria-*` where needed), responsive (320–390/768/1024–1280/1440+
+  considered), no horizontal overflow for long technical/user text, touch targets ≥44px for
+  common/icon/destructive actions, motion via shared tokens only.
 - Auth UI rules (Stage 05, binding): tokens stay in httpOnly cookies — never read,
   store, log, or display them; `AuthProvider` is the single auth state (no parallel
   clients/stores); switch on backend error `code`, never `message`; client
@@ -57,6 +59,7 @@
   the device-only hook.
 
 **Backend (`backend/`):**
+
 - `ruff check` + `ruff format --check` clean; `mypy` clean on `app/` (config in `pyproject.toml`).
 - Settings ONLY via `app/core/config.py`; logging ONLY via configured logger (redacting);
   no `print()`; no f-string SQL; Pydantic schemas validate every input/output boundary.
@@ -80,7 +83,7 @@ user-owned; never trust client IDs.
 - [ ] API changes reflected in `API_CONTRACT.md`; DB changes in `DATABASE_SCHEMA.md` + migration; env changes in BOTH `.env.example` files.
 - [ ] Security checklist (`SECURITY_SPEC.md` §13) completed for auth/data/crypto/upload/AI/monitoring changes.
 - [ ] Docs updated: `STAGE_STATUS.md` (what/where/decisions/tests/limits/next), `CHANGELOG.md` (contract-relevant changes), specs touched by the stage.
-- [ ] `screenshots/` updated when UI changed (naming: `stageNN-short-desc--viewportWxH.png`).
+- [ ] `screenshots/` updated when UI changed (naming: `stageNN-short-desc--viewportWxH.png`) when a browser/preview tool is available; if unavailable, state that limitation honestly in `STAGE_STATUS.md` and the final report.
 - [ ] No secrets committed (`git status` + diff review for `.env`, keys, tokens).
 - [ ] App runs from a clean checkout following `README.md` quickstart (verify at least the paths your stage affects).
 

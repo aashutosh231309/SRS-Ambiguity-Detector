@@ -169,8 +169,8 @@ describe("ProviderCard rendering", () => {
       vi.fn(async () => jsonResponse({})),
     );
     renderCard(credential(), cbs);
-    const enable = screen.getByRole("switch", { name: "Enable Groq" });
-    expect(enable.getAttribute("aria-checked")).toBe("true");
+    const disable = screen.getByRole("switch", { name: "Disable Groq" });
+    expect(disable.getAttribute("aria-checked")).toBe("true");
     cleanup();
 
     renderCard(credential({ is_enabled: false }), callbacks());
@@ -288,7 +288,7 @@ describe("ProviderCard enable/disable and default", () => {
     );
     renderCard(credential(), cbs);
 
-    await user.click(screen.getByRole("switch", { name: "Enable Groq" }));
+    await user.click(screen.getByRole("switch", { name: "Disable Groq" }));
     await waitFor(() => expect(cbs.fns.onChanged).toHaveBeenCalledWith(disabled));
   });
 

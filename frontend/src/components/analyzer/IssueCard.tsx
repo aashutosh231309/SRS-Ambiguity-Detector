@@ -25,10 +25,13 @@ export function IssueCard({ issue }: { issue: AnalysisIssue }) {
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((was) => !was)}
-        className="flex w-full items-center gap-3 rounded-md py-1 text-left"
+        className="flex min-h-[44px] w-full items-center gap-3 rounded-md py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-signal/50"
       >
         <SeverityBadge severity={issue.severity} />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">
+        <span
+          className="min-w-0 flex-1 text-sm font-medium [overflow-wrap:anywhere] sm:truncate sm:[overflow-wrap:normal]"
+          title={`${issue.category}: ${issue.phrase}`}
+        >
           {issue.category}
           <span className="ml-2 font-mono text-[13px] font-normal text-ink-faint">
             “{issue.phrase}”

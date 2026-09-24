@@ -238,7 +238,7 @@ export function ProviderCard({
             type="button"
             role="switch"
             aria-checked={credential.is_enabled}
-            aria-label={`Enable ${displayName}`}
+            aria-label={`${credential.is_enabled ? "Disable" : "Enable"} ${displayName}`}
             disabled={busy}
             onClick={handleToggle}
             className="group relative h-6 w-11 shrink-0 rounded-full bg-paper-deep transition outline-none focus-visible:ring-2 focus-visible:ring-signal/50 disabled:opacity-60 aria-checked:bg-signal"

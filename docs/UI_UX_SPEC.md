@@ -156,16 +156,20 @@ lorem; destructive actions confirm; async actions show pending → success/error
 
 Keyboard-complete flows · visible focus (2px signal ring) · semantic landmarks/headings ·
 labeled inputs + `aria-describedby` errors · dialogs focus-trapped + Esc + return-focus ·
-`inert` on covered/hidden forms · color never the ONLY signal (severity = color + label) ·
-`prefers-reduced-motion` honored · hit targets ≥ 44px on touch. Full audit Stage 28.
+visible close/cancel affordances for modal layers where appropriate · internal dialog scrolling
+within small/dynamic viewports · `inert` on covered/hidden forms · color never the ONLY signal
+(severity = color + label) · `prefers-reduced-motion` honored · hit targets ≥ 44px on touch.
+Stage 28 completed the repository refinement slice; browser/manual AT validation remains QA/ops.
 
 ## 11. Responsive contract
 
-Every screen is DESIGNED at 390 (phone), 768 (tablet), 1280 (desktop), 1920+ (wide):
-navbar collapses ≤768; analyzer stacks input→results vertically on phone; tables become
-cards or horizontal-scroll regions with sticky first column; charts reflow (Recharts
-`ResponsiveContainer`) with simplified mobile variants; dialogs become bottom sheets ≤430.
-Stage 28 verifies the full width matrix (320→2560+).
+Every screen is DESIGNED at 320–390 (phone), 768 (tablet), 1024–1280 (laptop/desktop),
+1440, and 1920+ (wide): analyzer/report/history/dashboard/settings content must not rely on
+fixed widths; long filenames/URLs/technical requirement text wrap; tables become cards or
+horizontal-scroll regions without information loss; charts reflow (Recharts
+`ResponsiveContainer`) and provide text/table alternatives where practical; dialogs must fit
+dynamic mobile viewports with internal scroll and safe-area padding. Stage 28 implemented these
+repository-level refinements; Stage 29/ops may add browser screenshot/manual AT evidence.
 
 ## 12. Settings & secrets UX (binding — Stage 13)
 

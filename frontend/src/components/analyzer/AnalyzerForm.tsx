@@ -215,7 +215,7 @@ export function AnalyzerForm({
         <button
           type="submit"
           disabled={pending || overLimit || titleTooLong}
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-signal px-6 py-2.5 text-[15px] font-semibold text-white shadow-sm transition hover:bg-signal-deep disabled:opacity-60"
+          className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full bg-signal px-6 py-2.5 text-[15px] font-semibold text-white shadow-sm transition outline-none hover:bg-signal-deep focus-visible:ring-2 focus-visible:ring-signal/50 disabled:opacity-60"
         >
           {pending ? (
             <>

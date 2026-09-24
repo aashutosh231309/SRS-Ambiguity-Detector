@@ -68,7 +68,7 @@ describe("DeleteAccountDialog", () => {
     ]);
   });
 
-  it("focuses the safe default and cancels on Escape", async () => {
+  it("focuses the safe default and cancels on Escape or the close button", async () => {
     const user = userEvent.setup();
     stubFetch(() => errorResponse("bad_response", 500));
     const { onClose, onDeleted } = renderDialog();
@@ -76,9 +76,16 @@ describe("DeleteAccountDialog", () => {
     expect(document.activeElement).toBe(
       within(dialog).getByRole("button", { name: "Keep my account" }),
     );
+    expect(within(dialog).getByRole("button", { name: "Close dialog" })).toBeDefined();
     await user.keyboard("{Escape}");
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onDeleted).not.toHaveBeenCalled();
+
+    cleanup();
+    const rerendered = renderDialog();
+    await user.click(screen.getByRole("button", { name: "Close dialog" }));
+    expect(rerendered.onClose).toHaveBeenCalledTimes(1);
+    expect(rerendered.onDeleted).not.toHaveBeenCalled();
   });
 
   it("a refused delete stays open with mapped copy", async () => {

@@ -12,6 +12,7 @@
 
 import { useEffect, useId, useRef } from "react";
 import type { RefObject } from "react";
+import { X } from "lucide-react";
 
 const FOCUSABLE =
   'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
@@ -76,7 +77,7 @@ export function DialogShell({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 [padding-bottom:max(1rem,env(safe-area-inset-bottom))] [padding-top:max(1rem,env(safe-area-inset-top))]">
       <div
         aria-hidden
         className="absolute inset-0 bg-ink/45"
@@ -91,9 +92,18 @@ export function DialogShell({
         aria-labelledby={titleId}
         aria-describedby={description === undefined ? undefined : descriptionId}
         onKeyDown={handleKeyDown}
-        className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-card border border-line bg-paper p-6 shadow-xl"
+        className="relative max-h-[min(90vh,calc(100dvh-2rem))] w-full max-w-md overflow-y-auto overscroll-contain rounded-card border border-line bg-paper p-6 shadow-xl"
       >
-        <h2 id={titleId} className="text-lg font-semibold tracking-[-0.01em]">
+        <button
+          type="button"
+          aria-label="Close dialog"
+          disabled={!dismissable}
+          onClick={onClose}
+          className="absolute top-4 right-4 inline-flex size-11 items-center justify-center rounded-full border border-line bg-paper text-ink-soft transition outline-none hover:bg-paper-deep hover:text-ink focus-visible:ring-2 focus-visible:ring-signal/50 disabled:opacity-50"
+        >
+          <X className="size-4" aria-hidden />
+        </button>
+        <h2 id={titleId} className="pr-12 text-lg font-semibold tracking-[-0.01em]">
           {title}
         </h2>
         {description === undefined ? null : (

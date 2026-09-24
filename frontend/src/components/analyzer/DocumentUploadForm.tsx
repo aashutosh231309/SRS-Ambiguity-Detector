@@ -215,7 +215,7 @@ export function DocumentUploadForm({
               onClick={handleRemove}
               disabled={pending}
               aria-label={`Remove ${file.name}`}
-              className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-ink-soft transition hover:bg-paper-deep disabled:opacity-50"
+              className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-soft transition outline-none hover:bg-paper-deep focus-visible:ring-2 focus-visible:ring-signal/50 disabled:opacity-50"
             >
               <X className="size-4" aria-hidden />
             </button>
@@ -268,7 +268,7 @@ export function DocumentUploadForm({
         <button
           type="submit"
           disabled={pending || file === null || titleTooLong}
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-signal px-6 py-2.5 text-[15px] font-semibold text-white shadow-sm transition hover:bg-signal-deep disabled:opacity-60"
+          className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full bg-signal px-6 py-2.5 text-[15px] font-semibold text-white shadow-sm transition outline-none hover:bg-signal-deep focus-visible:ring-2 focus-visible:ring-signal/50 disabled:opacity-60"
         >
           {pending ? (
             <>

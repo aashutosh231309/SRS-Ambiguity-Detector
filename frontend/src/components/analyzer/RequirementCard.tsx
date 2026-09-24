@@ -122,10 +122,18 @@ export function RequirementCard({
           R-{requirement.position + 1}
         </span>
         {requirement.identifier ? (
-          <span className="font-mono text-xs font-medium text-ink">{requirement.identifier}</span>
+          <span
+            className="font-mono text-xs font-medium [overflow-wrap:anywhere] text-ink"
+            title={requirement.identifier}
+          >
+            {requirement.identifier}
+          </span>
         ) : null}
         {requirement.section ? (
-          <span className="min-w-0 flex-1 basis-40 truncate text-[13px] text-ink-faint">
+          <span
+            className="min-w-0 flex-1 basis-40 text-[13px] [overflow-wrap:anywhere] text-ink-faint sm:truncate sm:[overflow-wrap:normal]"
+            title={requirement.section}
+          >
             § {requirement.section}
           </span>
         ) : null}
@@ -140,11 +148,11 @@ export function RequirementCard({
         </span>
       </div>
 
-      <div className="mt-3 flex items-start justify-between gap-3">
-        <p className="min-w-0 flex-1 text-[15px] leading-[1.65] whitespace-pre-wrap">
+      <div className="mt-3 flex flex-col items-start gap-3 min-[420px]:flex-row min-[420px]:justify-between">
+        <p className="min-w-0 flex-1 text-[15px] leading-[1.65] [overflow-wrap:anywhere] whitespace-pre-wrap break-words">
           <MarkedText text={requirement.text} issues={requirement.issues} />
         </p>
-        <CopyButton text={requirement.text} label="Copy" className="mt-0.5" />
+        <CopyButton text={requirement.text} label="Copy" className="min-[420px]:mt-0.5" />
       </div>
 
       {count === 0 ? (
@@ -192,7 +200,7 @@ export function RequirementCard({
             </p>
             <CopyButton text={requirement.suggested_rewrite} label="Copy suggestion" />
           </div>
-          <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-wrap text-ink-soft">
+          <p className="mt-1.5 text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap break-words text-ink-soft">
             {requirement.suggested_rewrite}
           </p>
           {requirement.suggestion_source === "ai" ? (

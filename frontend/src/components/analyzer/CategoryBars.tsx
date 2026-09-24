@@ -39,7 +39,12 @@ export function CategoryBars({
         {counts.map(({ category, count }) => (
           <li key={category}>
             <p className="flex items-baseline justify-between gap-3 text-sm">
-              <span className="min-w-0 truncate font-medium text-ink">{category}</span>
+              <span
+                className="min-w-0 font-medium [overflow-wrap:anywhere] text-ink sm:truncate sm:[overflow-wrap:normal]"
+                title={category}
+              >
+                {category}
+              </span>
               <span className="shrink-0 font-mono text-[13px] text-ink-soft tabular-nums">
                 {count}
               </span>

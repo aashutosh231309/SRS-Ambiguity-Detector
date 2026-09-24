@@ -635,10 +635,11 @@ describe("SettingsScreen delete flow", () => {
     const keep = screen.getByRole("button", { name: "Keep credential" });
     const confirm = screen.getByRole("button", { name: "Remove credential" });
     expect(document.activeElement).toBe(keep);
+    const close = screen.getByRole("button", { name: "Close dialog" });
     await user.tab();
     expect(document.activeElement).toBe(confirm);
     await user.tab();
-    expect(document.activeElement).toBe(keep);
+    expect(document.activeElement).toBe(close);
     await user.tab({ shift: true });
     expect(document.activeElement).toBe(confirm);
   });
@@ -720,7 +721,7 @@ describe("SettingsScreen server truth", () => {
     renderScreen();
     await screen.findByRole("heading", { name: "Groq", level: 3 });
 
-    await user.click(screen.getByRole("switch", { name: "Enable Groq" }));
+    await user.click(screen.getByRole("switch", { name: "Disable Groq" }));
     expect(await screen.findByText("Groq disabled.")).toBeDefined();
     await waitFor(() => expect(store.listGets()).toHaveLength(2));
     const chips = within(screen.getByRole("list", { name: "Groq status" }));
@@ -827,7 +828,7 @@ describe("SettingsScreen keyboard and announcements", () => {
     renderScreen();
     await screen.findByRole("heading", { name: "Groq", level: 3 });
 
-    const enable = screen.getByRole("switch", { name: "Enable Groq" });
+    const enable = screen.getByRole("switch", { name: "Disable Groq" });
     enable.focus();
     await user.keyboard(" ");
     expect(await screen.findByText("Groq disabled.")).toBeDefined();
@@ -839,7 +840,7 @@ describe("SettingsScreen keyboard and announcements", () => {
     renderScreen();
     await screen.findByRole("heading", { name: "Groq", level: 3 });
 
-    await user.click(screen.getByRole("switch", { name: "Enable Groq" }));
+    await user.click(screen.getByRole("switch", { name: "Disable Groq" }));
     const notice = await screen.findByText("Groq disabled.");
     expect(notice.closest("[role='status']")).not.toBeNull();
     await user.click(screen.getByRole("button", { name: "Dismiss notification" }));

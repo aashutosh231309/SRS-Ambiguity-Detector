@@ -116,7 +116,7 @@ export function DeleteAccountDialog({
           type="button"
           onClick={close}
           disabled={pending}
-          className="inline-flex items-center justify-center rounded-full border border-line px-5 py-2 text-sm font-medium text-ink-soft transition outline-none hover:bg-paper-deep focus-visible:ring-2 focus-visible:ring-signal/50 disabled:opacity-60"
+          className="inline-flex min-h-[44px] items-center justify-center rounded-full border border-line px-5 py-2 text-sm font-medium text-ink-soft transition outline-none hover:bg-paper-deep focus-visible:ring-2 focus-visible:ring-signal/50 disabled:opacity-60"
         >
           Keep my account
         </button>

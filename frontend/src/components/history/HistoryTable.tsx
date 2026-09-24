@@ -106,11 +106,17 @@ export function HistoryTable({
               <td className="block px-0 py-0 sm:table-cell sm:px-3 sm:py-3.5">
                 <Link
                   href={`/analysis/${item.id}`}
-                  className="block min-w-0 truncate text-[15px] font-semibold text-ink underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-signal/50"
+                  title={item.title}
+                  className="block min-w-0 text-[15px] font-semibold [overflow-wrap:anywhere] text-ink underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-signal/50 sm:truncate sm:[overflow-wrap:normal]"
                 >
                   {item.title}
                 </Link>
-                <p className="mt-1 truncate font-mono text-xs text-ink-soft">{sourceLabel(item)}</p>
+                <p
+                  className="mt-1 font-mono text-xs [overflow-wrap:anywhere] text-ink-soft sm:truncate sm:[overflow-wrap:normal]"
+                  title={sourceLabel(item)}
+                >
+                  {sourceLabel(item)}
+                </p>
                 <p className="mt-0.5 font-mono text-xs text-ink-faint">
                   {formatHistoryDate(item.created_at)}
                 </p>

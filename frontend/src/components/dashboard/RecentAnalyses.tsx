@@ -57,16 +57,20 @@ export function RecentAnalyses({ items }: { items: AnalysisSummary[] }) {
         {items.map((item) => (
           <li
             key={item.id}
-            className="flex items-baseline justify-between gap-4 py-3 first:pt-0 last:pb-0"
+            className="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
           >
             <div className="min-w-0">
               <Link
                 href={`/analysis/${item.id}`}
-                className="block truncate text-[15px] font-semibold text-ink underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-signal/50"
+                title={item.title}
+                className="block text-[15px] font-semibold [overflow-wrap:anywhere] text-ink underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-signal/50 sm:truncate sm:[overflow-wrap:normal]"
               >
                 {item.title}
               </Link>
-              <p className="mt-0.5 truncate font-mono text-xs text-ink-faint">
+              <p
+                className="mt-0.5 font-mono text-xs [overflow-wrap:anywhere] text-ink-faint sm:truncate sm:[overflow-wrap:normal]"
+                title={`${sourceLabel(item)} · ${formatShortDate(item.created_at)}`}
+              >
                 {sourceLabel(item)} · {formatShortDate(item.created_at)}
               </p>
             </div>
