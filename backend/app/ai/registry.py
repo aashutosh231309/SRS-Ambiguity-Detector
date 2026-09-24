@@ -3,10 +3,10 @@
 Metadata is trusted server-side data — `base_url` values are allowlisted
 constants (never user input: SSRF rule) and display names live here so API
 responses can stay on stable machine ids. Production adapters ship in
-`app.ai.adapters` (Stage 14: gemini/groq/openai/openrouter; anthropic +
-huggingface deferred). Runtime code resolves via `resolve_adapter`
-(registered fake wins, else the builtin singleton, else None for deferred
-providers); `get_adapter` stays the RAW seam (fakes/tests only) so suites
+`app.ai.adapters` (all six providers since Stage 18). Runtime code resolves
+via `resolve_adapter` (registered fake wins, else the builtin singleton,
+else None for a not-yet-wired future provider); `get_adapter` stays the RAW
+seam (fakes/tests only) so suites
 never depend on builtins. Adding provider #7 = adapter + metadata row +
 model-table row + docs + tests — no router, service, or rendering changes.
 """
@@ -49,7 +49,9 @@ PROVIDER_METADATA: dict[str, ProviderMetadata] = {
     "huggingface": ProviderMetadata(
         id="huggingface",
         display_name="Hugging Face",
-        base_url="https://api-inference.huggingface.co",
+        # Inference Providers router (OpenAI-compatible). The legacy
+        # api-inference host is retired (NXDOMAIN) — never point back.
+        base_url="https://router.huggingface.co",
     ),
 }
 
@@ -81,8 +83,9 @@ def get_adapter(provider_id: str) -> AIProvider | None:
 
 def resolve_adapter(provider_id: str) -> AIProvider | None:
     """Runtime adapter resolution: registered fake first (tests shadow
-    builtins by id), else the production builtin singleton, else None for
-    deferred providers (anthropic/huggingface — callers report unavailable).
+    builtins by id), else the production builtin singleton, else None
+    (defensive — all six providers ship builtins since Stage 18, so None
+    only means a not-yet-wired future provider; callers report unavailable).
 
     The adapters import is LAZY (function body): adapter modules read
     `PROVIDER_METADATA` from this file, so a top-level import would cycle.

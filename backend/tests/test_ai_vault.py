@@ -5,8 +5,8 @@ failure semantics exactly: roundtrip, non-determinism, wrong-key / tampered /
 malformed ciphertext, missing-vs-malformed master key, fingerprint shape, and
 the hard rule that NO failure mode ever echoes secret material. Registry
 tests pin the six-provider table, order, the fake-only raw seam, and
-`resolve_adapter` (builtins for 4 of 6, None for deferred providers —
-fakes shadow builtins by id).
+`resolve_adapter` (one builtin per provider — fakes shadow builtins
+by id, unknown ids miss).
 """
 
 from collections.abc import Generator
@@ -195,17 +195,16 @@ def test_raw_adapter_seam_holds_fakes_only() -> None:
                 register_adapter(fake)
 
 
-def test_resolve_adapter_serves_builtins_and_none_for_deferred() -> None:
+def test_resolve_adapter_serves_all_six_builtins() -> None:
     saved = {provider_id: get_adapter(provider_id) for provider_id in PROVIDER_IDS}
     for provider_id in PROVIDER_IDS:
         unregister_adapter(provider_id)
     try:
-        for provider_id in ("gemini", "groq", "openai", "openrouter"):
+        for provider_id in PROVIDER_IDS:
             adapter = resolve_adapter(provider_id)
             assert adapter is not None
             assert adapter.id == provider_id
-        assert resolve_adapter("anthropic") is None
-        assert resolve_adapter("huggingface") is None
+        assert resolve_adapter("skynet") is None  # unknown ids still miss
     finally:
         for fake in saved.values():
             if fake is not None:

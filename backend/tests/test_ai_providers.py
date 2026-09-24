@@ -239,6 +239,14 @@ def _fake_groq() -> Generator[_FakeAdapter, None, None]:
         unregister_adapter("groq")
 
 
+class _FakeAnthropic(_FakeAdapter):
+    """Same seam, Anthropic identity (proves TEST reaches any adapter)."""
+
+    id = "anthropic"
+    display_name = "Anthropic"
+    base_url = "https://api.anthropic.com"
+
+
 # --- auth gating ------------------------------------------------------------------
 
 
@@ -632,11 +640,17 @@ def test_deleting_the_default_leaves_no_default(ai_client: TestClient) -> None:
 # --- credential test --------------------------------------------------------------
 
 
-def test_without_adapters_reports_unavailable(ai_client: TestClient) -> None:
-    # Deferred provider (Stage 14 ships 4 of 6 adapters): anthropic still has
-    # no adapter, so TEST stays deterministically unavailable for it.
+def test_missing_adapter_reports_unavailable(
+    ai_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Defensive branch pin: all six ship adapters, so force the None path
+    # (a not-yet-wired future provider) — TEST stays deterministically
+    # unavailable without touching the vault plaintext or the verdict.
+    import app.services.ai_providers as provider_service
+
+    monkeypatch.setattr(provider_service, "resolve_adapter", lambda provider_id: None)
     _login_verified(ai_client, "unavail")
-    row = _create(ai_client, "anthropic", KEY_ANTHROPIC)
+    row = _create(ai_client, "groq", KEY_GROQ)
     response = ai_client.post(f"/api/v1/ai/providers/{row['id']}/test")
     assert response.status_code == 200, response.text
     body = response.json()
@@ -644,10 +658,33 @@ def test_without_adapters_reports_unavailable(ai_client: TestClient) -> None:
     assert body["models"] == []
     assert body["latency_ms"] == 0
     assert "not available yet" in (body["error"] or "")
-    assert KEY_ANTHROPIC not in response.text
+    assert KEY_GROQ not in response.text
     listed = _list(ai_client)[0]  # no attempt ran: verdict stays untouched
     assert listed["last_tested_at"] is None
     assert listed["last_test_status"] is None
+
+
+def test_anthropic_test_reaches_its_adapter(ai_client: TestClient) -> None:
+    # Stage 18 re-entry proof: anthropic resolves an adapter now, so TEST
+    # exercises the adapter path (decrypt → health → verdict), never the
+    # unavailable short-circuit.
+    fake = _FakeAnthropic(expect_key=KEY_ANTHROPIC)
+    register_adapter(fake)
+    try:
+        _login_verified(ai_client, "anthtest")
+        row = _create(ai_client, "anthropic", KEY_ANTHROPIC)
+        response = ai_client.post(f"/api/v1/ai/providers/{row['id']}/test")
+    finally:
+        unregister_adapter("anthropic")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["ok"] is True
+    assert body["models"] == ["fake-model-a", "fake-model-b"]
+    assert body["error"] is None
+    assert KEY_ANTHROPIC not in response.text
+    listed = _list(ai_client)[0]
+    assert listed["last_tested_at"] is not None
+    assert listed["last_test_status"] == "ok"
 
 
 def test_with_fake_adapter_records_success(ai_client: TestClient, _fake_groq: _FakeAdapter) -> None:

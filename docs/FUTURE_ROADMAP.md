@@ -99,6 +99,14 @@
 > with silent parent re-read on both report surfaces. Still open:
 > anthropic + huggingface adapters, creation-time live key proof,
 > per-run what-was-sent disclosure copy, dedicated AI rate buckets.
+> Actual Stage 18 (2026-09-24) closed the anthropic + huggingface
+> remainder: `AnthropicProvider` (Messages API) + `HuggingFaceProvider`
+> (Inference Providers router — the legacy `api-inference` host is
+> retired, so the registry pins `router.huggingface.co`), model-table
+> rows, TEST/enhancement/retry live for all six, the four deferral tests
+> flipped (defensive no-adapter branches kept, pinned via monkeypatch).
+> Still open: creation-time live key proof, per-run what-was-sent
+> disclosure copy, dedicated AI rate buckets.
 > The table above keeps its original numbers; STAGE_STATUS.md records the
 > as-built mapping.
 

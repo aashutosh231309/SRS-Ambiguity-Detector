@@ -1,8 +1,9 @@
-"""Provider adapter tests (Stage 14 — mocked HTTP, no database, no network).
+"""Provider adapter tests (mocked HTTP, no database, no network).
 
 Every adapter speaks through an injected `httpx.AsyncClient` on a
 `MockTransport`: production code paths run unmodified, but bytes never
-leave the process. Covers: success shaping (OpenAI-compat + Gemini),
+leave the process. Covers: success shaping (OpenAI-compat incl. the HF
+router, Gemini, Anthropic),
 credential probes, the curated model lists, retry discipline (429/5xx
 only, max 2, never auth/timeout/transport), error normalization (raw
 provider bodies never propagate), timeout clamping, output sanitizing,
@@ -19,8 +20,10 @@ from typing import Any
 import httpx
 import pytest
 
+from app.ai.adapters.anthropic import AnthropicProvider
 from app.ai.adapters.gemini import GeminiProvider
 from app.ai.adapters.groq import GroqProvider
+from app.ai.adapters.huggingface import HuggingFaceProvider
 from app.ai.adapters.openai import OpenAIProvider
 from app.ai.adapters.openrouter import OpenRouterProvider
 from app.ai.models import default_model, supported_models
@@ -87,6 +90,19 @@ def _gemini_response(text: str = "Overview text.", **overrides: Any) -> dict[str
         "model": "gemini-2.0-flash-test",
         "candidates": [{"content": {"parts": [{"text": text}]}}],
         "usageMetadata": {"promptTokenCount": 10},
+    }
+    body.update(overrides)
+    return body
+
+
+def _anthropic_response(text: str = "Overview text.", **overrides: Any) -> dict[str, Any]:
+    body: dict[str, Any] = {
+        "id": "msg_test",
+        "model": "claude-sonnet-5-test",
+        "role": "assistant",
+        "content": [{"type": "text", "text": text}],
+        "stop_reason": "end_turn",
+        "usage": {"input_tokens": 10, "output_tokens": 5},
     }
     body.update(overrides)
     return body
@@ -160,6 +176,24 @@ def test_groq_and_openrouter_share_shape_with_own_identity() -> None:
     assert bodies[0]["referer"] is None  # only OpenRouter sends Referer
     assert bodies[1]["host"] == "openrouter.ai"
     assert bodies[1]["referer"] == "http://localhost:3000"  # APP_BASE_URL default
+
+
+def test_huggingface_shares_shape_over_the_router_host() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json=_chat_response())
+
+    adapter = HuggingFaceProvider(client=_client(handler))
+    result = run(adapter.generate_overview(KEY, _overview_payload(), timeout_s=25))
+
+    request = seen[0]
+    assert request.url.host == "router.huggingface.co"  # retired api-inference host: never again
+    assert request.url.path == "/v1/chat/completions"
+    assert request.headers["authorization"] == f"Bearer {KEY}"
+    assert json.loads(request.content)["model"] == "openai/gpt-oss-120b"
+    assert result.text == "Overview text."
 
 
 def test_auth_failure_never_retries_and_names_the_key() -> None:
@@ -531,17 +565,151 @@ def test_gemini_retry_and_errors_share_the_core() -> None:
     assert exc_info.value.code == "unavailable"
 
 
+# --- Anthropic --------------------------------------------------------------
+
+
+def test_anthropic_overview_success_shapes_messages_request_and_result() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json=_anthropic_response())
+
+    adapter = AnthropicProvider(client=_client(handler))
+    result = run(adapter.generate_overview(KEY, _overview_payload(), timeout_s=25))
+
+    request = seen[0]
+    assert request.url.host == "api.anthropic.com"
+    assert request.url.path == "/v1/messages"
+    assert request.headers["x-api-key"] == KEY
+    assert request.headers["anthropic-version"] == "2023-06-01"
+    assert KEY not in str(request.url)  # key in header, never the URL
+    payload = json.loads(request.content)
+    assert payload["model"] == "claude-sonnet-5"
+    assert payload["max_tokens"] == 512
+    assert payload["system"] == OVERVIEW_SYSTEM_PROMPT
+    assert payload["messages"] == [{"role": "user", "content": payload["messages"][0]["content"]}]
+    assert "ANALYSIS CONTEXT" in payload["messages"][0]["content"]
+    assert result.text == "Overview text."
+    assert result.model == "claude-sonnet-5-test"
+    assert result.usage == {"input_tokens": 10, "output_tokens": 5}
+
+
+def test_anthropic_improvement_uses_small_budget_and_joins_text_blocks() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(
+            200,
+            json=_anthropic_response(
+                content=[
+                    {"type": "text", "text": "Part one."},
+                    {"type": "text", "text": "Part two."},
+                ]
+            ),
+        )
+
+    adapter = AnthropicProvider(client=_client(handler))
+    result = run(adapter.generate_improvement(KEY, _improvement_payload(), timeout_s=25))
+
+    payload = json.loads(seen[0].content)
+    assert payload["max_tokens"] == 256
+    assert payload["system"] == IMPROVEMENT_SYSTEM_PROMPT
+    assert result.text == "Part one.\nPart two."
+
+
+def test_anthropic_probe_lists_models_with_versioned_headers() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        assert request.method == "GET"
+        assert request.url.path == "/v1/models"
+        assert request.headers["x-api-key"] == KEY
+        assert request.headers["anthropic-version"] == "2023-06-01"
+        return httpx.Response(200, json={"data": [{"id": "claude-sonnet-5"}]})
+
+    adapter = AnthropicProvider(client=_client(handler))
+    auth = run(adapter.validate_credentials(KEY))
+    health = run(adapter.health_check(KEY))
+
+    assert auth.ok and health.ok
+    assert len(seen) == 2
+
+
+def test_anthropic_auth_failure_never_retries() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(
+            401, json={"type": "error", "error": {"type": "authentication_error"}}
+        )
+
+    adapter = AnthropicProvider(client=_client(handler))
+    with pytest.raises(ProviderError) as exc_info:
+        run(adapter.generate_overview(KEY, _overview_payload(), timeout_s=25))
+
+    assert len(seen) == 1
+    assert exc_info.value.code == "auth"
+    assert "Anthropic" in exc_info.value.user_message
+
+
+def test_anthropic_400_maps_bad_response_without_retry() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(
+            400, json={"type": "error", "error": {"type": "invalid_request_error"}}
+        )
+
+    adapter = AnthropicProvider(client=_client(handler))
+    with pytest.raises(ProviderError) as exc_info:
+        run(adapter.generate_overview(KEY, _overview_payload(), timeout_s=25))
+
+    assert len(seen) == 1  # fixed-shape request: a 400 is unexpected, not key-shaped
+    assert exc_info.value.code == "bad_response"
+
+
+def test_anthropic_empty_content_maps_bad_response() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=_anthropic_response(content=[]))
+
+    adapter = AnthropicProvider(client=_client(handler))
+    with pytest.raises(ProviderError) as exc_info:
+        run(adapter.generate_overview(KEY, _overview_payload(), timeout_s=25))
+
+    assert exc_info.value.code == "bad_response"
+
+
+def test_anthropic_non_text_blocks_are_not_text() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200, json=_anthropic_response(content=[{"type": "tool_use", "id": "x"}])
+        )
+
+    adapter = AnthropicProvider(client=_client(handler))
+    with pytest.raises(ProviderError) as exc_info:
+        run(adapter.generate_overview(KEY, _overview_payload(), timeout_s=25))
+
+    assert exc_info.value.code == "bad_response"
+
+
 # --- model table (single source of truth) -----------------------------------
 
 
-def test_model_table_covers_builtins_only() -> None:
+def test_model_table_covers_all_six_providers() -> None:
     assert default_model("openai") == "gpt-4o-mini"
     assert default_model("groq") == "llama-3.3-70b-versatile"
     assert default_model("openrouter") == "openai/gpt-4o-mini"
     assert default_model("gemini") == "gemini-2.0-flash"
-    for provider_id in ("openai", "groq", "openrouter", "gemini"):
+    assert default_model("anthropic") == "claude-sonnet-5"
+    assert default_model("huggingface") == "openai/gpt-oss-120b"
+    for provider_id in ("openai", "groq", "openrouter", "gemini", "anthropic", "huggingface"):
         assert default_model(provider_id) in supported_models(provider_id)
-    for provider_id in ("anthropic", "huggingface", "skynet"):
+    for provider_id in ("skynet", ""):
         with pytest.raises(ValueError, match="no model table row"):
             default_model(provider_id)
         with pytest.raises(ValueError, match="no model table row"):

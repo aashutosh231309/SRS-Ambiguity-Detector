@@ -1143,12 +1143,65 @@ stay explicitly future). No QA-rewrite; narrow vertical slice only.
 **Next stage:** Stage 18 (as-built) — document list/download endpoints
 (roadmap-09 remainder) and/or anthropic/HF adapters (roadmap-18 remainder).
 
+### Stage 18 (as-built) — Anthropic + Hugging Face adapters (all six live) ✅ (2026-09-24)
+
+Scope note: the Stage 18 prompt framed a "final documentation / submission
+readiness" pass, but the repo is mid-roadmap (stages 19–32 including
+roadmap-31 docs/screenshots all unfinished). Per the prompt's own
+repo-authority rule, this as-built Stage 18 implements ONE remainder from
+the documented next-pointer: the roadmap-18 anthropic/HF adapters (the
+document list/download remainder stays explicitly future — a bigger slice
+with new signed-URL crypto design + open UI questions).
+
+- Backend: `AnthropicProvider` (`POST /v1/messages` — model/max_tokens/
+  top-level `system` + one user message with the SAME versioned prompt
+  text; `x-api-key` + pinned `anthropic-version: 2023-06-01` headers;
+  `GET /v1/models` probe; content-block join in `_extract`, 401 → auth
+  via the shared core, no `_client_error` override) and
+  `HuggingFaceProvider` (thin `OpenAICompatAdapter` subclass over
+  `router.huggingface.co` — the documented OpenAI-compatible Inference
+  Providers surface: `POST /v1/chat/completions`, `GET /v1/models`
+  probe, Bearer token). The registry's legacy `api-inference` HF host
+  NO LONGER RESOLVES (NXDOMAIN, verified 2026-09-24) — the metadata row
+  now pins the router origin. Model table gains `claude-sonnet-5` (+
+  `claude-haiku-4-5`) and `openai/gpt-oss-120b` (+ `Qwen/Qwen3-8B`);
+  `BUILTIN_ADAPTERS` holds all six singletons. Enhancement + TEST keep
+  their no-adapter branches as defense-in-depth for a not-yet-wired
+  future provider (wording updated, behavior unchanged).
+- Tests: the four deferral tests flipped — vault resolves all six
+  builtins (unknown ids still miss), TEST + enhancement + retry pin the
+  defensive branches via monkeypatched `resolve_adapter → None`; two
+  re-entry proofs added (anthropic TEST reaches its adapter,
+  anthropic credential enhances through the chain). New mocked-HTTP
+  coverage: Anthropic request/response shaping, versioned probe,
+  auth-no-retry, 400 → `bad_response`, empty/non-text content; HF
+  router-host wiring; model table covers all six.
+- 504/504 pytest (+10) + 396/396 vitest (unchanged — zero UI delta, the
+  provider labels already listed all six), ruff/mypy clean, `verify.sh`
+  green. No migration, no contract change (specs amended in-stage).
+- Security notes (§11): no new secret/log surface (ids + codes only);
+  both keys travel in headers, never URLs (asserted); the router
+  `base_url` stays an allowlisted server-side constant (SSRF rule
+  intact); no new `{id}` semantics, buckets, or envelope shapes.
+
+**Known limitations (accepted, not bugs):**
+- NO live provider calls in this sandbox (egress blocked, no real keys):
+  both adapters are verified against mocked HTTP shaped from the
+  providers' official API docs (verified 2026-09-24). First keyed
+  environment should TEST one credential per new provider.
+- `docker-compose.yml` STILL unvalidated (no Docker in sandbox).
+- Sandbox note: warm session (same checkout — Postgres holder, venv, and
+  node_modules all survived); baseline re-verified (494/494) before any
+  change. No recovery needed.
+
+**Next stage:** Stage 19 (as-built) — document list/download endpoints
+(roadmap-09 remainder).
+
 ## Current stage
-None active — Stage 17 complete; all success conditions hold (roadmap-20
-retry slice closed: endpoint + Retry button on both report surfaces,
-494/494 + 396/396 tests, verify.sh green, docs match).
-Next: **Stage 18 (as-built) — document list/download and/or anthropic/HF
-adapters**.
+None active — Stage 18 complete; all success conditions hold (roadmap-18
+adapters closed: all six live with mocked-HTTP tests, 504/504 + 396/396
+tests, verify.sh green, docs match).
+Next: **Stage 19 (as-built) — document list/download endpoints**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 Database → backend → auth backend → auth frontend → SRS input/segmentation/preview ✅ →
@@ -1201,9 +1254,9 @@ responsive/a11y → QA → deploy → docs/shots → audit.
 1. IMPLEMENTED: `app/{models,schemas,services,repositories,exceptions}/`
    (Stages 02–03), `app/analysis/` (Stage 07), `app/email/` (Stage 04),
    `app/documents/` + `app/storage/` (Stage 08), `app/ai/` ABC + registry
-   + `app/core/vault.py` (Stage 12) + 4 adapters + prompts + sanitizer +
-   `services/ai_enhancement.py` (Stage 14 — anthropic/HF deferred,
-   `retry-ai` future). No docstring-only seams remain under `app/`.
+   + `app/core/vault.py` (Stage 12) + all 6 adapters + prompts + sanitizer
+   + `services/ai_enhancement.py` (Stage 14, adapters completed Stage 18)
+   + `retry-ai` (Stage 17). No docstring-only seams remain under `app/`.
 2. Never rename `owner_id`, envelope shapes, env names, or `docs/` files without ADR + CHANGELOG.
 3. Never `npm install` a dependency the stage doesn't import (recharts: dashboard/report stages).
 4. Frontend placeholder `/` page must be REPLACED in the SEO/marketing stage, not extended.

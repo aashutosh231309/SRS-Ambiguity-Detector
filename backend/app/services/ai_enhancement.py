@@ -15,7 +15,8 @@ Status mapping (the `ck_analyses_ai_status` vocabulary is binding):
   default already says `skipped`).
 - no ENABLED credential → `unconfigured` (`ai_error` NULL — not an error,
   the UI renders its empty state + Settings CTA).
-- enabled credentials but NO adapter (anthropic/huggingface deferred) →
+- enabled credentials but NO adapter (defensive — all six ship adapters
+  since Stage 18, so only a not-yet-wired future provider lands here) →
   `failed` + "<Label> integration isn't available yet." (a key IS stored,
   so `unconfigured` would lie).
 - overview succeeds → `ok` (+ best-effort per-requirement rewrites, same
@@ -113,10 +114,9 @@ async def enhance_analysis(
         if len(usable) >= _MAX_CHAIN_ATTEMPTS:
             break
     if not usable:
-        # Credentials exist but none is usable yet — name the FIRST chain
-        # entry (the default when one is set): one concrete label beats a
-        # vague plural, and mixed deferred/provider-id rows can't occur
-        # (the CHECK vocabulary fixes all six ids).
+        # Credentials exist but none resolves an adapter (defensive: all six
+        # ship adapters since Stage 18) — name the FIRST chain entry (the
+        # default when one is set): one concrete label beats a vague plural.
         label = PROVIDER_METADATA[chain[0].provider].display_name
         message = f"{label} integration isn't available yet."
         await _persist_outcome(

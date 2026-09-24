@@ -4,8 +4,9 @@ Re-runs ONLY the AI enhancement step through the shared Stage-14 service:
 reset (clear AI payload + AI-stamped rewrites) → re-read → enhance. Covers
 auth gating (401/403), owner scoping (404 + no oracle), malformed ids (400),
 failed→ok recovery, ok→ok overwrite, stale-rewrite clearing on failed
-retries, skipped→ok (explicit request), unconfigured stability, deferred
-providers, deterministic intactness, and the minimal response shape. Fake
+retries, skipped→ok (explicit request), unconfigured stability,
+adapterless-credential guidance, deterministic intactness, and the minimal
+response shape. Fake
 adapters only — no network, ever.
 """
 
@@ -337,9 +338,17 @@ def test_retry_unconfigured_stays_unconfigured(retry_client: TestClient) -> None
     }
 
 
-def test_retry_deferred_provider_reports_failed(retry_client: TestClient) -> None:
-    _login_verified(retry_client, "deferred")
-    _create_credential(retry_client, "anthropic", "sk-ant-test-key-stage17-zzz9")
+def test_retry_adapterless_credential_reports_failed(
+    retry_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Defensive branch pin: no adapter resolves (forced None), so both the
+    # initial run and the retry fail open with guidance — deterministic
+    # intact throughout.
+    import app.services.ai_enhancement as enhancement_service
+
+    monkeypatch.setattr(enhancement_service, "resolve_adapter", lambda provider_id: None)
+    _login_verified(retry_client, "adapterless")
+    _create_credential(retry_client, "groq", KEY_GROQ)
     created = _analyze(retry_client, True)
     analysis_id = str(created.json()["id"])
     response = retry_client.post(f"/api/v1/analysis/{analysis_id}/retry-ai")

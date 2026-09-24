@@ -5,7 +5,7 @@ The deterministic pipeline stays authoritative: every test asserts the
 (false = deterministic-only, providers untouched), `unconfigured` (none /
 disabled credentials), `ok` (overview + rewrites persisted, originals
 immutable, GET-after identical), `failed` fail-open (first error wins,
-deterministic intact), the default→fallback chain, deferred-provider
+deterministic intact), the default→fallback chain, adapterless-credential
 guidance, per-requirement best-effort, crash/vault fail-open, the
 improvement count cap, the `ai_error` 300-char cap, and the document-upload
 `ai_enhance` field. Plaintext keys must NEVER appear in any response body.
@@ -415,15 +415,47 @@ def test_chain_exhausted_reports_first_error(ai_client: TestClient) -> None:
     assert body["ai_error"] == "Groq key rejected."  # first (default) error wins
 
 
-def test_deferred_provider_only_fails_with_guidance(ai_client: TestClient) -> None:
-    _login_verified(ai_client, "deferred")
-    _create_credential(ai_client, "anthropic", KEY_ANTHROPIC)
-    response = _analyze(ai_client, True)  # no fake: anthropic has no adapter
+def test_adapterless_credential_fails_with_guidance(
+    ai_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Defensive branch pin: all six ship adapters, so force the None path
+    # (a not-yet-wired future provider) — the chain names the stored
+    # credential's label instead of crying `unconfigured`.
+    import app.services.ai_enhancement as enhancement_service
+
+    monkeypatch.setattr(enhancement_service, "resolve_adapter", lambda provider_id: None)
+    _login_verified(ai_client, "adapterless")
+    _create_credential(ai_client, "groq", KEY_GROQ)
+    response = _analyze(ai_client, True)
     assert response.status_code == 201, response.text
     body = response.json()
     assert body["status"] == "analyzed" and body["score"] is not None
     assert body["ai_status"] == "failed"
-    assert body["ai_error"] == "Anthropic integration isn't available yet."
+    assert body["ai_error"] == "Groq integration isn't available yet."
+
+
+def test_anthropic_credential_enhances_through_its_adapter(ai_client: TestClient) -> None:
+    # Stage 18 re-entry proof: an anthropic credential now flows through
+    # the normal chain (default single entry → overview + rewrites).
+    _login_verified(ai_client, "anthropic")
+    _create_credential(ai_client, "anthropic", KEY_ANTHROPIC)
+    fake = _FakeAdapter(
+        "anthropic",
+        overview="ANTHROPIC OVERVIEW.",
+        improvement="REWRITE.",
+        expect_key=KEY_ANTHROPIC,
+    )
+    with _adapters(fake):
+        response = _analyze(ai_client, True)
+    assert response.status_code == 201, response.text
+    assert KEY_ANTHROPIC not in response.text
+    body = response.json()
+    assert body["status"] == "analyzed" and body["score"] is not None
+    assert body["ai_status"] == "ok"
+    assert body["ai_provider"] == "anthropic"
+    assert body["ai_overview"] == "ANTHROPIC OVERVIEW."
+    assert body["ai_error"] is None
+    assert body["requirements"][0]["suggested_rewrite"] == "REWRITE."
 
 
 def test_improvement_failure_skips_only_that_requirement(ai_client: TestClient) -> None:

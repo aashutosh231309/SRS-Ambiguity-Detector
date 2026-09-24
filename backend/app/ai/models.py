@@ -47,6 +47,14 @@ PROVIDER_MODELS: dict[str, ProviderModels] = {
         default="gemini-2.0-flash",
         supported=("gemini-2.0-flash", "gemini-1.5-flash"),
     ),
+    "anthropic": ProviderModels(
+        default="claude-sonnet-5",
+        supported=("claude-sonnet-5", "claude-haiku-4-5"),
+    ),
+    "huggingface": ProviderModels(
+        default="openai/gpt-oss-120b",
+        supported=("openai/gpt-oss-120b", "Qwen/Qwen3-8B"),
+    ),
 }
 
 

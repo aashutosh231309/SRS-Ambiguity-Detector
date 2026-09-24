@@ -2,8 +2,9 @@
 
 > **Status:** CONTRACT as of Stage 01; IMPLEMENTED in slices (vault+ABC Stage 12,
 > settings UI Stage 13, adapters + enhancement + chain **Stage 14** — the
-> roadmap-18/19/20 slice, 4 of 6 adapters; anthropic + huggingface deferred,
-> `retry-ai` still future). This file fixes the interface every slice builds on.
+> roadmap-18/19/20 slice, 6 of 6 adapters since **Stage 18** (anthropic +
+> huggingface closed the deferral); `retry-ai` Stage 17). This file fixes
+> the interface every slice builds on.
 
 ## 1. Principles
 
@@ -27,6 +28,9 @@
 > unchanged (no interface drift — §4); `timeout_s` defaults to
 > `AI_DEFAULT_TIMEOUT_S` (25) and clamps into `[1, AI_MAX_TIMEOUT_S]` (60);
 > retry is 429/5xx-only, max 2, jittered backoff, inside the adapters.
+> As-built Stage 18: all six adapters implement the ABC unchanged — the
+> Anthropic Messages shape and the HF router (shared chat shape) needed
+> no interface drift either.
 
 ```python
 class AIProvider(ABC):
@@ -73,20 +77,26 @@ class AIProvider(ABC):
 > Stage 14 (`app/ai/adapters/`): four adapters ship as stateless singletons
 > (`BUILTIN_ADAPTERS`); runtime code resolves via `resolve_adapter`
 > (registered fake wins — tests shadow builtins by id — else the builtin,
-> else None); `get_adapter` stays the fake-only seam so suites never depend
-> on builtins. Model ids live ONLY in `app/ai/models.py` (per-provider
-> default + curated `list_models` allowlist — no model-management UI, no
-> live discovery calls). Adding provider #7 is still adapter + metadata
-> row + model-table row + docs + tests — no router/service/rendering changes.
+> else None for unknown ids). As-built Stage 18: all six adapters ship —
+> `AnthropicProvider` (Messages API: `x-api-key` + pinned
+> `anthropic-version`, `POST /v1/messages`, `GET /v1/models` probe) and
+> `HuggingFaceProvider` (Inference Providers router, OpenAI-compatible —
+> the legacy `api-inference` host is retired, so the registry pins
+> `router.huggingface.co`). `get_adapter` stays the fake-only seam so
+> suites never depend on builtins. Model ids live ONLY in `app/ai/models.py`
+> (per-provider default + curated `list_models` allowlist — no
+> model-management UI, no live discovery calls). Adding provider #7 is
+> still adapter + metadata row + model-table row + docs + tests — no
+> router/service/rendering changes.
 
 | # | Provider | Adapter | Notes |
 |---|----------|---------|-------|
 | 1 | `gemini` | `GeminiProvider` ✅ | `generateContent` REST; key in `x-goog-api-key` header (never `?key=`); key-shaped 400 → auth |
 | 2 | `groq` | `GroqProvider` ✅ | OpenAI-compatible chat endpoint, Groq host allowlist |
 | 3 | `openai` | `OpenAIProvider` ✅ | api.openai.com allowlist |
-| 4 | `anthropic` | DEFERRED | api.anthropic.com messages API + versioned headers — distinct shape, later slice (re-entry: adapter + model row + flip the deferral tests) |
+| 4 | `anthropic` | `AnthropicProvider` ✅ | Messages API (`POST /v1/messages`, top-level `system`); key in `x-api-key` header + pinned `anthropic-version`; probe `GET /v1/models`; default `claude-sonnet-5` |
 | 5 | `openrouter` | `OpenRouterProvider` ✅ | openrouter.ai, `HTTP-Referer` = site URL |
-| 6 | `huggingface` | DEFERRED | Inference API + model routing — distinct shape, later slice (same re-entry) |
+| 6 | `huggingface` | `HuggingFaceProvider` ✅ | Inference Providers router (`router.huggingface.co`, OpenAI-compatible — legacy `api-inference` host retired); default `openai/gpt-oss-120b` |
 
 Adding provider #7 = new adapter + registry row + docs + tests. No changes to
 routers/services/rendering. "Other compatible providers where practical" (master prompt)
@@ -100,8 +110,11 @@ means OpenAI-compatible hosts ONLY via explicit allowlist additions, never arbit
 > stores nothing). As-built Stage 14: TEST runs the full decrypt → adapter →
 > sanitize → record flow through `resolve_adapter` — LIVE for the four
 > implemented providers (`GET /v1/models` / `GET /v1beta/models` probe +
-> curated model list on success); deferred providers keep the deterministic
-> `200 {ok:false}` + ship-date message with `last_test_*` untouched.
+> curated model list on success). As-built Stage 18: LIVE for all six
+> (Anthropic probes `GET /v1/models`, HF probes the router's
+> `GET /v1/models`); the deterministic `200 {ok:false}` + guidance message
+> stays as the defensive branch for adapter-less (future) providers, with
+> `last_test_*` untouched.
 
 - Add: `POST /ai/providers {provider, label?, api_key}` → server validates shape →
   (Stage 18: `validate_credentials` against provider — proves the key works) →

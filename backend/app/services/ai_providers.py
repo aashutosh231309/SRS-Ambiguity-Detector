@@ -328,9 +328,10 @@ async def test_credential(
     """Live-check a credential OUTSIDE any transaction (no txn may span
     network I/O) and record the verdict in a short follow-up transaction.
 
-    Deferred providers (no adapter yet) deterministically report
-    unavailable: 200 `{ok: false}` with a ship-date message, `last_test_*`
-    untouched. A missing master key / broken vault is OUR outage → 500; a
+    A credential whose provider has no adapter yet (defensive — all six
+    ship adapters since Stage 18) deterministically reports unavailable:
+    200 `{ok: false}` with a ship-date message, `last_test_*` untouched. A
+    missing master key / broken vault is OUR outage → 500; a
     disabled credential tests fine (the check validates key material, not
     routing state). Returns (ok, models, latency_ms, error)."""
     row = await AICredentialRepository(session).get_owned(

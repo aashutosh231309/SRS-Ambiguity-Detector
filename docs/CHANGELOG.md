@@ -4,30 +4,29 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
-## [0.17.0] — Stage 16 (as-built) — Settings remainder: profile, password, privacy, account deletion — 2026-09-24
+## [0.19.0] — Stage 18 (as-built) — Anthropic + Hugging Face adapters (all six live) — 2026-09-24
 
 ### Added
-- `GET/PATCH /settings/profile` (verified-only): safe-subset read + display-name
-  write (trimmed, ≤100 chars, explicit null/blank clears, field required).
-  No migration — `users.display_name` already existed. Privacy/export/purge
-  endpoints deliberately NOT built (a retention control with no enforcement
-  would be a fake control); §4.7 reserves their names for Stage 23.
-- `/settings` account sections (UI_UX_SPEC §12a): Profile (read-only email +
-  editable display name, self-contained fetch states, identity re-sync on
-  save), Password (Stage 05 `ChangePasswordForm` mounted as-is), Privacy
-  (honest lifecycle statement + History link, zero fake controls), Delete
-  account (DELETE-typed confirm dialog → 204 → farewell panel + auth clear).
-- `deleteAccount` client (`DELETE /auth/account`, retry-safe) + `lib/settings`
-  profile clients + code-mapped `settings-errors` copy.
+- `AnthropicProvider` (Messages API: `POST /v1/messages` with the shared
+  versioned prompts, `x-api-key` + pinned `anthropic-version` headers,
+  `GET /v1/models` probe; default `claude-sonnet-5`) + `HuggingFaceProvider`
+  (thin OpenAI-compat subclass over the Inference Providers router — the
+  legacy `api-inference` host is retired, so the registry pins
+  `router.huggingface.co`; default `openai/gpt-oss-120b`). Model-table rows
+  for both; `BUILTIN_ADAPTERS` holds all six singletons. No migration.
+- Mocked-HTTP coverage for both (request/response shaping, versioned probe,
+  auth-no-retry, bad-response shapes, router-host wiring); the four
+  deferral tests flipped — TEST/enhancement/retry stay live for all six
+  while the defensive no-adapter branches are pinned via monkeypatch.
 
 ### Changed
-- Frontend suite 368 → 384 tests (+16: profile × 6, delete dialog × 4, screen
-  integration × 6). Backend suite 470 → 482 (+12 profile API tests).
-  Roadmap-16 fully closed (providers slice shipped early in Stage 13).
+- Backend suite 494 → 504 (+10: adapter ×8, re-entry proofs ×2). Frontend
+  unchanged (396/396 — zero UI delta). Roadmap-18 fully closed. Still open:
+  creation-time live key proof, per-run disclosure copy, AI rate buckets.
 
 ### Contract
-- API_CONTRACT §4.7 finalized: profile fields final (above); privacy endpoint
-  names reserved for Stage 23 with the fake-control rationale recorded.
+- AI_PROVIDER_SPEC §2/§4/§5 updated (six-adapter as-builts, router host,
+  all-six TEST); no endpoint or envelope changes.
 
 ## [0.18.0] — Stage 17 (as-built) — `retry-ai` endpoint + report Retry button — 2026-09-24
 
@@ -53,6 +52,31 @@
 ### Contract
 - API_CONTRACT §4.3 retry-ai finalized (semantics above); AI_PROVIDER_SPEC
   §7 + UI_UX_SPEC §13 updated (retry rules, button behavior).
+
+## [0.17.0] — Stage 16 (as-built) — Settings remainder: profile, password, privacy, account deletion — 2026-09-24
+
+### Added
+- `GET/PATCH /settings/profile` (verified-only): safe-subset read + display-name
+  write (trimmed, ≤100 chars, explicit null/blank clears, field required).
+  No migration — `users.display_name` already existed. Privacy/export/purge
+  endpoints deliberately NOT built (a retention control with no enforcement
+  would be a fake control); §4.7 reserves their names for Stage 23.
+- `/settings` account sections (UI_UX_SPEC §12a): Profile (read-only email +
+  editable display name, self-contained fetch states, identity re-sync on
+  save), Password (Stage 05 `ChangePasswordForm` mounted as-is), Privacy
+  (honest lifecycle statement + History link, zero fake controls), Delete
+  account (DELETE-typed confirm dialog → 204 → farewell panel + auth clear).
+- `deleteAccount` client (`DELETE /auth/account`, retry-safe) + `lib/settings`
+  profile clients + code-mapped `settings-errors` copy.
+
+### Changed
+- Frontend suite 368 → 384 tests (+16: profile × 6, delete dialog × 4, screen
+  integration × 6). Backend suite 470 → 482 (+12 profile API tests).
+  Roadmap-16 fully closed (providers slice shipped early in Stage 13).
+
+### Contract
+- API_CONTRACT §4.7 finalized: profile fields final (above); privacy endpoint
+  names reserved for Stage 23 with the fake-control rationale recorded.
 
 ## [0.16.0] — Stage 15 (as-built) — AI results integration & trust UX — 2026-09-24
 
