@@ -72,7 +72,7 @@ GET /health/ready   → 200 {"status":"ready"|"degraded","checks":{"database":"n
   exact `live` payload for load balancers / uptime checks / PaaS probes. It is NOT part of
   the versioned product API and MUST NOT gain product fields; OpenAPI-excluded.
 
-### 4.2 Auth — backend IMPLEMENTED Stage 04 / frontend Stage 05
+### 4.2 Auth — backend ✅ Stage 04 / frontend ✅ Stage 05
 
 ```
 POST /auth/register            {name, email, password, turnstile_token?} → 201 {id,email,is_verified:false}
@@ -101,7 +101,17 @@ DELETE /auth/account           {confirmation:"DELETE"} → 204 (full cascade del
   per-endpoint (`403 email_unverified`). Logout works with an expired access token
   (the refresh cookie is the credential) and is idempotent.
 - Emailed links point at frontend routes `/verify-email?token=…` and
-  `/reset-password?token=…` (Stage 05 implements these pages).
+  `/reset-password?token=…` (✅ Stage 05).
+- Frontend assumptions (Stage 05, verified live against this contract): `register`
+  sets NO cookies (register never logs in — the session starts at verify or login);
+  unverified accounts CAN log in (200 + cookies); login/register/verify/refresh
+  return `{id,email,is_verified}`; `/me` returns the full identity row; logout is
+  `204` (empty body); resend/forgot are `202 {}`; reset/change are `200 {}`.
+  `validation_error` details are `[{loc:[…], msg}]` — the UI maps known `loc` tails
+  to fields. The UI sends NO `turnstile_token` field and implements NO remember-me
+  (neither exists server-side). Outstanding access JWTs survive reset/logout until
+  TTL expiry (stateless bearers); revocation applies to refresh — the UI never
+  assumes otherwise.
 
 ### 4.3 Analysis — Stage 07 (engine Stage 06)
 

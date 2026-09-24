@@ -63,13 +63,27 @@ hairline bottom border, excellent type, smooth micro-interactions, elegant activ
 (small underline/pill, spring transition), polished mobile menu (full-sheet, staggered
 links, focus-trapped). No mega-menus, no gradient text logos.
 
-## 5. Auth experience (binding concept)
+## 5. Auth experience (binding concept — IMPLEMENTED Stage 05)
 
 Single `AuthCard` with a **blade/sweep transition** between Login and Sign Up:
-one dark covering rectangle translates horizontally (slight skew allowed) over real forms
-underneath; state swaps mid-cover; transform/opacity only; inactive form is `inert` +
-unfocusable; full keyboard access + focus management + `prefers-reduced-motion` fallback
-(instant swap). Animation is a PRESENTATION layer — auth state stays separate (Stage 05).
+one dark covering rectangle translates across the card while both forms go `inert`;
+mode swaps mid-cover; focus moves to the new form's first field; a polite live region
+announces the change. Desktop: slanted side panel docking left/right (`clip-path`
+sweep, no layout animation). Mobile: top strip dropping like a curtain (height sweep,
+same phase machine, measured cover height). `prefers-reduced-motion` (via
+`useReducedMotionConfig`, honoring `MotionConfig`) swaps instantly with no sweep.
+Animation is PRESENTATION only — timeout-driven phases (320ms cover / 60ms hold /
+320ms reveal), zero API calls; auth state lives in `AuthProvider`.
+
+Routes (all `noindex, nofollow`, shared `(auth)` shell): `/login`, `/signup`
+(same card, `initialMode`), `/forgot-password`, `/reset-password?token=…`,
+`/verify-email?token=…`. Post-signup verify-pending panel with resend recovery
+(30s cooldown); verify auto-submits once (StrictMode-guarded, single-use tokens);
+reset never auto-logs-in. Copy rules: switch on backend `code` (never `message`);
+anti-enumeration responses stay non-committal ("If an account exists…"); tokens are
+never displayed or logged. `ProtectedRoute` (+ `requireVerified` nudge) and an
+unmounted-but-tested `ChangePasswordForm` ship for later stages; post-auth landing
+is the temporary fixed `/` until the dashboard stage.
 
 ## 6. Motion language (one system, used selectively)
 
@@ -108,8 +122,9 @@ reasoning (+ optional AI explanation when available). No black boxes.
 
 ## 9. Component inventory (evolving — stages check items off)
 
-- [ ] Primitives: Button, Input, Textarea, Select, Badge/Chip, Card, Dialog, Disclosure, Toast, Tooltip, Tabs, Table, EmptyState, Skeleton (Stage 05/08)
-- [ ] Product: Navbar, AuthCard+Blade, AnalyzerForm, Dropzone, ScoreGauge, IssueCard, RequirementCard, HealthBars, CategoryBars, TrendChart, HistoryTable, SettingsForms, ProviderCard, DeleteConfirm (`DELETE` typing) (owning stages)
+- [ ] Primitives: Button, Input, Textarea, Select, Badge/Chip, Card, Dialog, Disclosure, Toast, Tooltip, Tabs, Table, EmptyState, Skeleton (Stage 05/08 — Stage 05 shipped auth-scoped fields/alerts only; shared primitives still pending)
+- [x] Product: AuthCard+Blade (Stage 05)
+- [ ] Product: Navbar, AnalyzerForm, Dropzone, ScoreGauge, IssueCard, RequirementCard, HealthBars, CategoryBars, TrendChart, HistoryTable, SettingsForms, ProviderCard, DeleteConfirm (`DELETE` typing) (owning stages)
 - [ ] Marketing: Hero, FeatureGrid, HowItWorks steps, CTA, Footer, Breadcrumbs (Stage 26+)
 
 Rules: no fake buttons (every control does something or doesn't ship); no placeholder

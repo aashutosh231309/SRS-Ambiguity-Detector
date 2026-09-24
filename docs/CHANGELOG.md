@@ -4,6 +4,29 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.6.0] — Stage 05 — Authentication Frontend — 2026-09-24
+
+### Added
+- Auth UI: `app/(auth)/` routes (`login`, `signup`, `forgot-password`,
+  `reset-password`, `verify-email`, all `noindex, nofollow`); `AuthCard` +
+  blade/sweep transition (desktop slanted panel / mobile curtain, reduced-motion
+  instant path, focus + live-region management); `AuthProvider` + `useAuth` (+
+  `useMediaQuery`); `lib/auth{,-errors,-validation}.ts`; `types/auth.ts`;
+  `ProtectedRoute` (+ `requireVerified` nudge); `ChangePasswordForm` (unmounted
+  until settings).
+- 123 frontend tests (16 files: 15 new); `vitest.config.ts` (`@/*` alias);
+  `jsdom` + Testing Library + `user-event` devDeps.
+
+### Changed
+- Root layout wraps the app in `AuthProvider`. Post-auth landing is the fixed
+  temporary `/` until the dashboard stage.
+
+### Contract (frontend assumptions on §4.2, all verified live)
+- `register` sets no cookies (never logs in); unverified CAN log in; logout 204;
+  resend/forgot always-202; reset/change 200 `{}`; `validation_error` details are
+  `[{loc,msg}]`; no `turnstile_token` sent; outstanding access JWTs survive
+  reset/logout until TTL (refresh revocation is the logout-everywhere mechanism).
+
 ## [0.5.0] — Stage 04 — Authentication Backend — 2026-09-23
 
 ### Added

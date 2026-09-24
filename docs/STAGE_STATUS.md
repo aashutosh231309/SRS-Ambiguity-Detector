@@ -278,11 +278,73 @@ distributes); no Turnstile verification yet (Stage 22); no auth UI (Stage 05);
 
 **Next stage:** Stage 05 — Authentication Frontend.
 
+### Stage 05 — Authentication Frontend ✅ (2026-09-24)
+
+**Completed:**
+- Routes (`app/(auth)/`, all `noindex, nofollow`): `/login` + `/signup` (one `AuthCard`,
+  `initialMode`), `/forgot-password`, `/reset-password?token=…`, `/verify-email?token=…`.
+  Root layout wraps everything in `AuthProvider`; home page untouched.
+- `AuthCard` + blade/sweep: timeout-driven phases (320 cover / 60 hold / 320 reveal),
+  mode swaps mid-cover; desktop = slanted `clip-path` side panel, mobile = top-strip
+  curtain (same machine, measured cover height); both forms `hidden`+`inert`+
+  `aria-hidden` when inactive, both inert mid-sweep; focus to the new first field;
+  polite live-region announcements; reduced-motion (via `useReducedMotionConfig`)
+  swaps instantly. Zero API calls in the animation.
+- Auth state: `AuthProvider` (status/user + login/signup/logout/refreshUser/clearAuth)
+  via `useAuth`; one-shot `/me` init with module-level in-flight guard (no `/me`
+  spam, StrictMode-safe); `lib/auth.ts` = only `/auth/*` caller; silent refresh =
+  single-flight + retry-once, applied ONLY to `me`/`change-password`.
+- All flows: login (unverified CAN log in), signup → verify-pending + resend (30s
+  cooldown), verify auto-submit-once, forgot/reset (never auto-login), reusable
+  `ChangePasswordForm` (tested, unmounted until settings), `ProtectedRoute` (+
+  `requireVerified` nudge). Copy switches on backend `code` (never `message`);
+  anti-enumeration wording non-committal; tokens never displayed/logged (asserted).
+- Client validation mirrors server policy (12–256, local-part ≥4 rule, 16–128
+  tokens); denylist stays server-side. No turnstile field, no remember-me, no
+  `?next=` (fixed `/` landing until the dashboard stage — documented temp).
+
+**Architectural decisions:**
+- `register` sets NO cookies (contract §4.2 "register never logs in" — caught live
+  when the journey probe assumed otherwise): `signup()` performs no identity
+  refresh; the session starts at verify-email or login.
+- Reduced motion reads `useReducedMotionConfig` (honors `MotionConfig`), not the
+  device-only `useReducedMotion` (which ignores the provider — caught by tests).
+- Outstanding access JWTs survive reset/logout until TTL (stateless bearers);
+  revocation applies to refresh — UI + tests assume nothing else.
+- Component tests use `jsdom` per-file pragma + Testing Library + `user-event`
+  (new devDeps, same Vitest runner); `vitest.config.ts` mirrors the `@/*` alias.
+  Label queries in multi-form cards are `within()`-scoped (jsdom loads no CSS, so
+  `display:none` doesn't hide from text queries — role queries exclude via aria-hidden).
+
+**Tests:** `verify.sh` ALL GREEN — pytest 114/114 (backend untouched), vitest 129/129
+(123 new: 3 lib files, provider, 2 hooks, 9 components incl. blade sweep/re-entry/
+reduced-motion/focus/cooldown/pending/redirect paths), eslint, `tsc`, prettier,
+`next build` (9 routes). SSR curl: all 5 auth routes 200 (skeleton-first on
+login/signup, `noindex,nofollow`, correct titles). Live journey through the REAL
+`lib/*` + real backend (temp probe, deleted after): register→unverified-login→
+duplicate-201→resend-202→verify→logout→bad-login→login→refresh-rotation→forgot→
+reset→logout-everywhere→change→validation-shape→logout→DELETE — green, 0 users
+left, cookie attrs (`HttpOnly`, `SameSite=Lax`) asserted.
+
+**Known limitations (accepted, not bugs):**
+- NO browser in this sandbox (no Chromium/Firefox; Playwright CDN + Debian mirrors
+  blocked) — the blade sweep, responsive widths, and visual polish were NOT
+  pixel-verified and NO screenshots ship (`screenshots/` still empty). The first
+  browsed environment must capture `stage05-*` at 390/768/1440 + re-verify the
+  sweep by eye. Unit + SSR + live-API coverage stands in meanwhile.
+- Post-auth landing is the fixed temporary `/` (dashboard stage replaces it).
+- `ChangePasswordForm` ships unmounted (settings stage mounts it); `ProtectedRoute`
+  has no consumers yet (first private pages wrap with it).
+- `docker-compose.yml` STILL unvalidated (no Docker in sandbox) — recurring warning.
+
+**Next stage:** Stage 06 — Deterministic Engine (needs nothing from auth; verified
+`requireVerified` nudge + `ProtectedRoute` are ready for its future private UI).
+
 ## Current stage
-None active — Stage 04 complete; all success conditions hold (11 auth endpoints,
-rotation + reuse detection, email port, CSRF + rate-limit guards, 0002 migration,
-tests green, docs match).
-Next: **Stage 05 — Authentication Frontend**.
+None active — Stage 05 complete; all success conditions hold (5 auth routes, blade
+transition with a11y + reduced-motion paths, provider + silent refresh, all recovery
+flows, 129/129 frontend tests, live journey green, docs match).
+Next: **Stage 06 — Deterministic Engine**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 Database → backend → auth backend → auth frontend → deterministic engine → analysis API →
@@ -309,6 +371,14 @@ SEO content → responsive/a11y → QA → deploy → docs/shots → audit.
 - State that must survive an error (theft revocation) commits explicitly before raising.
 - Cookies/headers belong on the RETURNED `Response` when an endpoint returns one —
   FastAPI drops the injected `Response` in that case (logout-cookie bug, Stage 04).
+- Auth UI: `AuthProvider` is the single state; error copy switches on backend `code`
+  (never `message`); `register` sets no cookies (no post-signup refresh); silent
+  refresh is single-flight + retry-once for `me`/`change-password` only.
+- Motion preference reads `useReducedMotionConfig` (honors `MotionConfig`), never the
+  device-only `useReducedMotion` (ignores the provider).
+- Component tests: `jsdom` per-file pragma + Testing Library (`within()`-scoped label
+  queries in multi-form cards); `vitest.config.ts` mirrors `@/*` (Vitest ignores
+  tsconfig paths).
 
 ## Warnings for future agents
 1. IMPLEMENTED: `app/{models,schemas,services,repositories,exceptions}/` (Stages 02–03).

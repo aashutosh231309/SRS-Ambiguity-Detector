@@ -141,6 +141,20 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
 - App conventions: `loading.tsx` (route-transition fallback), `error.tsx` (safe message +
   retry; never renders details), `not-found.tsx` (branded 404). Feature routes may add
   closer-to-the-data variants later.
+- `src/app/(auth)/` (Stage 05) — private auth route group (`login`, `signup`,
+  `forgot-password`, `reset-password`, `verify-email`); shared shell + `noindex,
+  nofollow`. No product routes yet — the private product group arrives with the
+  dashboard stage.
+- Auth state (Stage 05): `components/auth/AuthProvider.tsx` (single source of truth:
+  `status`/`user` + `login`/`signup`/`logout`/`refreshUser`/`clearAuth`) consumed via
+  `hooks/useAuth.ts`; identity resolves once via `GET /auth/me` (module-level
+  in-flight guard — one request even under StrictMode). `lib/auth.ts` is the ONLY
+  `/auth/*` caller (built on `lib/api.ts`); silent refresh is single-flight +
+  retry-once and applies ONLY to `me`/`change-password`. `lib/auth-errors.ts` maps
+  backend `code` → UI copy (never server strings); `lib/auth-validation.ts` mirrors
+  policy client-side for instant feedback (server authoritative). Tests: Vitest 5 +
+  `jsdom` + Testing Library (`vitest.config.ts` mirrors the `@/*` alias; node env
+  default, `jsdom` per-file pragma, no globals).
 
 ## 6. Canonical request flows
 
@@ -151,7 +165,7 @@ optional AI enhancement (timeout-guarded, fail-open) → unified response.
 **Upload (planned):** `POST /api/v1/documents/upload` → authn → size/MIME/magic-byte checks →
 extract (timeout + max-text guard) → segment → same pipeline → delete temp file.
 
-**Auth (backend ✅ Stage 04; UI Stage 05):** register → unverified (+ verify email) →
+**Auth (backend ✅ Stage 04; UI ✅ Stage 05):** register → unverified (+ verify email) →
 verify link → verified + auto-login; login issues short-lived access JWT + rotating
 refresh in `HttpOnly; Secure (prod); SameSite=Lax` cookies; `POST /auth/refresh` rotates
 (reuse of a rotated token revokes the family); logout/change/reset revoke server-side;

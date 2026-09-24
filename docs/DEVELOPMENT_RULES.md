@@ -47,6 +47,14 @@
   untrusted text (requirement text, AI output, filenames).
 - Components: accessible (labels, focus, `aria-*` where needed), responsive (390/768/1280
   considered), motion via shared tokens only.
+- Auth UI rules (Stage 05, binding): tokens stay in httpOnly cookies — never read,
+  store, log, or display them; `AuthProvider` is the single auth state (no parallel
+  clients/stores); switch on backend error `code`, never `message`; client
+  validation mirrors server policy for UX only (server authoritative); no
+  `turnstile_token` field, no remember-me, no `?next=` redirects (fixed allowlist
+  landing); inactive/covered forms are `inert` + unfocusable with managed focus;
+  motion preference reads `useReducedMotionConfig` (honors `MotionProvider`), never
+  the device-only hook.
 
 **Backend (`backend/`):**
 - `ruff check` + `ruff format --check` clean; `mypy` clean on `app/` (config in `pyproject.toml`).

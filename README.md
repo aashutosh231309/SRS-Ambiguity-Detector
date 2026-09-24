@@ -139,12 +139,13 @@ dedicated security stages do that later.
 
 ## Current limitations
 
-Backend auth is done; the auth UI arrives next — intentionally NOT implemented yet:
-auth frontend, deterministic engine, analysis API, analyzer UI, document
-upload/extraction, history, dashboard, settings, AI providers, CAPTCHA/distributed rate
-limits, Sentry. The home page is an honest placeholder (replaced by the marketing
-stage), and `ApiStatus` needs the backend running. Full plan:
-[`docs/FUTURE_ROADMAP.md`](docs/FUTURE_ROADMAP.md).
+Backend auth + auth UI are done (`/login`, `/signup`, `/forgot-password`,
+`/reset-password`, `/verify-email`; post-auth landing is the temporary fixed `/`
+until the dashboard stage) — intentionally NOT implemented yet: deterministic
+engine, analysis API, analyzer UI, document upload/extraction, history, dashboard,
+settings, AI providers, CAPTCHA/distributed rate limits, Sentry. The home page is
+an honest placeholder (replaced by the marketing stage), and `ApiStatus` needs the
+backend running. Full plan: [`docs/FUTURE_ROADMAP.md`](docs/FUTURE_ROADMAP.md).
 
 ## Screenshots
 
