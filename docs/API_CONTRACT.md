@@ -1,8 +1,8 @@
 # API Contract
 
-> **Status:** BINDING as of Stage 01. Routers for these resources do NOT exist yet (they are
-> built in their owning stages); this contract exists so frontend/backend/database work cannot
-> drift. Any deviation requires a contract amendment (`CHANGELOG.md` + version bump if breaking).
+> **Status:** BINDING and implemented through Stage 30 for the v1 route groups described below.
+> This contract keeps frontend/backend/database behavior aligned. Any deviation requires a
+> contract amendment (`CHANGELOG.md` + version bump if breaking).
 
 ## 1. Base + versioning
 
@@ -71,7 +71,7 @@ GET /health/ready   → 200 {"status":"ready"|"degraded","checks":{"database":"n
 ```
 - No auth. `live` = process up. `ready` runs a live `SELECT 1` when `DATABASE_URL`
   is set (`not_configured` without it, `degraded` on failure) — implemented Stage 02.
-  Business endpoints below remain PLANNED until their stages land.
+  Product endpoints below are implemented as noted by each route group.
 - Frontend `ApiStatus` component polls `live` (proves the envelope + CORS wiring).
 - Infra alias (IMPLEMENTED): `GET /health` (unversioned, outside `/api/v1`) returns the
   exact `live` payload for load balancers / uptime checks / PaaS probes. It is NOT part of

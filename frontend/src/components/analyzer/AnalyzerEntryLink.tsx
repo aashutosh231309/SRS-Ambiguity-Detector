@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Home-page entry to `/analyzer`, visible ONLY to signed-in users (the
- * placeholder home stays quiet for everyone else until the marketing stage).
+ * Home-page entry to `/analyzer`, visible ONLY to signed-in users; public
+ * visitors use the normal marketing CTAs.
  */
 
 import Link from "next/link";

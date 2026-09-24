@@ -1,9 +1,9 @@
 # Database Schema
 
-> **Status:** IMPLEMENTED Stages 02–07 (Alembic revisions `0001`–`0004`). This file
+> **Status:** IMPLEMENTED through Stage 30 (Alembic revisions `0001`–`0006`). This file
 > describes the ACTUAL schema — models in `backend/app/models/`, DDL in
 > `backend/alembic/versions/000*.py` (`alembic check` verifies they match).
-> Preferences are PLANNED (Stage 16) — see §3.8.
+> User privacy preferences are implemented in revision `0006` — see §3.8.
 
 ## 1. Conventions (binding, as implemented)
 
@@ -43,7 +43,7 @@ users 1──* ai_provider_credentials                       [IMPLEMENTED]
 users 1──* refresh_tokens                                [IMPLEMENTED — Stage 04]
 users 1──* email_verification_tokens                     [IMPLEMENTED — Stage 04]
 users 1──* password_reset_tokens                         [IMPLEMENTED — Stage 04]
-users 1──1 user_preferences / settings                   [PLANNED — Stage 16]
+users 1──1 user_preferences / settings                   [IMPLEMENTED — Stage 23, revision 0006]
 ```
 
 ## 3. Tables (implemented)

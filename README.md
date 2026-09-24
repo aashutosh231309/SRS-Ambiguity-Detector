@@ -1,209 +1,374 @@
 # SRS Ambiguity Detector
 
-A production-quality web platform that analyzes Software Requirements Specification (SRS)
-documents and requirement text, detects ambiguity with a **deterministic NLP/rule engine**,
-explains every finding, scores requirement quality, and — optionally, with the user's own
-AI provider keys — adds AI-generated overviews and improvements.
+SRS Ambiguity Detector is a full-stack web application for reviewing Software Requirements Specification (SRS) text and documents. It identifies requirement statements that may be vague, incomplete, subjective, underspecified, or difficult to verify; explains each finding; assigns transparent heuristic scores; and optionally adds AI-assisted overviews and rewrite suggestions using the user's own provider keys.
 
-> **Status: late pre-release.** Core product features are implemented: auth,
-> text/document analysis, history, dashboard, settings/privacy, optional user-owned
-> AI enhancement, SEO public pages, monitoring hooks, and Stage 30 production
-> deployment runbook/configuration. Final screenshots/docs and release audit remain.
-> See [`docs/STAGE_STATUS.md`](docs/STAGE_STATUS.md) and
-> [`docs/FUTURE_ROADMAP.md`](docs/FUTURE_ROADMAP.md).
+The deterministic engine is the authoritative analysis layer. AI is optional and additive.
 
-## Baseline (immutable — all 12 ship in v1)
+## Overview
 
-Requirement text input · SRS upload (PDF/DOCX/TXT) · ambiguity detection + categories ·
-explanations · suggested improvements · ambiguity score · authentication · database storage ·
-analysis history · dashboard with charts · REST APIs — plus README + screenshots.
+Ambiguous requirements make implementation and testing harder because teams may interpret the same statement differently. This project helps reviewers find likely ambiguity patterns early by combining:
 
-Full contract: [`docs/PROJECT_SPEC.md`](docs/PROJECT_SPEC.md).
+- deterministic requirement segmentation;
+- 11 rule-based detector categories;
+- evidence spans, reasons, recommendations, and severities;
+- transparent scoring and health dimensions;
+- saved reports, history, and dashboard analytics;
+- optional user-owned AI enhancement.
 
-## Repository map
+The tool does **not** guarantee perfect ambiguity detection. It provides explainable review signals that should be interpreted by a human analyst.
 
+## Key features
+
+- Paste SRS/requirement text and run deterministic ambiguity analysis.
+- Upload one PDF, DOCX, or TXT file and analyze extracted text through the same pipeline.
+- View requirement-level findings with highlighted phrases, detector ids, reasons, and recommendations.
+- See transparent scores, severity counts, category distributions, and health dimensions.
+- Save analyses to PostgreSQL-backed history and open detailed report pages.
+- Use dashboard charts for aggregate analysis activity and ambiguity trends.
+- Manage profile, password, privacy, and account deletion flows.
+- Export/purge privacy data and configure history retention.
+- Manage encrypted, user-owned AI provider credentials.
+- Optionally request AI overview/rewrite enrichment without blocking deterministic results.
+- Use production-oriented security controls: HttpOnly cookies, refresh rotation, CSRF origin checks, Turnstile support, rate limits, Sentry scrubbers, dependency audits, and secret scanning.
+
+## Screenshots
+
+Screenshots are required for final presentation, but this sandbox had no browser runtime available for Stage 31. No fake screenshots are committed.
+
+See [`screenshots/README.md`](screenshots/README.md) for the required final screenshot catalog, safe demo data, capture procedure, and privacy checklist.
+
+## System architecture
+
+```text
+Browser
+  ↓ HTTPS
+Next.js / React frontend
+  ↓ /api/v1 REST calls with HttpOnly cookies
+FastAPI backend
+  ↓ service layer
+Repository layer / SQLAlchemy
+  ↓
+PostgreSQL
+
+FastAPI integrations:
+  PostgreSQL/Supabase · local or Supabase Storage · Resend · Turnstile · Sentry · user-owned AI providers
 ```
-frontend/   Next.js App Router + TypeScript (strict) + Tailwind v4 + Motion + Vitest
-backend/    Python 3.11+ FastAPI, versioned API at /api/v1 (deterministic engine, no LLM calls in core)
-docs/       Project contract — start here (new agents: DEVELOPMENT_RULES.md first)
-scripts/    verify.sh — the stage-completion gate (lint, typecheck, tests, builds)
-screenshots/  Assignment deliverable (UI captures per stage)
+
+Production topology is documented in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md): Vercel hosts the Next.js frontend, while FastAPI runs on a separate Python-capable service host connected to PostgreSQL/Supabase and storage.
+
+Detailed architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## How ambiguity detection works
+
+```text
+Text or extracted document content
+  → normalization
+  → deterministic requirement segmentation
+  → detector registry
+  → deduplication
+  → scoring and health dimensions
+  → persistence
+  → report UI
+  → optional AI enhancement
 ```
 
-Key docs: `ARCHITECTURE.md` (decisions + ADRs) · `API_CONTRACT.md` (REST envelopes + endpoints) ·
-`DATABASE_SCHEMA.md` (implemented schema + migration workflow) · `SECURITY_SPEC.md` (threat model) ·
-`AI_PROVIDER_SPEC.md` (provider abstraction) · `UI_UX_SPEC.md` (design system) ·
-`SEO_SPEC.md` · `DEVELOPMENT_RULES.md` (mandatory workflow).
+Implemented detector categories:
 
-## Quickstart (local development)
+- vague quantifiers;
+- subjective terms;
+- missing measurable criteria;
+- pronoun references;
+- optional language;
+- ambiguous operators;
+- undefined terminology;
+- absolute language;
+- passive voice / unclear actor;
+- missing constraints;
+- incomplete requirements.
 
-Prerequisites: **Node.js 20+** (`npm`), **Python 3.11+**, and **PostgreSQL 16+**
-([Docker](https://www.docker.com/) via `docker-compose.yml`, a system install, or Supabase).
+Scoring is heuristic and transparent:
+
+```text
+Requirement score = clamp(100 - Σ severity deductions, 0, 100)
+```
+
+Deductions are low −5, medium −10, high −15, critical −20. Analysis score is the mean of requirement scores. Bands are low, moderate, high, and very high ambiguity.
+
+Full engine documentation: [`docs/DETECTION_ENGINE.md`](docs/DETECTION_ENGINE.md).
+
+## Supported input
+
+| Input | Support |
+| --- | --- |
+| Pasted text | Up to 200,000 characters. |
+| PDF | Validated by extension, MIME/magic bytes, parser limits, and extraction budget. |
+| DOCX | Validated as OOXML with zip-bomb guards. |
+| TXT | Validated as text, with binary/NUL checks. |
+
+Uploads are exactly one file per request, up to 10 MiB. Uploaded binaries are stored through the storage abstraction; metadata is stored in PostgreSQL.
+
+## AI enhancement
+
+AI enhancement is optional:
+
+- the app works without any AI key;
+- users bring their own provider credentials;
+- credentials are encrypted with Fernet using `ENCRYPTION_MASTER_KEY`;
+- keys are never returned after creation;
+- deterministic analysis persists before provider calls;
+- AI failures do not block the report;
+- retry-AI is available for saved analyses;
+- result pages disclose what kind of content is sent to providers.
+
+Supported providers:
+
+- Google Gemini;
+- Groq;
+- OpenAI;
+- Anthropic;
+- OpenRouter;
+- Hugging Face Inference Providers router.
+
+Provider calls are covered by mocked HTTP tests in the repository. Live provider validation requires real user-owned credentials and is not claimed from this sandbox.
+
+## Authentication and security
+
+Implemented security controls include:
+
+- Argon2id password hashing;
+- email verification and password reset tokens stored as SHA-256 hashes;
+- short-lived HS256 access JWT and rotating refresh token cookies;
+- refresh-token reuse detection and family revocation;
+- HttpOnly cookies, `Secure` in production, `SameSite=Lax`;
+- Origin/Referer checks on mutating cookie-authenticated routes;
+- exact-origin CORS with credentials;
+- per-route/process-local rate limiting;
+- Cloudflare Turnstile support for high-abuse public auth operations;
+- ownership checks on every user resource with foreign ids returning 404;
+- encrypted AI credentials;
+- upload validation and private object storage;
+- short-lived signed document download tokens;
+- production OpenAPI gating;
+- security headers and report-only CSP;
+- Sentry/log redaction;
+- `npm audit`, `pip-audit`, and secret scan in the verification gate.
+
+Security details: [`docs/SECURITY_SPEC.md`](docs/SECURITY_SPEC.md).
+
+## Privacy and data lifecycle
+
+The app stores account data, analysis metadata/text, requirement findings, uploaded-document metadata, encrypted provider credentials, and privacy preferences.
+
+Implemented privacy controls:
+
+- live owner-scoped data export;
+- history retention settings;
+- manual history purge;
+- retention purge CLI;
+- account deletion that purges owned storage objects and deletes user-owned database rows through cascades;
+- export exclusions for password hashes, auth tokens, provider-key ciphertext, storage paths, file bytes, signed tokens, and infrastructure credentials.
+
+See [`docs/SECURITY_SPEC.md`](docs/SECURITY_SPEC.md#10-privacydata-lifecycle-controls-implemented-stage-23) and [`docs/DATABASE_SCHEMA.md`](docs/DATABASE_SCHEMA.md).
+
+## Technology stack
+
+| Area | Technology |
+| --- | --- |
+| Frontend | Next.js App Router, React, TypeScript, Tailwind CSS v4, Motion, Recharts |
+| Frontend tests | Vitest, Testing Library, ESLint, Prettier |
+| Backend | Python 3.11+, FastAPI, Pydantic v2 |
+| Database | PostgreSQL 16-compatible, SQLAlchemy 2.0 async, Alembic, asyncpg |
+| Storage | Local filesystem adapter; Supabase Storage adapter |
+| Email | Resend adapter; console/file outbox for local development |
+| AI | Provider abstraction with six adapters; user-owned encrypted credentials |
+| Monitoring | Optional Sentry backend/frontend integrations with scrubbers |
+| Verification | `scripts/verify.sh`, pytest, mypy, ruff, npm audit, pip-audit, secret scan |
+
+Pinned backend dependencies are in [`backend/requirements.txt`](backend/requirements.txt). Frontend dependencies are in [`frontend/package.json`](frontend/package.json).
+
+## Project structure
+
+```text
+SRS-Ambiguity-Detector/
+├── backend/              FastAPI app, SQLAlchemy models, Alembic migrations, tests
+├── frontend/             Next.js App Router UI, components, frontend tests
+├── docs/                 Architecture, API, security, deployment, roadmap, summary docs
+├── screenshots/          Screenshot catalog and capture procedure
+├── scripts/              Verification and secret-scan scripts
+├── docker-compose.yml    Local PostgreSQL service only
+├── .env.example          Master environment inventory
+└── README.md
+```
+
+## API overview
+
+The backend exposes `/api/v1` route groups for:
+
+- `/auth`
+- `/analysis`
+- `/documents`
+- `/dashboard`
+- `/ai/providers`
+- `/settings`
+- `/privacy`
+- `/health`
+
+See [`docs/API_OVERVIEW.md`](docs/API_OVERVIEW.md) for a concise route guide and [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) for the full contract.
+
+## Local development
+
+Prerequisites:
+
+- Node.js 20+ and npm;
+- Python 3.11+;
+- PostgreSQL 16+ via Docker, system install, or Supabase;
+- optional: Resend, Turnstile, Sentry, and AI provider credentials for integration testing.
 
 ```bash
-# 1. Database (PostgreSQL 16+; Docker NOT required — any of these)
-docker compose up -d db          # …or: apt/brew install postgresql && createdb srs_ambiguity
+# 1. Start local PostgreSQL if Docker is available
+# docker-compose.yml contains only a local db service.
+docker compose up -d db
+
 # 2. Backend
 cd backend
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt -r requirements-dev.txt
-cp .env.example .env                                 # set DATABASE_URL (see below)
-alembic upgrade head                               # create the schema (revision 0001)
-uvicorn app.main:app --reload --port 8000            # API → http://localhost:8000/health
+cp .env.example .env
+# edit DATABASE_URL, DIRECT_DATABASE_URL, JWT_SECRET, and other values
+alembic upgrade head
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# 3. Frontend (new terminal)
+# 3. Frontend in another terminal
 cd frontend
 npm install
-cp .env.example .env.local                           # NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
-npm run dev                                          # Web → http://localhost:3000
+cp .env.example .env.local
+npm run dev
 ```
 
-Verify everything (lint + typecheck + tests + production builds):
+Open `http://localhost:3000`. The backend health alias is `http://localhost:8000/health`.
+
+If PostgreSQL is unavailable, DB-backed tests skip safely, but the full application needs a configured database.
+
+## Environment variables
+
+Use the example files as the source of truth:
+
+- root [`.env.example`](.env.example) — inventory and local compose variables;
+- [`backend/.env.example`](backend/.env.example) — server-only backend config and secrets;
+- [`frontend/.env.example`](frontend/.env.example) — browser-public `NEXT_PUBLIC_*` config only.
+
+Important production variables:
+
+- `APP_ENV=production`
+- `DEBUG=false`
+- `BACKEND_CORS_ORIGINS=https://your-frontend.example`
+- `DATABASE_URL`
+- `DIRECT_DATABASE_URL`
+- `JWT_SECRET`
+- `ENCRYPTION_MASTER_KEY` if AI credentials are enabled
+- `EMAIL_PROVIDER=resend`
+- `RESEND_API_KEY`
+- `STORAGE_BACKEND=supabase`
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_STORAGE_BUCKET`
+- `TURNSTILE_ENABLED=true`
+- `TURNSTILE_SECRET_KEY`
+- `NEXT_PUBLIC_API_URL`
+- `NEXT_PUBLIC_SITE_URL`
+- `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
+
+There are deliberately no global `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`, or `HUGGINGFACE_API_KEY` variables. Users add their own encrypted provider keys in Settings.
+
+## Database and migrations
+
+PostgreSQL schema is managed by Alembic.
+
+```bash
+cd backend
+alembic upgrade head
+alembic current
+alembic heads
+alembic history --verbose
+```
+
+Use `DIRECT_DATABASE_URL` for migration jobs when the runtime `DATABASE_URL` points at a pooler. Never run ad-hoc DDL or `create_all()` in production.
+
+Schema documentation: [`docs/DATABASE_SCHEMA.md`](docs/DATABASE_SCHEMA.md).
+
+## Testing and verification
+
+Full repository gate:
 
 ```bash
 ./scripts/verify.sh
 ```
 
-DB-backed tests use `TEST_DATABASE_URL` (default
-`postgresql+asyncpg://postgres:postgres@localhost:5432/srs_test`, auto-created) and skip
-cleanly when PostgreSQL is unreachable.
+This runs backend lint/format, mypy, pytest, FastAPI import sanity, frontend lint, typecheck, Vitest, Prettier, Next production build, secret scan, `npm audit`, and `pip-audit`.
 
-## Development commands
+Useful focused commands:
 
-| Area     | Command                                                                  | Purpose                                                      |
-| -------- | ------------------------------------------------------------------------ | ------------------------------------------------------------ |
-| Frontend | `npm install`                                                            | Install dependencies                                         |
-| Frontend | `npm run dev`                                                            | Dev server on `:3000`                                        |
-| Frontend | `npm run build` / `npm run start`                                        | Production build / serve it                                  |
-| Frontend | `npm run lint`                                                           | ESLint (flat config, `react/no-danger`)                      |
-| Frontend | `npm run typecheck`                                                      | `tsc --noEmit` (strict)                                      |
-| Frontend | `npm test`                                                               | Vitest unit tests (`*.test.ts`)                              |
-| Frontend | `npm run format`                                                         | Prettier check                                               |
-| Backend  | `pip install -r requirements.txt -r requirements-dev.txt`                | Install (in venv)                                            |
-| Backend  | `uvicorn app.main:app --reload --port 8000`                              | Dev server on `:8000`                                        |
-| Backend  | `python -m pytest -q`                                                    | Test suite                                                   |
-| Backend  | `ruff check app tests alembic` / `ruff format --check app tests alembic` | Lint / format check                                          |
-| Backend  | `mypy app`                                                               | Strict typecheck (`alembic/` excluded — operational scripts) |
-| Backend  | `alembic upgrade head` / `current` / `history` / `check`                 | Migrate / status / drift check                               |
-| Backend  | `alembic revision -m "…" --autogenerate`                                 | New migration (always REVIEW the diff)                       |
-| Repo     | `./scripts/verify.sh`                                                    | Full gate (everything above, in order)                       |
+```bash
+cd backend && python -m pytest -q
+cd backend && ruff check app tests alembic && ruff format --check app tests alembic
+cd backend && mypy app
+cd frontend && npm run lint && npm run typecheck && npm test && npm run build
+```
 
-Python dependency strategy: pinned `backend/requirements*.txt` are the install source;
-`backend/pyproject.toml` holds tool configuration only (ruff, mypy, pytest).
+## Deployment
 
-## Configuration
+Detailed production deployment documentation is in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
-All settings are environment-driven and validated at boot. Copy the examples and edit:
+Summary:
 
-- `backend/.env.example` → `backend/.env` (server-only; **never commit `.env`**)
-- `frontend/.env.example` → `frontend/.env.local` (`NEXT_PUBLIC_*` only — never secrets)
-- Root `.env.example` is the master inventory + `docker compose` reference (documents all
-  variables in one place; only `${POSTGRES_*}` is read from the repo root)
+- Frontend: Vercel-hosted Next.js app.
+- Backend: separate Python/FastAPI service host; not hosted by Vercel.
+- Database: PostgreSQL/Supabase.
+- Storage: Supabase Storage for managed production; local storage only for development or single-node durable-disk deployments.
+- External services: Resend, Cloudflare Turnstile, optional Sentry, optional user-owned AI providers.
 
-| Variable                                       | Default                                                  | Purpose                                                                                                                                   |
-| ---------------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_API_URL`                          | `http://localhost:8000/api/v1`                           | Browser → API base URL (the only backend address the browser needs)                                                                       |
-| `NEXT_PUBLIC_SITE_URL`                         | `http://localhost:3000`                                  | Canonical site origin for public metadata, robots, and sitemap (normalized; never put secrets here)                                       |
-| `APP_ENV`                                      | `local`                                                  | `local` / `staging` / `production` behavior switch                                                                                        |
-| `DATABASE_URL`                                 | _(unset — app boots; `/ready` reports `not_configured`)_ | `postgresql+asyncpg://…` app connection                                                                                                   |
-| `DIRECT_DATABASE_URL`                          | _(falls back to `DATABASE_URL`)_                         | Direct connection for Alembic (bypasses Supabase pooler)                                                                                  |
-| `DATABASE_POOL_SIZE` / `DATABASE_MAX_OVERFLOW` | `5` / `10`                                               | Per-process asyncpg pool tuning; size against DB capacity and worker count                                                                |
-| `DOCUMENT_EXTRACTOR_WORKERS`                   | `2`                                                      | Per-process bounded parser workers for PDF/DOCX/TXT validation + extraction                                                               |
-| `JWT_SECRET`                                   | _(required for auth)_                                    | 256-bit-minimum HS256 signing secret (fail-closed)                                                                                        |
-| `EMAIL_PROVIDER`                               | `console`                                                | `console` (local dev outbox) / `resend` (production delivery)                                                                             |
-| `STORAGE_BACKEND`                              | `local`                                                  | `local` for dev/single-node persistent disk; `supabase` for managed production storage                                                    |
-| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_STORAGE_BUCKET` | placeholders | Supabase Storage REST config for a private bucket; service-role key is backend-only                                                        |
-| `TURNSTILE_ENABLED` / `TURNSTILE_SECRET_KEY` / `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | `false` / placeholders | Cloudflare Turnstile server verification for high-abuse auth routes; site key is public, secret is backend-only                           |
-| `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN`        | _(unset — monitoring disabled)_                          | Optional backend/frontend Sentry projects; scrubbers strip bodies, query strings, tokens, credentials, SRS text, uploads, and AI payloads |
+Stage 30 chose single-instance/process-local rate limiting for v1 production. Do not horizontally scale the backend without accepting approximately `N × limit` budgets or implementing a shared limiter.
 
-Production: set `APP_ENV=production`, `DEBUG=false`, exact `BACKEND_CORS_ORIGINS`, HTTPS
-origins, `EMAIL_PROVIDER=resend`, strong `JWT_SECRET`, and a backed-up
-`ENCRYPTION_MASTER_KEY` if AI provider credentials are enabled.
+## Limitations
 
-## Production deployment
+- Detection is heuristic and English-first; it can produce false positives and false negatives.
+- No OCR for scanned/image-only PDFs.
+- No guarantee of search ranking or SEO performance.
+- No team workspaces or shared analyses in v1.
+- No PDF/DOCX export of analysis reports yet.
+- Process-local rate limiting is not a distributed limiter.
+- Live Supabase, Turnstile, Resend, Sentry, browser/device, and AI-provider validation require operator credentials/environments and are not claimed from this sandbox.
+- Screenshots were not captured in this sandbox because no browser runtime was available.
+- No open-source license is declared yet; do not assume reuse rights until a `LICENSE` file is added.
 
-The supported production topology is Vercel for the Next.js frontend plus a separate
-Python/FastAPI service host connected to PostgreSQL/Supabase and Supabase Storage. FastAPI is
-not hosted by Vercel. The complete operator runbook is
-[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md), including env-var tables, migration order,
-health checks, smoke tests, rollback, backups/recovery, security checklist, SEO/domain setup,
-and troubleshooting.
+## Future enhancements
 
-Rate-limiting decision for v1 production: run a single backend instance/process with the
-implemented process-local token buckets, or accept `N × limit` behavior across `N` instances
-until a shared limiter is added. Redis/queues/Kubernetes are intentionally not introduced.
+- Shared/team workspaces.
+- DOCX/PDF export of reports.
+- CLI or batch API for CI pipelines.
+- Multilingual analysis.
+- More advanced NLP and configurable detector packs.
+- Additional AI providers if needed.
+- Shared/distributed rate limiting for horizontal backend deployments.
+- Final browser/device/accessibility evidence and screenshot set.
 
-## Database
+## Project documentation
 
-PostgreSQL 16+ via SQLAlchemy 2.0 (async) + Alembic. Schema: `users`, `analyses`,
-`requirements`, `issues`, `documents`, `ai_provider_credentials` (revision `0001`) +
-`refresh_tokens`, `email_verification_tokens`, `password_reset_tokens` (revision
-`0002`) + analysis `status`/`source_text`, NULL-until-scored `score`/`band`,
-requirement `section`/`segmentation` (revision `0003`) + the
-`segmented|analyzed|failed` status CHECK (revision `0004`) +
-`documents.file_type` + CHECK (revision `0005`), and privacy preferences
-(`user_preferences`, revision `0006`) — fully documented in
-[`docs/DATABASE_SCHEMA.md`](docs/DATABASE_SCHEMA.md).
-
-Flow: configure `DATABASE_URL` → `alembic upgrade head` → start backend.
-The schema is migration-controlled: never hand-edit the database, never `create_all()`
-at startup.
-
-## API
-
-Versioned REST at `/api/v1` — see [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) for the
-binding contract (envelopes, pagination, error codes). Interactive docs (non-production):
-`http://localhost:8000/api/docs`. Current surface: `GET /health` (infra alias),
-`GET /api/v1/health/live`, `GET /api/v1/health/ready` (live DB probe), and the full
-auth API (`POST /api/v1/auth/register|login|logout|refresh|verify-email|resend-verification|forgot-password|reset-password|change-password`,
-`GET /api/v1/auth/me`, `DELETE /api/v1/auth/account`), and the analysis API
-(`POST /api/v1/analysis` TEXT-only → `201` ANALYZED detail with scores +
-nested issues + breakdown; `GET` detail (incl. a `document` display pointer —
-filename + type, no storage keys) + paged newest-first list with
-`sort`/`band`/`source_type`; `DELETE` → `204` cascade; verified-user guard,
-per-user 20/min; missing/foreign ids → identical `404`). Settings/privacy APIs
-include profile, privacy retention settings, signed live export tickets, and
-history purge/retention enforcement seams.
-
-## Security model (summary)
-
-Cookie sessions (httpOnly, rotating refresh) · argon2id passwords · email verification ·
-ownership checks on every resource (cross-user IDs → 404) · user AI keys Fernet-encrypted
-at rest, never returned/logged · uploads validated (type/size/magic-bytes) · account
-deletion purges owned storage via the storage abstraction before DB cascade · privacy
-export is owner-scoped and redacted · privacy-first Sentry/error monitoring (optional DSN,
-scrubbed, no body/token/content capture) · bounded request IDs + JSON logs · rate limits +
-Cloudflare Turnstile on public high-abuse auth ops · audits/secret scan. Details:
-[`docs/SECURITY_SPEC.md`](docs/SECURITY_SPEC.md). Distributed limiter storage remains
-future hardening work.
-
-## Current limitations
-
-Implemented: auth + auth UI, SRS text analysis, PDF/DOCX/TXT upload/extraction,
-11-detector deterministic ambiguity analysis, transparent scoring, history, dashboard,
-settings, AI provider management/enhancement/retry, reports, document list/download/delete,
-Turnstile on sensitive public auth operations, privacy lifecycle controls, monitoring/Sentry
-scrubbers, performance tuning, SEO public pages, Supabase Storage adapter, and production
-runbook/env configuration.
-
-Still intentionally pending: distributed/shared rate-limiter storage, external SEO/Search
-Console validation, real production browser/device/accessibility screenshots, final user-guide
-screenshots/docs, and final release audit. Stage 30 did not have live Supabase/Turnstile/Resend/
-Sentry/AI provider credentials in the sandbox, so those integrations are documented and tested
-through mocked/static checks but must be smoke-tested by operators on real deployed services.
-Scores are heuristic triage aids, not validated measurements (see
-[`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) §4.3 honest limits).
-
-## Screenshots
-
-See [`screenshots/`](screenshots/) (populated as UI stages land).
-
-## Development workflow
-
-This project is built in sequential stages by AI agents from ZIP handoffs — the repo must
-be self-explanatory. **Agents: read [`docs/DEVELOPMENT_RULES.md`](docs/DEVELOPMENT_RULES.md)
-and [`docs/STAGE_STATUS.md`](docs/STAGE_STATUS.md) before changing anything.**
+- [`docs/PROJECT_SUMMARY.md`](docs/PROJECT_SUMMARY.md) — college/project submission summary.
+- [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) — primary user flows and result interpretation.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system architecture and ADRs.
+- [`docs/DETECTION_ENGINE.md`](docs/DETECTION_ENGINE.md) — detector categories and scoring.
+- [`docs/API_OVERVIEW.md`](docs/API_OVERVIEW.md) — concise route guide.
+- [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) — full API contract.
+- [`docs/DATABASE_SCHEMA.md`](docs/DATABASE_SCHEMA.md) — schema and migration details.
+- [`docs/SECURITY_SPEC.md`](docs/SECURITY_SPEC.md) — threat model and controls.
+- [`docs/AI_PROVIDER_SPEC.md`](docs/AI_PROVIDER_SPEC.md) — AI architecture and providers.
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — production deployment runbook.
+- [`docs/FUTURE_ROADMAP.md`](docs/FUTURE_ROADMAP.md) — staged roadmap and future scope.
+- [`docs/STAGE_STATUS.md`](docs/STAGE_STATUS.md) — implementation ledger.
+- [`screenshots/README.md`](screenshots/README.md) — final screenshot catalog and procedure.
 
 ## License
 
-TBD (declared no later than the deployment stage — do not assume open-source until then).
+No project license has been declared in this repository. Until a `LICENSE` file is added by the project owner, do not assume the code is open source.

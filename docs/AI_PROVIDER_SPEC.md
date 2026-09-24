@@ -25,7 +25,7 @@
 > As-built Stage 12: the ABC + payload/result models (`ProviderError`,
 > `ProviderAuthResult`, `ProviderHealth`, `FindingSummary`, `OverviewPayload`,
 > `ImprovementPayload`, `AITextResult` with the §3 caps) ship exactly as
-> specified below. As-built Stage 14: four adapters implement the ABC
+> specified below. As-built Stages 14 and 18: all six adapters implement the ABC
 > unchanged (no interface drift — §4); `timeout_s` defaults to
 > `AI_DEFAULT_TIMEOUT_S` (25) and clamps into `[1, AI_MAX_TIMEOUT_S]` (60);
 > retry is 429/5xx-only, max 2, jittered backoff, inside the adapters.
@@ -75,8 +75,8 @@ class AIProvider(ABC):
 > As-built Stage 12 (`app/ai/registry.py`): the six ids, display names,
 > allowlisted `base_url` constants (server-side only — never user input),
 > registry order, and the `register/get_adapter` seam are live. As-built
-> Stage 14 (`app/ai/adapters/`): four adapters ship as stateless singletons
-> (`BUILTIN_ADAPTERS`); runtime code resolves via `resolve_adapter`
+> Stage 14 (`app/ai/adapters/`) started the stateless singleton adapter set;
+> Stage 18 completed all six built-ins (`BUILTIN_ADAPTERS`). Runtime code resolves via `resolve_adapter`
 > (registered fake wins — tests shadow builtins by id — else the builtin,
 > else None for unknown ids). As-built Stage 18: all six adapters ship —
 > `AnthropicProvider` (Messages API: `x-api-key` + pinned

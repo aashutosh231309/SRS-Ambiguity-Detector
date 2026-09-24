@@ -9,10 +9,9 @@ provider #7 = adapter + registry row + this table + docs + tests).
 list `list_models` returns WITHOUT network I/O (a stable allowlist, not
 a live account capability probe — keys with narrower access fail at
 generation time with a user-safe provider error, never here).
-Deferred providers (anthropic, huggingface — no adapter yet) have NO row:
-`default_model`/`supported_models` raise `ValueError` for them, and the
-enhancement chain treats adapter-less credentials as unusable (recorded
-in the Stage 14 AI_PROVIDER_SPEC notes, not silently).
+All six built-in providers have model rows. `default_model`/`supported_models`
+raise `ValueError` only for unknown future providers so adapter/model-table drift
+fails loudly in tests and reviews.
 """
 
 from dataclasses import dataclass

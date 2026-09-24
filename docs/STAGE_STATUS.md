@@ -1925,10 +1925,69 @@ limiter-storage slice if explicitly prioritized first.
 
 **Next stage:** Stage 31 — Documentation/screenshots.
 
+### Stage 31 — Documentation, Screenshots & Final Presentation Assets ✅ (2026-09-24)
+
+**Reconciliation before editing:**
+
+- Local branch was initially at the repository root commit while the remote Arena branch already
+  contained Stage 30. Reconciled safely by fetching and hard-resetting
+  `arena/01a0cebe-srs-ambiguity-detector` to remote commit `030433c956e07224dce6f4f6e08eba48df85051a`; remote and local HEAD then matched.
+- Verified Stage 30 completion from code/docs: Supabase storage adapter present, deployment runbook
+  present, env examples updated, route surface intact, and Stage 30 status/changelog recorded.
+- Inspected canonical docs, actual frontend routes, backend endpoint modules, detector registry, AI
+  provider registry/model table, and deployment/browser/tool availability before editing.
+
+**Completed:**
+
+- Rewrote `README.md` into a final professional project README with overview, features, screenshots
+  status, architecture, deterministic detection/scoring, supported input, AI, auth/security, privacy,
+  stack, structure, API overview, local setup, env vars, migrations, testing, deployment, limitations,
+  future enhancements, docs links, and license status.
+- Added `docs/DETECTION_ENGINE.md` documenting the actual 11 detector categories, examples,
+  deduplication, scoring formula, bands, and health dimensions.
+- Added `docs/API_OVERVIEW.md` with a concise `/api/v1` route guide for auth, analysis, documents,
+  dashboard, AI providers, settings, privacy, and health.
+- Added `docs/PROJECT_SUMMARY.md` for college/project submission: problem statement, objectives,
+  proposed solution, modules, stack, security, results, limitations, and future scope.
+- Added `docs/USER_GUIDE.md` covering account setup, text analysis, document analysis, reports,
+  history, dashboard, AI providers, privacy controls, and responsible interpretation.
+- Updated `screenshots/README.md` into a final screenshot catalog/capture procedure with safe demo
+  content and privacy checklist.
+- Reconciled stale documentation/comments in architecture, API contract, database schema, AI provider
+  docs, AI model/package comments, and a frontend homepage shortcut comment.
+- Updated `docs/FUTURE_ROADMAP.md` and `docs/CHANGELOG.md` for Stage 31.
+
+**Screenshots:**
+
+- No screenshots were captured or committed. This is intentional and honest: the sandbox lacks
+  Chromium/Chrome/Playwright/browser tooling, so Stage 31 did not fabricate UI images or claim
+  browser validation. `screenshots/README.md` now lists the required final captures and safe capture
+  procedure for the project owner/reviewer.
+
+**Verification:**
+
+- Environment/tool check: `docker`, `psql`, `pg_ctl`, `initdb`, `chromium`, `chromium-browser`,
+  `google-chrome`, and `playwright` were unavailable.
+- Dynamic FastAPI route inventory was run after installing dependencies in `backend/.venv`; it
+  confirmed the expected `/api/v1` route groups plus non-production docs routes.
+- Markdown relative-link check across README/docs/screenshots passed (`markdown links ok`).
+- Final full gate: `PATH="$PWD/backend/.venv/bin:$HOME/.local/bin:$PATH" ./scripts/verify.sh` → ALL CHECKS PASSED. Backend ruff/format clean (141 files), mypy clean (100 source files), pytest passed with DB-backed tests skipped because no PostgreSQL test database was reachable, and FastAPI import/OpenAPI sanity passed. Frontend eslint/typecheck clean; Vitest 53 files / 432 tests passed; Prettier clean; Next production build passed with 19 routes. Secret scan clean; `npm audit` 0 vulnerabilities; `pip-audit` clean with the repository's configured ignored advisories.
+
+**Known limitations:**
+
+- Browser screenshots/manual responsive/a11y evidence remain owner-run using the documented capture
+  procedure.
+- No live PostgreSQL/Docker/Supabase/Turnstile/Resend/Sentry/AI-provider validation was performed in
+  Stage 31; these remain deployment/operator validation tasks documented in Stage 30/31 docs.
+- No license file exists; README now states that no open-source license is declared.
+- Distributed/shared rate limiting remains future hardening.
+
+**Next stage:** Stage 32 — Final Audit.
+
 ## Current stage
 
-None active — Stage 30 complete in this working branch. Distributed limiter storage remains future.
-Next: **Stage 31 — Documentation/screenshots**.
+None active — Stage 31 complete in this working branch. Distributed limiter storage remains future.
+Next: **Stage 32 — Final Audit**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 
@@ -1937,7 +1996,7 @@ detection+scoring+CRUD+result-UI ✅ → upload+extraction+upload-UI ✅ →
 history UI → report UI → dashboard data → dashboard viz → settings → AI vault →
 providers → overview/improvements → fallback → hardening → Turnstile CAPTCHA ✅
 (+ distributed limiter storage still future) → privacy → monitoring ✅ → performance ✅ → SEO foundation ✅ → SEO content ✅ →
-responsive/a11y ✅ → QA ✅ → deploy ✅ → docs/shots → audit.
+responsive/a11y ✅ → QA ✅ → deploy ✅ → docs/screenshot-catalog ✅ → audit.
 (As-built order; roadmap numbers preserved — see the FUTURE_ROADMAP.md as-built note.)
 
 ## Major decisions log

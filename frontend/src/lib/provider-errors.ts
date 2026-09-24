@@ -50,9 +50,8 @@ export function providerErrorMessage(err: unknown, context: ProviderErrorContext
       return "You don't have permission to do that.";
     case "provider_error":
     case "ai_unavailable":
-      // Reserved live-provider codes (contract §4.6): adapters shipped in Stage 14
-      // but no flow emits these yet (creation-proof is a future hardening slice) —
-      // mapped now so no future failure falls through to generic.
+      // Live-provider codes (contract §4.6): creation/test/rotate can surface
+      // provider reachability or validation failures with stable safe copy.
       return "The provider couldn't be reached. Try again later.";
     case "network_unreachable":
     case "request_timeout":

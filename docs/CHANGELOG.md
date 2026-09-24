@@ -4,6 +4,31 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.32.0] — Stage 31 — Documentation, screenshots & final presentation assets — 2026-09-24
+
+### Added
+
+- Final presentation documentation: `docs/PROJECT_SUMMARY.md`, `docs/USER_GUIDE.md`,
+  `docs/API_OVERVIEW.md`, and `docs/DETECTION_ENGINE.md`.
+- Final screenshot catalog and safe capture procedure in `screenshots/README.md`, including
+  recommended desktop/tablet/mobile shots and privacy checklist.
+
+### Changed
+
+- README rewritten as a polished project landing document covering overview, features,
+  architecture, detection/scoring, supported input, AI, security/privacy, local setup, testing,
+  deployment, limitations, future scope, and documentation links.
+- Architecture/API/database/AI docs reconciled with the as-built Stage 30 system and route/provider
+  surface.
+- Roadmap/status docs now mark Stage 31 complete while recording that screenshots were not captured
+  because no browser runtime was available in the sandbox.
+
+### Contract
+
+- No API, database, authentication, storage, AI-provider, or frontend behavior changed. Stage 31 is
+  documentation/presentation only, plus stale-comment cleanup. No screenshots or live browser
+  validation are claimed.
+
 ## [0.31.0] — Stage 30 — Production deployment & environment configuration — 2026-09-24
 
 ### Added

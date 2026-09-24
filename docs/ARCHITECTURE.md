@@ -94,7 +94,61 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
   (default `http://localhost:8000/api/v1`). Browser code MUST NEVER call `localhost` for any
   other service; all backend access goes through this one base URL.
 
-## 4. Backend module map
+## 4. Core application pipelines
+
+### Request/data architecture
+
+```text
+Browser
+  ↓ HTTPS + HttpOnly cookies
+Next.js / React frontend (`frontend/src/app`, `frontend/src/components`)
+  ↓ typed REST client (`frontend/src/lib/api.ts`) to `/api/v1`
+FastAPI routers (`backend/app/api/v1/endpoints/*`)
+  ↓
+Service layer (`backend/app/services/*`)
+  ↓
+Repository layer (`backend/app/repositories/*`)
+  ↓
+SQLAlchemy models + PostgreSQL (`backend/app/models/*`, Alembic migrations)
+```
+
+### Analysis pipeline
+
+```text
+Analyzer / document upload
+  ↓
+Normalization + requirement segmentation (`services/segmentation.py`)
+  ↓
+Deterministic detector registry (`analysis/detectors.py`)
+  ↓
+Deduplication + scoring + health dimensions (`analysis/engine.py`)
+  ↓
+Persistence (`services/analysis.py`, `repositories/analysis.py`)
+  ↓
+Report/dashboard/history responses
+  ↓
+Optional AI enhancement (`services/ai_enhancement.py`)
+```
+
+### Document pipeline
+
+```text
+Multipart upload
+  ↓
+0600 temp staging + byte budget
+  ↓
+Filename/type/MIME/magic/structure validation (`documents/validation.py`)
+  ↓
+PDF/DOCX/TXT extraction (`documents/extraction.py`)
+  ↓
+Shared text-analysis pipeline
+  ↓
+Storage move through `StorageBackend`
+  ↓
+Document metadata + analysis persistence
+```
+
+## 5. Backend module map
 
 - `app/main.py` — creates app, installs middleware (CORS, request-id, security headers,
   rate limiting when added), mounts `api/v1` router, wires exception handlers that emit the
@@ -132,13 +186,12 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
   configurable rule packs; emits findings with evidence offsets. MUST have zero network
   calls and zero LLM calls. Its Stage 06 precursor, `services/segmentation.py`, already
   honors that rule: pure segmentation over normalized text, no I/O, no scores.
-- `app/ai/` (Stage 12 ✅ + Stage 14 ✅) — provider abstraction (`AIProvider` ABC) +
-  metadata registry + four adapters (`adapters/`: shared httpx core, OpenAI-compat
-  base, gemini/groq/openai/openrouter) + versioned prompts + sanitizer + model
-  table. Called ONLY from `services/ai_enhancement.py`, which runs post-commit
-  and fails open (deterministic result is always returned). `app/core/vault.py`
-  (Stage 12 ✅) owns the Fernet envelope for per-user keys (env-only master key,
-  lazy validation).
+- `app/ai/` (Stage 12 ✅ + Stages 14/18/21 ✅) — provider abstraction (`AIProvider` ABC) +
+  metadata registry + six adapters (`adapters/`: shared httpx core, OpenAI-compatible
+  base, gemini/groq/openai/anthropic/openrouter/huggingface) + versioned prompts +
+  sanitizer + model table. Called ONLY from `services/ai_enhancement.py`, which runs
+  post-commit and fails open (deterministic result is always returned). `app/core/vault.py`
+  owns the Fernet envelope for per-user keys (env-only master key, lazy validation).
 - `app/email/` (Stage 04 ✅) — port (`EmailMessage` + templates + `EmailService` ABC)
   with Resend (prod) and console/file-outbox (dev-only, refused in prod) adapters;
   sends are best-effort post-commit background work.
@@ -158,7 +211,7 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
   production adapter using Supabase Storage REST with a backend-only service-role
   key and private bucket). `storage_key_for_document()` owns the key convention.
 
-## 5. Frontend module map
+## 6. Frontend module map
 
 - `src/app/` — App Router. Public marketing routes at top level (`/`, `/features`,
   `/how-it-works`, …); authenticated product under a private route group (added Stage 05+).
@@ -173,10 +226,11 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
 - App conventions: `loading.tsx` (route-transition fallback), `error.tsx` (safe message +
   retry; never renders details), `not-found.tsx` (branded 404). Feature routes may add
   closer-to-the-data variants later.
-- `src/app/(auth)/` (Stage 05) — private auth route group (`login`, `signup`,
+- `src/app/(auth)/` (Stage 05) — auth route group (`login`, `signup`,
   `forgot-password`, `reset-password`, `verify-email`); shared shell + `noindex,
-  nofollow`. No product routes yet — the private product group arrives with the
-  dashboard stage.
+  nofollow`.
+- Private product routes now include `/analyzer`, `/analysis/[id]`, `/history`,
+  `/dashboard`, and `/settings` with `noindex,nofollow` metadata and authenticated guards.
 - Auth state (Stage 05): `components/auth/AuthProvider.tsx` (single source of truth:
   `status`/`user` + `login`/`signup`/`logout`/`refreshUser`/`clearAuth`) consumed via
   `hooks/useAuth.ts`; identity resolves once via `GET /auth/me` (module-level
@@ -213,7 +267,7 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
   `HealthBars` / `CopyButton` atoms on `lib/reporting.ts` (client-side
   counts/filters/sorts over the persisted record — zero recalculation).
 
-## 6. Canonical request flows
+## 7. Canonical request flows
 
 **Analyze text (Stage 07 ✅ + AI Stage 14 ✅):** `POST /api/v1/analysis` →
 verified-user guard (authn + CSRF + 20/min per-user bucket) → validate →
@@ -240,7 +294,7 @@ refresh in `HttpOnly; Secure (prod); SameSite=Lax` cookies; `POST /auth/refresh`
 forgot/reset/change/delete emit security notices; every resource endpoint checks
 `owner_id == current_user.id` (`get_current_verified_user` gate).
 
-## 7. Configuration / environment matrix
+## 8. Configuration / environment matrix
 
 Backend reads env via `app/core/config.py` (see `backend/.env.example` for the full list):
 
@@ -267,13 +321,13 @@ Frontend (`frontend/.env.example`): `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL
 `SENTRY_ENVIRONMENT`/`SENTRY_RELEASE` for server-side Next monitoring metadata.
 `NEXT_PUBLIC_*` MUST NEVER hold secrets.
 
-## 8. Data ownership rule
+## 9. Data ownership rule
 
 Every user-owned row carries `owner_id` (`users.id`); every endpoint verifies ownership
 server-side and MUST NOT trust client-supplied IDs. Account deletion cascades to ALL
 user-owned rows + storage objects + encrypted credentials (see `DATABASE_SCHEMA.md` §Deletion).
 
-## 9. Non-negotiable contracts
+## 10. Non-negotiable contracts
 
 1. API is versioned: `/api/v1/...`. Breaking changes require a new version + changelog entry.
 2. Uniform envelopes (success resource / `{items,page,page_size,total}` / error object) —
@@ -282,14 +336,14 @@ user-owned rows + storage objects + encrypted credentials (see `DATABASE_SCHEMA.
 4. AI enhancement ALWAYS fails open; core result is never blocked by AI errors.
 5. Secrets never enter git, logs, errors, analytics, or frontend bundles.
 
-## 10. What Stage 01 leaves for later (explicitly NOT built)
+## 11. Historical note: what Stage 01 left for later
 
 Auth, DB models/migrations, engine, segmentation, upload/extraction, history, dashboard,
 settings, AI providers, CAPTCHA/rate limits, Sentry wiring, marketing pages, tests beyond
 health. Each has an owning stage in `FUTURE_ROADMAP.md`. Scaffolds added now are seams
 (empty packages with docstrings), not implementations — do not mistake them for done.
 
-## 11. Architecture Decision Records
+## 12. Architecture Decision Records
 
 - **ADR-001 (S01): Monorepo `frontend/` + `backend/` + `docs/`.** Rationale: single deployable
   contract, shared API envelope, one verification script. Rejected: two repos (contract drift).

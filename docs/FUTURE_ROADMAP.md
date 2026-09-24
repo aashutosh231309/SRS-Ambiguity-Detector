@@ -39,7 +39,7 @@
 | 28    | Responsive/a11y refinement ✅       | UI_UX_SPEC §10–11                       | Delivered repository slice: dialog close/scroll/focus refinements, 44px touch targets, long-content wrapping, switch names, focused tests; browser/AT visual validation remains ops/QA                             |
 | 29    | Testing/QA ✅                       | DEVELOPMENT_RULES §4                    | Delivered QA baseline: route-surface sentinel, deterministic golden corpus, AI prompt privacy/cap tests, full gate + flakiness rerun; DB/browser/Docker validation remains environment/deployment work             |
 | 30    | Production deployment ✅            | ARCHITECTURE §3                         | Delivered: Vercel + separate FastAPI host + Supabase Postgres/Storage topology documented, Supabase storage adapter, env runbook, backups, rollback, smoke tests; live external validation remains operator-run |
-| 31    | Documentation/screenshots           | PROJECT_SPEC §2                         | README final, screenshots full set, API docs, user guide                                                                                                                                                           |
+| 31    | Documentation/screenshots ✅        | PROJECT_SPEC §2                         | Delivered: final README, project summary, user guide, API overview, detection-engine docs, screenshot catalog/capture procedure; screenshots not captured because no browser runtime was available |
 | 32    | Final audit                         | ALL                                     | Baseline checklist 12/12, security pass, DoD pass, release tag                                                                                                                                                     |
 
 > As-built sequencing (Stage 06, 2026-09-24): the analysis spine shipped
@@ -174,6 +174,13 @@
 > still belongs to operators because this sandbox has no production Supabase, Turnstile, Resend,
 > Sentry, browser/device, or AI-provider credentials. Rate limiting intentionally remains
 > process-local single-instance for v1; a shared limiter is future hardening.
+>
+> Actual Stage 31 (2026-09-24) finalized repository presentation/documentation assets:
+> professional README, college project summary, user guide, concise API overview, dedicated
+> deterministic detection-engine/scoring documentation, and final screenshot catalog/capture
+> procedure. Browser screenshot capture was not fabricated: the sandbox still lacks Chromium,
+> Chrome, Playwright, or equivalent browser tooling, so screenshots remain an owner-run capture
+> task using the documented safe demo account/data procedure.
 
 ## Dependency notes
 
