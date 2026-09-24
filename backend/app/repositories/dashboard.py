@@ -18,6 +18,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.analysis import Analysis
 from app.models.issue import Issue
 
+
+@dataclass(frozen=True)
+class DashboardLatestRow:
+    """Newest owned analysis projected for dashboard stats only.
+
+    Avoids loading large `source_text`/AI/detail JSON columns for a title +
+    score card.
+    """
+
+    id: uuid.UUID
+    title: str
+    score: int | None
+    band: str | None
+    created_at: datetime
+
+
 TrendGranularity = Literal["day", "week"]
 
 
@@ -117,25 +133,42 @@ class DashboardRepository:
         )
         return [(first, second) for first, second in result.all()]
 
-    async def ordered_scores(self, *, owner_id: uuid.UUID) -> list[int]:
-        """Every scored analysis's score, oldest run first (`created_at, id`
-        tiebreak — the service counts strict improvements over this list)."""
-        result = await self._session.execute(
-            select(Analysis.score)
+    async def improved_count(self, *, owner_id: uuid.UUID) -> int:
+        """Count scored runs whose score strictly improved over the previous
+        scored run, without loading every score into Python.
+        """
+        scored = (
+            select(
+                Analysis.score.label("score"),
+                func.lag(Analysis.score)
+                .over(order_by=(Analysis.created_at.asc(), Analysis.id.asc()))
+                .label("previous_score"),
+            )
             .where(Analysis.owner_id == owner_id, Analysis.score.is_not(None))
-            .order_by(Analysis.created_at.asc(), Analysis.id.asc())
+            .subquery()
         )
-        return [score for score in result.scalars().all() if score is not None]
+        return (
+            await self._session.execute(
+                select(func.count())
+                .select_from(scored)
+                .where(scored.c.score > scored.c.previous_score)
+            )
+        ).scalar_one()
 
-    async def latest(self, *, owner_id: uuid.UUID) -> Analysis | None:
+    async def latest(self, *, owner_id: uuid.UUID) -> DashboardLatestRow | None:
         """Newest owned run overall (scored or not — `created_at, id`)."""
         result = await self._session.execute(
-            select(Analysis)
+            select(Analysis.id, Analysis.title, Analysis.score, Analysis.band, Analysis.created_at)
             .where(Analysis.owner_id == owner_id)
             .order_by(Analysis.created_at.desc(), Analysis.id.desc())
             .limit(1)
         )
-        return result.scalar_one_or_none()
+        row = result.one_or_none()
+        if row is None:
+            return None
+        return DashboardLatestRow(
+            id=row[0], title=row[1], score=row[2], band=row[3], created_at=row[4]
+        )
 
     async def trend_rows(
         self, *, owner_id: uuid.UUID, since: datetime, granularity: TrendGranularity

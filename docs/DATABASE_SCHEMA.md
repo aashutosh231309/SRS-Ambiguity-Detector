@@ -347,7 +347,22 @@ in logs. Comparison is constant-time (`hmac.compare_digest` over the hash).
 | `UNIQUE password_reset_tokens(token_hash)` | Reset-link lookup |
 | `ix_password_reset_tokens_owner` | Pending-token supersede |
 
-## 7. Normalization & vocabulary notes
+## 7. Stage 25 performance review
+
+No schema migration or new index was added in Stage 25. Existing composite indexes already
+serve the contracted owner-scoped history/document ordering, score sorting, dashboard issue
+rollups, token lookups, and provider fallback paths. Because PostgreSQL was unavailable in
+the sandbox, no `EXPLAIN ANALYZE` claim is made here.
+
+Code-level query changes instead reduce payload and memory pressure:
+- history/recent-analysis reads now project only summary response columns and document display
+  metadata, deliberately excluding `analyses.source_text` (up to 200 000 chars), AI overview,
+  and detail JSON columns;
+- dashboard latest-run reads project only id/title/score/band/created_at;
+- dashboard `improved_count` is computed with a SQL `lag()` window instead of loading every
+  scored analysis score into Python.
+
+## 8. Normalization & vocabulary notes
 
 - Email: stored lowercase; normalization happens app-side before persist (Stage 04
   enforces + tests; DB UNIQUE is the backstop, never the frontend). No `citext`

@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     # which cannot run DDL in transaction-pooling mode.
     DATABASE_URL: str | None = None
     DIRECT_DATABASE_URL: str | None = None
+    # Stage 25: deployment-tunable asyncpg pool. Defaults are intentionally
+    # conservative; operators should size per process against database capacity.
+    DATABASE_POOL_SIZE: int = 5
+    DATABASE_MAX_OVERFLOW: int = 10
+    DATABASE_POOL_TIMEOUT_SECONDS: int = 30
+    DATABASE_POOL_RECYCLE_SECONDS: int = 1800
 
     # --- Stage 04: authentication ---
     # JWT_SECRET signs access tokens (HS256, 256-bit minimum). REQUIRED for any
@@ -73,6 +79,9 @@ class Settings(BaseSettings):
     # Wall-clock budget for validate+extract (worker thread; the request fails
     # 503 past this — the temp file is still always cleaned up).
     DOCUMENT_PROCESSING_TIMEOUT_SECONDS: int = 60
+    # Maximum simultaneous validate+extract workers per backend process. This
+    # bounds timed-out parser work that CPython cannot kill mid-call.
+    DOCUMENT_EXTRACTOR_WORKERS: int = 2
     # Storage backend: local dev dir now; `supabase` arrives with prod stages.
     STORAGE_BACKEND: Literal["local"] = "local"
     STORAGE_LOCAL_DIR: str = "./uploads"
@@ -153,6 +162,18 @@ class Settings(BaseSettings):
         return value
 
     @model_validator(mode="after")
+    def _database_pool_budget_valid(self) -> "Settings":
+        if self.DATABASE_POOL_SIZE < 1:
+            raise ValueError("DATABASE_POOL_SIZE must be at least 1.")
+        if self.DATABASE_MAX_OVERFLOW < 0:
+            raise ValueError("DATABASE_MAX_OVERFLOW must be non-negative.")
+        if self.DATABASE_POOL_TIMEOUT_SECONDS < 1:
+            raise ValueError("DATABASE_POOL_TIMEOUT_SECONDS must be at least 1.")
+        if self.DATABASE_POOL_RECYCLE_SECONDS < 60:
+            raise ValueError("DATABASE_POOL_RECYCLE_SECONDS must be at least 60.")
+        return self
+
+    @model_validator(mode="after")
     def _ai_timeout_budget_coherent(self) -> "Settings":
         if self.AI_MAX_TIMEOUT_S < 1:
             raise ValueError("AI_MAX_TIMEOUT_S must be at least 1.")
@@ -164,6 +185,12 @@ class Settings(BaseSettings):
     def _turnstile_timeout_positive(self) -> "Settings":
         if self.TURNSTILE_TIMEOUT_SECONDS < 1:
             raise ValueError("TURNSTILE_TIMEOUT_SECONDS must be at least 1.")
+        return self
+
+    @model_validator(mode="after")
+    def _document_extractor_workers_valid(self) -> "Settings":
+        if not 1 <= self.DOCUMENT_EXTRACTOR_WORKERS <= 8:
+            raise ValueError("DOCUMENT_EXTRACTOR_WORKERS must be within [1, 8].")
         return self
 
     @model_validator(mode="after")

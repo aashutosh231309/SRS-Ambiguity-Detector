@@ -147,7 +147,7 @@ async def get_dashboard(
     source_rows = await repository.source_counts(owner_id=owner_id)
     category_rows = await repository.category_counts(owner_id=owner_id)
     severity_rows = await repository.severity_counts(owner_id=owner_id)
-    scores = await repository.ordered_scores(owner_id=owner_id)
+    improved = await repository.improved_count(owner_id=owner_id)
     latest_row = await repository.latest(owner_id=owner_id)
     trend_rows = await repository.trend_rows(
         owner_id=owner_id, since=start, granularity=granularity
@@ -185,8 +185,6 @@ async def get_dashboard(
             )
         )
         cursor += step
-
-    improved = sum(1 for prev, curr in zip(scores, scores[1:], strict=False) if curr > prev)
 
     latest = (
         DashboardLatest(

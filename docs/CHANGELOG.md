@@ -4,6 +4,32 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.26.0] — Stage 25 — Performance, scalability & resource optimization — 2026-09-24
+
+### Added
+- Env-driven async PostgreSQL pool tuning (`DATABASE_POOL_SIZE`, `DATABASE_MAX_OVERFLOW`,
+  `DATABASE_POOL_TIMEOUT_SECONDS`, `DATABASE_POOL_RECYCLE_SECONDS`) with conservative
+  defaults and validation.
+- Bounded document validate/extract worker pool (`DOCUMENT_EXTRACTOR_WORKERS`) so parser
+  calls that outlive a request timeout cannot accumulate unbounded queued work. Shutdown now
+  cancels queued parser tasks while allowing already-running parser calls to finish safely.
+- Stage 25 regression tests for query projections, SQL dashboard improvement counting,
+  settings bounds, and extraction timeout resource lifecycle.
+
+### Changed
+- History and dashboard recent-analysis queries now project only response-needed summary
+  columns and document display metadata, avoiding fetches of large `source_text`, AI overview,
+  and detail JSON columns.
+- Dashboard latest-run uses a lightweight projection, and `improved_count` is computed in SQL
+  via `lag()` instead of loading every scored analysis score into Python.
+- Dashboard trend and analysis report frontend components memoize non-trivial derived values
+  so chart/table/report derivations are not recomputed on unrelated rerenders.
+
+### Notes
+- No database migration or index was added: the performance review found existing owner/order,
+  token, provider, document, and issue-rollup indexes sufficient for the current contracts.
+- PostgreSQL was unavailable in the sandbox, so no `EXPLAIN ANALYZE` numbers are claimed.
+
 ## [0.25.0] — Stage 24 — Monitoring, observability & production error tracking — 2026-09-24
 
 ### Added

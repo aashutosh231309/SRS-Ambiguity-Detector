@@ -8,6 +8,7 @@ the IDOR guard: no row, no oracle). No commits here: the service's
 
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Literal
 
 from sqlalchemy import func, or_, select, update
@@ -62,12 +63,25 @@ class IssueRow:
 
 @dataclass(frozen=True)
 class AnalysisListRow:
-    """One history-list row: the owned analysis + its source document's
-    display columns. `filename`/`file_type` are None for text analyses AND
-    when the linked document row is absent (the service degrades those to
-    `document: None`, mirroring the detail's absent-document behavior)."""
+    """One history-list row with only response-needed columns.
 
-    analysis: Analysis
+    Stage 25 deliberately avoids selecting `analyses.source_text` (up to
+    200k chars) and detail-only AI/JSON columns for history/recent pages.
+    `filename`/`file_type` are None for text analyses AND when the linked
+    document row is absent.
+    """
+
+    id: uuid.UUID
+    title: str
+    status: str
+    source_type: str
+    source_excerpt: str | None
+    score: int | None
+    band: str | None
+    requirements_count: int
+    issues_count: int
+    created_at: datetime
+    updated_at: datetime
     filename: str | None
     file_type: str | None
 
@@ -173,7 +187,21 @@ class AnalysisRepository:
             "-score": (Analysis.score.desc(), Analysis.id.desc()),
         }[sort]
         result = await self._session.execute(
-            select(Analysis, Document.filename, Document.file_type)
+            select(
+                Analysis.id,
+                Analysis.title,
+                Analysis.status,
+                Analysis.source_type,
+                Analysis.source_excerpt,
+                Analysis.score,
+                Analysis.band,
+                Analysis.requirements_count,
+                Analysis.issues_count,
+                Analysis.created_at,
+                Analysis.updated_at,
+                Document.filename,
+                Document.file_type,
+            )
             .outerjoin(Document, join_on)
             .where(*filters)
             .order_by(*order)
@@ -181,7 +209,21 @@ class AnalysisRepository:
             .limit(limit)
         )
         rows = [
-            AnalysisListRow(analysis=row[0], filename=row[1], file_type=row[2])
+            AnalysisListRow(
+                id=row[0],
+                title=row[1],
+                status=row[2],
+                source_type=row[3],
+                source_excerpt=row[4],
+                score=row[5],
+                band=row[6],
+                requirements_count=row[7],
+                issues_count=row[8],
+                created_at=row[9],
+                updated_at=row[10],
+                filename=row[11],
+                file_type=row[12],
+            )
             for row in result.all()
         ]
         return rows, total

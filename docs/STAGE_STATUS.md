@@ -1523,17 +1523,62 @@ future distributed limiter storage slice if explicitly prioritized.
 **Next stage:** Stage 25 — Performance, or the separately documented future distributed limiter
 storage slice if explicitly prioritized.
 
+## Stage 25 — Performance, scalability & resource optimization (COMPLETE)
+
+**Scope delivered:**
+- Reconciled Stage 24 as complete (`e423d82`). Distributed rate-limit storage remains a
+  separately deferred hardening slice, not part of the Stage 25 prompt.
+- Baseline before edits: full `./scripts/verify.sh` passed in this sandbox; backend DB tests
+  that require PostgreSQL skipped because no PostgreSQL socket/server exists at
+  `/home/user/pgdata`. No browser, Docker, or PostgreSQL `EXPLAIN ANALYZE` validation was
+  possible in this environment.
+- Database/resource config: SQLAlchemy async engine now uses validated env-driven pool knobs
+  (`DATABASE_POOL_SIZE=5`, `DATABASE_MAX_OVERFLOW=10`, `DATABASE_POOL_TIMEOUT_SECONDS=30`,
+  `DATABASE_POOL_RECYCLE_SECONDS=1800`) instead of untunable defaults.
+- Query efficiency: history and dashboard recent-analysis paths now project only summary
+  response columns and document display metadata, deliberately excluding the large
+  `analyses.source_text` column and detail-only AI/JSON fields. Dashboard latest-run also uses
+  a lightweight projection. Dashboard `improved_count` is computed in SQL with `lag()` instead
+  of loading all scored analysis scores into Python.
+- Document extraction lifecycle: validate+extract now runs in a bounded process-local parser
+  pool guarded by `DOCUMENT_EXTRACTOR_WORKERS` (default 2). A request timeout still returns
+  `503 document_processing_timeout`, but the underlying parser keeps its permit until it
+  actually exits; this prevents repeated timeouts from silently building an unbounded abandoned
+  worker backlog. Shutdown cancels queued parser tasks and disposes the DB engine.
+- Frontend rendering: dashboard trend derivations and report AI rewrite coverage are memoized;
+  Recharts remains dynamically imported/client-only as already implemented.
+- No new database index or migration was added: current owner/order, token, provider, document,
+  and issue-rollup indexes remain sufficient for the documented contracts. No caching of
+  authenticated/user-owned data was introduced.
+
+**Verification:**
+- Baseline before edits: `PATH="$HOME/.local/bin:$PATH" TEST_DATABASE_URL="postgresql+asyncpg://postgres@/postgres?host=/home/user/pgdata" DATABASE_URL="postgresql+asyncpg://postgres@/postgres?host=/home/user/pgdata" ./scripts/verify.sh` → ALL CHECKS PASSED.
+- Targeted backend after edits: ruff, mypy, and `tests/test_performance.py` + relevant document timeout tests passed (`5 passed, 1 skipped, 104 deselected, 1 Starlette warning`; skipped DB document test because PostgreSQL was unavailable).
+- Targeted frontend after edits: eslint/typecheck passed; `DashboardTrend` + `AnalysisResultView` tests passed (`2 files / 22 tests`).
+- Final full gate: `PATH="$HOME/.local/bin:$PATH" TEST_DATABASE_URL="postgresql+asyncpg://postgres@/postgres?host=/home/user/pgdata" DATABASE_URL="postgresql+asyncpg://postgres@/postgres?host=/home/user/pgdata" ./scripts/verify.sh` → ALL CHECKS PASSED. Backend pytest summary in this sandbox: 230 passed, 347 skipped, 1 Starlette warning because no PostgreSQL server/socket is installed/running at `/home/user/pgdata`. Frontend Vitest: 50 files / 412 tests passed. Secret scan, npm audit, pip-audit, and Next production build passed.
+
+**Known limitations (accepted, not bugs):**
+- PostgreSQL is unavailable in this sandbox, so database integration tests that require it skip
+  and no query-plan/EXPLAIN measurements are claimed.
+- Active parser calls cannot be forcibly killed by CPython once running; Stage 25 bounds them
+  and documents the limitation rather than claiming impossible cancellation.
+- Browser/device validation and Docker validation remain unperformed in this sandbox unless
+  separately reported. Distributed rate-limit storage remains future.
+
+**Next stage:** Stage 26 — SEO foundation/marketing-page foundation per FUTURE_ROADMAP, unless the
+user explicitly prioritizes the deferred distributed limiter-store slice first.
+
 ## Current stage
-None active — Stage 24 complete in this working branch. Distributed limiter storage remains future.
-Next: **Stage 25 — Performance** (unless the next prompt explicitly prioritizes the remaining
-distributed limiter-store slice).
+None active — Stage 25 complete in this working branch. Distributed limiter storage remains future.
+Next: **Stage 26 — SEO foundation / marketing-page foundation** (unless the next prompt explicitly
+prioritizes the remaining distributed limiter-store slice).
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 Database → backend → auth backend → auth frontend → SRS input/segmentation/preview ✅ →
 detection+scoring+CRUD+result-UI ✅ → upload+extraction+upload-UI ✅ →
 history UI → report UI → dashboard data → dashboard viz → settings → AI vault →
 providers → overview/improvements → fallback → hardening → Turnstile CAPTCHA ✅
-(+ distributed limiter storage still future) → privacy → monitoring ✅ → performance → SEO foundation → SEO content →
+(+ distributed limiter storage still future) → privacy → monitoring ✅ → performance ✅ → SEO foundation → SEO content →
 responsive/a11y → QA → deploy → docs/shots → audit.
 (As-built order; roadmap numbers preserved — see the FUTURE_ROADMAP.md as-built note.)
 

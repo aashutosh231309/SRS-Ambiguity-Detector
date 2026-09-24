@@ -246,13 +246,14 @@ Backend reads env via `app/core/config.py` (see `backend/.env.example` for the f
 | `APP_ENV` (`local`/`staging`/`production`) | all | Behavior switch (docs, frame headers, cookie `Secure`) |
 | `DATABASE_URL` | staging/prod (Stage 02+) | `postgresql+asyncpg://…` (pooled/app connection) |
 | `DIRECT_DATABASE_URL` | staging/prod (Stage 02+) | Direct connection for Alembic migrations (bypasses pooler) |
+| `DATABASE_POOL_SIZE`, `DATABASE_MAX_OVERFLOW`, `DATABASE_POOL_TIMEOUT_SECONDS`, `DATABASE_POOL_RECYCLE_SECONDS` | all (Stage 25 ✅) | Conservative asyncpg pool tuning per backend process; size against DB capacity |
 | `ENCRYPTION_MASTER_KEY` | staging/prod (Stage 12 ✅) | Fernet key encrypting provider API keys at rest (absent legal — AI optional; malformed fails boot) |
 | `AI_DEFAULT_TIMEOUT_S` (25) + `AI_MAX_TIMEOUT_S` (60) | all (Stage 14 ✅) | Per-call provider timeout + hard clamp (adapters clamp every `timeout_s` into `[1, MAX]`; DEFAULT > MAX fails boot) |
 | `JWT_SECRET`, `ACCESS_TOKEN_MINUTES`, `REFRESH_TOKEN_DAYS` (+ verify/reset TTLs) | all (Stage 04 ✅) | Access/refresh signing — secret REQUIRED, fail-closed |
 | `EMAIL_PROVIDER`, `RESEND_API_KEY`, `EMAIL_FROM`, `APP_BASE_URL`, `DEV_OUTBOX_DIR` | all (Stage 04 ✅) | Transactional email (console dev-only, refused in prod) |
 | `RATE_LIMIT_*` | all (Stage 04 ✅ + Stage 06 ✅ + Stage 08 ✅ + Stage 12 ✅ + Stage 19 ✅ + Stage 21 ✅) | Auth buckets + per-user analysis bucket (`RATE_LIMIT_ANALYSIS_PER_MINUTE`, default 20) + per-user upload bucket (`RATE_LIMIT_UPLOADS_PER_MINUTE`, default 10) + per-user AI-test bucket (`RATE_LIMIT_AI_TEST_PER_MINUTE`, default 10) + per-user AI-retry bucket (`RATE_LIMIT_AI_RETRY_PER_MINUTE`, default 10) + per-user download-mint bucket (`RATE_LIMIT_DOCUMENT_DOWNLOAD_PER_MINUTE`, default 10), single-process (distributed store still future) |
 | `ARGON2_*` | all (Stage 04 ✅) | Password work factors |
-| `MAX_UPLOAD_SIZE_BYTES` (10 MiB) + `MAX_EXTRACTED_TEXT_CHARS` (200 000) + `MAX_FILES_PER_REQUEST` (1) + `DOCUMENT_PROCESSING_TIMEOUT_SECONDS` (60) | all (Stage 08 ✅) | Upload/validate/extract budgets (request-time resolution, retunable per env) |
+| `MAX_UPLOAD_SIZE_BYTES` (10 MiB) + `MAX_EXTRACTED_TEXT_CHARS` (200 000) + `MAX_FILES_PER_REQUEST` (1) + `DOCUMENT_PROCESSING_TIMEOUT_SECONDS` (60) + `DOCUMENT_EXTRACTOR_WORKERS` (2) | all (Stage 08 ✅ / Stage 25 ✅) | Upload/validate/extract budgets; parser work is bounded per process so timeout leftovers cannot accumulate unboundedly |
 | `TURNSTILE_ENABLED`, `TURNSTILE_SECRET_KEY`, `TURNSTILE_VERIFY_URL`, `TURNSTILE_TIMEOUT_SECONDS` | all (Stage 22 ✅) | Backend-only Turnstile siteverify config for public high-abuse auth routes; secret never reaches frontend; disabled by default outside prod |
 | `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `SENTRY_RELEASE`, `SENTRY_TRACES_SAMPLE_RATE` | Stage 24 ✅ | Optional backend Sentry error tracking; initialized only when DSN is set; scrubber strips bodies/query/headers/tokens/content |
 | `STORAGE_BACKEND` + `STORAGE_LOCAL_DIR` + `DOCUMENT_DOWNLOAD_URL_MINUTES` (15) | all (Stage 08 ✅ + Stage 19 ✅) | `local` dev adapter (server-generated keys under the dir); Supabase adapter with prod stages; signed-download TTL (spec-capped ≤15 — higher fails boot) |
@@ -315,3 +316,10 @@ health. Each has an owning stage in `FUTURE_ROADMAP.md`. Scaffolds added now are
   failures or explicitly sanitized operational events. Logs are JSON lines with a fixed
   low-cardinality field allowlist; request correlation uses a bounded `X-Request-ID` header
   or a generated 12-hex id.
+- **ADR-010 (S25): Bounded parser workers + explicit pool sizing.** Document validation/extraction
+  remains synchronous parser code isolated from the async event loop, but now runs in a small
+  process-local `ThreadPoolExecutor` guarded by a semaphore whose permit is released only when
+  the underlying parser actually finishes. Timed-out requests return promptly, while abandoned
+  parser work is bounded by `DOCUMENT_EXTRACTOR_WORKERS`; queued work is cancelled on shutdown.
+  SQLAlchemy pool sizing is env-driven with conservative defaults rather than hardcoded large
+  production values.

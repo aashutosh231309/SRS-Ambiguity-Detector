@@ -9,7 +9,7 @@
  */
 
 import dynamic from "next/dynamic";
-import { useId } from "react";
+import { useId, useMemo } from "react";
 
 import type { DashboardRange, DashboardTrendBucket } from "@/types/dashboard";
 
@@ -65,9 +65,14 @@ export function DashboardTrend({
   stale: boolean;
 }) {
   const headingId = useId();
-  const points = toPoints(buckets, range);
-  const windowRuns = buckets.reduce((total, bucket) => total + bucket.analyses, 0);
-  const scoredBuckets = buckets.filter((bucket) => bucket.avg_score !== null).length;
+  const points = useMemo(() => toPoints(buckets, range), [buckets, range]);
+  const { windowRuns, scoredBuckets } = useMemo(
+    () => ({
+      windowRuns: buckets.reduce((total, bucket) => total + bucket.analyses, 0),
+      scoredBuckets: buckets.filter((bucket) => bucket.avg_score !== null).length,
+    }),
+    [buckets],
+  );
   const windowLabel =
     range === "30d" ? "daily buckets (UTC)" : "weekly buckets (UTC, weeks start Monday)";
   const summary =

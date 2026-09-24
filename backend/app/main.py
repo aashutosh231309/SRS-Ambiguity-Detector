@@ -28,6 +28,7 @@ from app.core.monitoring import capture_exception, init_monitoring
 from app.email import get_email_service
 from app.exceptions import AppError, RateLimitedError
 from app.schemas.system import LiveResponse
+from app.services.documents import shutdown_document_processing_executor
 
 logger = get_logger(__name__)
 
@@ -71,6 +72,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Startup needs no I/O by design; shutdown disposes the pooled engine."""
     _ = app
     yield
+    shutdown_document_processing_executor()
     await dispose_engine()
 
 

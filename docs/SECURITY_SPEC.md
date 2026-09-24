@@ -95,7 +95,7 @@ their own keys; we disclose what is sent — see `AI_PROVIDER_SPEC.md` §Privacy
 | Per-file size | ≤ 10 MB, streaming-enforced on the TRUE count (`400 file_too_large` `{reason: "byte_size"}` — never the declared size) |
 | Files per request | EXACTLY 1 (extras → `400 too_many_files`, never silently dropped) |
 | Extracted text | ≤ 200 000 chars, enforced during accumulation (`400 extracted_text_too_large` — no silent truncation) |
-| Processing timeout | 60 s validate+extract in a worker thread (`503 document_processing_timeout`; temp file ALWAYS cleaned up) |
+| Processing timeout | 60 s validate+extract in a bounded parser worker pool (`DOCUMENT_EXTRACTOR_WORKERS`, default 2); `503 document_processing_timeout`; temp file ALWAYS cleaned up; CPython cannot kill an active parser, so timed-out work keeps its permit until it finishes |
 | Filename | sanitized display-only (≤255 chars); storage key = server-generated `documents/{owner}/{doc}/source` |
 | Binary storage | object storage ONLY (never Postgres); binaries unreadable by key-guessing (UUID path segments) |
 | Execution | never execute / never render as HTML; `Content-Disposition: attachment` on re-download (Stage 19 ✅) |

@@ -478,22 +478,22 @@ async def list_analyses(
     return (
         [
             AnalysisSummary(
-                id=row.analysis.id,
-                title=row.analysis.title,
-                status=row.analysis.status,
-                source_type=row.analysis.source_type,
+                id=row.id,
+                title=row.title,
+                status=row.status,
+                source_type=row.source_type,
                 document=(
                     DocumentRef(filename=row.filename, file_type=row.file_type)
                     if row.filename is not None and row.file_type is not None
                     else None
                 ),
-                source_excerpt=row.analysis.source_excerpt,
-                score=row.analysis.score,
-                band=row.analysis.band,
-                requirements_count=row.analysis.requirements_count,
-                issues_count=row.analysis.issues_count,
-                created_at=row.analysis.created_at,
-                updated_at=row.analysis.updated_at,
+                source_excerpt=row.source_excerpt,
+                score=row.score,
+                band=row.band,
+                requirements_count=row.requirements_count,
+                issues_count=row.issues_count,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
             )
             for row in rows
         ],

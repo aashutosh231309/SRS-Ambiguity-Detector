@@ -16,8 +16,10 @@ Ordering notes (all deliberate):
 - The storage object lands BEFORE the DB commit; a commit failure best-effort
   deletes it. (Orphaned binary >> row-without-binary: the former is inert and
   reaped by key inspection, the latter corrupts a live row.)
-- On timeout the worker thread is abandoned (CPython cannot kill threads) but
-  the REQUEST fails fast with 503 — bounded input keeps the stray work small.
+- On timeout CPython cannot kill a parser already running, but Stage 25 keeps
+  those parser calls in a small bounded pool; timed-out work holds its permit
+  until it actually exits, so repeated timeouts cannot create an unbounded
+  backlog of abandoned extraction tasks.
 
 Logs carry ids + counts only — filenames are safe metadata, but file CONTENT
 (text or bytes) is NEVER logged (SECURITY_SPEC §2.5).
@@ -31,8 +33,10 @@ import os
 import tempfile
 import uuid
 from collections.abc import Awaitable, Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
+from functools import partial
 from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -63,6 +67,16 @@ logger = get_logger(__name__)
 
 # Streaming chunk (memory held per read — total bounded by MAX_UPLOAD_SIZE_BYTES).
 _READ_CHUNK_BYTES = 65536
+
+# Validate+extract can call parser code that CPython cannot interrupt safely.
+# Stage 25 bounds the concurrency/queue explicitly: timed-out work may finish
+# later, but every in-flight parser continues to hold a permit until it really
+# exits, preventing unbounded abandoned worker accumulation under repeated
+# timeouts. Shutdown cancels queued work; running parser calls are allowed to
+# finish because Python cannot forcibly kill them safely.
+_extract_executor: ThreadPoolExecutor | None = None
+_extract_executor_workers: int | None = None
+_extract_semaphores: dict[int, asyncio.BoundedSemaphore] = {}
 
 
 @dataclass(frozen=True)
@@ -101,6 +115,103 @@ def _validate_and_extract(
     )
     extracted = extract_text(staged, file_type=validated.file_type, max_chars=max_chars)
     return validated, extracted
+
+
+def _get_extract_executor(max_workers: int) -> ThreadPoolExecutor:
+    """Process-local parser pool sized from settings (created lazily)."""
+    global _extract_executor, _extract_executor_workers
+    if _extract_executor is None or _extract_executor_workers != max_workers:
+        if _extract_executor is not None:
+            _extract_executor.shutdown(wait=False, cancel_futures=True)
+        _extract_executor = ThreadPoolExecutor(
+            max_workers=max_workers, thread_name_prefix="srs-doc-extract"
+        )
+        _extract_executor_workers = max_workers
+        _extract_semaphores.clear()
+    return _extract_executor
+
+
+def _get_extract_semaphore(max_workers: int) -> asyncio.BoundedSemaphore:
+    """One bounded semaphore per event loop (asyncio primitives are loop-bound)."""
+    loop_id = id(asyncio.get_running_loop())
+    semaphore = _extract_semaphores.get(loop_id)
+    if semaphore is None:
+        semaphore = asyncio.BoundedSemaphore(max_workers)
+        _extract_semaphores[loop_id] = semaphore
+    return semaphore
+
+
+async def _bounded_validate_and_extract(
+    staged: Path,
+    *,
+    filename: object,
+    content_type: object,
+    byte_size: int,
+    sha256_hex: str,
+    max_chars: int,
+    timeout_seconds: int,
+    max_workers: int,
+) -> tuple[ValidatedUpload, ExtractedDocument]:
+    """Run validate+extract in the bounded parser pool.
+
+    The permit is released by a completion callback, not by request timeout,
+    because timed-out parser work can keep running after the HTTP request has
+    failed. This is the resource-lifecycle guarantee Stage 25 needs.
+    """
+    loop = asyncio.get_running_loop()
+    # Create/resize the executor BEFORE taking a permit: resizing clears the
+    # loop-semaphore map, and doing that after an acquire would orphan the
+    # acquired permit and admit extra parser work.
+    executor = _get_extract_executor(max_workers)
+    semaphore = _get_extract_semaphore(max_workers)
+    try:
+        async with asyncio.timeout(timeout_seconds):
+            await semaphore.acquire()
+    except TimeoutError:
+        raise DocumentProcessingTimeoutError() from None
+    try:
+        concurrent_future = executor.submit(
+            partial(
+                _validate_and_extract,
+                staged,
+                filename=filename,
+                content_type=content_type,
+                byte_size=byte_size,
+                sha256_hex=sha256_hex,
+                max_chars=max_chars,
+            )
+        )
+    except BaseException:
+        semaphore.release()
+        raise
+
+    def _release_permit(_future: object) -> None:
+        try:
+            loop.call_soon_threadsafe(semaphore.release)
+        except RuntimeError:
+            # The app/test loop has already closed; shutdown clears semaphores.
+            pass
+
+    concurrent_future.add_done_callback(_release_permit)
+    future = asyncio.wrap_future(concurrent_future)
+    done, _pending = await asyncio.wait({future}, timeout=timeout_seconds)
+    if not done:
+        raise DocumentProcessingTimeoutError()
+    return future.result()
+
+
+def shutdown_document_processing_executor() -> None:
+    """Cancel queued parser work and stop accepting new extraction tasks.
+
+    Running parser calls cannot be killed safely in CPython; `wait=False` lets
+    process shutdown continue while the interpreter joins any live threads.
+    """
+    global _extract_executor, _extract_executor_workers
+    if _extract_executor is not None:
+        _extract_executor.shutdown(wait=False, cancel_futures=True)
+    _extract_executor = None
+    _extract_executor_workers = None
+    _extract_semaphores.clear()
 
 
 def _write_all(fd: int, chunk: bytes) -> None:
@@ -219,19 +330,16 @@ async def upload_and_analyze(
         read, max_bytes=settings.MAX_UPLOAD_SIZE_BYTES
     )
     try:
-        try:
-            async with asyncio.timeout(settings.DOCUMENT_PROCESSING_TIMEOUT_SECONDS):
-                validated, extracted = await asyncio.to_thread(
-                    _validate_and_extract,
-                    staged,
-                    filename=filename,
-                    content_type=content_type,
-                    byte_size=byte_size,
-                    sha256_hex=sha256_hex,
-                    max_chars=settings.MAX_EXTRACTED_TEXT_CHARS,
-                )
-        except TimeoutError:
-            raise DocumentProcessingTimeoutError() from None
+        validated, extracted = await _bounded_validate_and_extract(
+            staged,
+            filename=filename,
+            content_type=content_type,
+            byte_size=byte_size,
+            sha256_hex=sha256_hex,
+            max_chars=settings.MAX_EXTRACTED_TEXT_CHARS,
+            timeout_seconds=settings.DOCUMENT_PROCESSING_TIMEOUT_SECONDS,
+            max_workers=settings.DOCUMENT_EXTRACTOR_WORKERS,
+        )
         # Title: explicit form value wins; else the sanitized filename (ours to
         # truncate — user titles were length-checked at the boundary already).
         resolved_title = (title or "").strip() or validated.filename

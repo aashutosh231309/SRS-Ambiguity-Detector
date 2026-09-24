@@ -47,11 +47,19 @@ def get_engine() -> AsyncEngine:
     global _engine, _session_factory
     if _engine is not None:
         return _engine
-    raw_url = get_settings().DATABASE_URL
+    settings = get_settings()
+    raw_url = settings.DATABASE_URL
     if not raw_url:
         raise RuntimeError("DATABASE_URL is not configured (see backend/.env.example).")
     try:
-        _engine = create_async_engine(normalize_url(raw_url), pool_pre_ping=True)
+        _engine = create_async_engine(
+            normalize_url(raw_url),
+            pool_pre_ping=True,
+            pool_size=settings.DATABASE_POOL_SIZE,
+            max_overflow=settings.DATABASE_MAX_OVERFLOW,
+            pool_timeout=settings.DATABASE_POOL_TIMEOUT_SECONDS,
+            pool_recycle=settings.DATABASE_POOL_RECYCLE_SECONDS,
+        )
     except Exception:
         # from None: SQLAlchemy parse errors echo the URL — must not reach tracebacks.
         raise RuntimeError("Invalid DATABASE_URL (see backend/.env.example).") from None

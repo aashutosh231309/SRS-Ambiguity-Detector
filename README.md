@@ -106,6 +106,8 @@ All settings are environment-driven and validated at boot. Copy the examples and
 | `APP_ENV` | `local` | `local` / `staging` / `production` behavior switch |
 | `DATABASE_URL` | *(unset — app boots; `/ready` reports `not_configured`)* | `postgresql+asyncpg://…` app connection |
 | `DIRECT_DATABASE_URL` | *(falls back to `DATABASE_URL`)* | Direct connection for Alembic (bypasses Supabase pooler) |
+| `DATABASE_POOL_SIZE` / `DATABASE_MAX_OVERFLOW` | `5` / `10` | Per-process asyncpg pool tuning; size against DB capacity and worker count |
+| `DOCUMENT_EXTRACTOR_WORKERS` | `2` | Per-process bounded parser workers for PDF/DOCX/TXT validation + extraction |
 | `JWT_SECRET` | *(required for auth)* | 256-bit-minimum HS256 signing secret (fail-closed) |
 | `EMAIL_PROVIDER` | `console` | `console` (local dev outbox) / `resend` (production delivery) |
 | `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` | *(unset — monitoring disabled)* | Optional backend/frontend Sentry projects; scrubbers strip bodies, query strings, tokens, credentials, SRS text, uploads, and AI payloads |
@@ -162,9 +164,10 @@ input + document upload/extraction + deterministic segmentation +
 dashboard, settings, AI providers/enhancement/retry, report experience, document
 list/download/delete, Turnstile on sensitive public auth ops, and privacy lifecycle
 controls (retention/export/purge/storage-aware account deletion), and monitoring/Sentry
-with privacy scrubbers. Still intentionally NOT implemented yet: distributed limiter
-storage, performance/SEO polish, responsive/a11y final pass, production deployment,
-screenshots/docs finalization. Scores are heuristic triage aids, not validated measurements
+with privacy scrubbers, and the Stage 25 performance pass (summary-query projections,
+bounded document parser workers, env-driven DB pool tuning, and frontend derivation
+memoization). Still intentionally NOT implemented yet: distributed limiter storage,
+SEO polish, responsive/a11y final pass, production deployment, screenshots/docs finalization. Scores are heuristic triage aids, not validated measurements
 (see [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) §4.3 honest limits).
 Post-auth landing is still the temporary fixed `/`; the home page is an
 honest placeholder (replaced by the marketing stage), and `ApiStatus` needs

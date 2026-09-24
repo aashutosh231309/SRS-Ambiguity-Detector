@@ -100,16 +100,16 @@ export function AnalysisResultView({
   // Stage 15: persisted rewrite coverage for the AI block's partial-honesty
   // note — derived from the record (flagged vs rewritten counts), never
   // invented. Only meaningful on `ok` runs; every other state passes null.
-  const rewriteCoverage =
-    result.ai_status === "ok"
-      ? {
-          rewritten: result.requirements.filter(
-            (requirement) => requirement.suggested_rewrite !== null,
-          ).length,
-          flagged: result.requirements.filter((requirement) => requirement.issues.length > 0)
-            .length,
-        }
-      : null;
+  const rewriteCoverage = useMemo(() => {
+    if (result.ai_status !== "ok") return null;
+    let rewritten = 0;
+    let flagged = 0;
+    for (const requirement of result.requirements) {
+      if (requirement.suggested_rewrite !== null) rewritten += 1;
+      if (requirement.issues.length > 0) flagged += 1;
+    }
+    return { rewritten, flagged };
+  }, [result.ai_status, result.requirements]);
 
   function toggleRequirement(id: string) {
     setExpandedIds((previous) => {
