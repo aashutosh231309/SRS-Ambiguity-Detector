@@ -93,6 +93,12 @@
 > analyzer checkbox + four-state report block. Open remainders: anthropic
 > + huggingface adapters, `POST /analysis/{id}/retry-ai`, creation-time
 > live key proof, per-run what-was-sent disclosure copy.
+> Actual Stage 17 (2026-09-24) closed the `retry-ai` remainder:
+> owner-scoped POST re-running the shared AI step (reset → re-read →
+> enhance, deterministic untouched) + the failed-card "Try again" button
+> with silent parent re-read on both report surfaces. Still open:
+> anthropic + huggingface adapters, creation-time live key proof,
+> per-run what-was-sent disclosure copy, dedicated AI rate buckets.
 > The table above keeps its original numbers; STAGE_STATUS.md records the
 > as-built mapping.
 

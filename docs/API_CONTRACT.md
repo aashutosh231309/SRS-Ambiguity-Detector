@@ -121,7 +121,7 @@ POST /analysis                  Text → segment + detect + score → 201 Analys
 GET  /analysis                  List own analyses (paginated, §3) → 200 Collection<AnalysisSummary> ✅
 GET  /analysis/{id}             Full detail incl. requirements+issues → 200 AnalysisDetail | 404 ✅
 DELETE /analysis/{id}           Delete own analysis (cascade) → 204 | 404 ✅
-POST /analysis/{id}/retry-ai    Re-run ONLY the AI enhancement step → 200 {ai_status,…} (Stage 20)
+POST /analysis/{id}/retry-ai    Re-run ONLY the AI step → 200 {ai_status,ai_overview,ai_provider,ai_error} ✅ (Stage 17)
 ```
 
 **POST /analysis request:**
@@ -213,8 +213,20 @@ overview failure only (improvements are best-effort on the winning
 provider — attribution never mixes). Stored credentials WITHOUT an
 adapter yet (anthropic, huggingface — deferred, AI_PROVIDER_SPEC §4)
 report `failed` with "<Label> integration isn't available yet." (a key IS
-stored, so `unconfigured` would lie). `POST /analysis/{id}/retry-ai` stays
-future (no Retry button ships until it exists).
+stored, so `unconfigured` would lie).
+
+**Retry-ai (FINAL Stage 17):** `POST /analysis/{id}/retry-ai` re-runs ONLY
+the AI step through the SAME shared service as creation (same chain, caps,
+fail-open, sanitizer): reset (AI payload NULLed + AI-stamped rewrites
+dropped — a failed retry can never strand stale `ok` output) → re-read →
+enhance. Verified-user + CSRF guarded, default verified-mutation bucket (a
+dedicated AI bucket is Stage 22's). Owner-scoped (`404 analysis_not_found`
+on foreign ids, byte-identical to missing — no oracle); malformed ids `400
+validation_error` like the detail GET. Accepts ANY prior `ai_status` — a
+retry is always an explicit user action (over `ok` = fresh overview, over
+`skipped` = first AI request for the run). Deterministic columns are never
+written by a retry. Response = the four restamped AI fields; clients re-read
+the detail (fresh rewrites included) after a 200.
 
 **Scoring (deterministic — PROJECT_SPEC §6):** base 100; Low −5, Medium −10,
 High −15, Critical −20; requirement score clamped 0–100; analysis score =

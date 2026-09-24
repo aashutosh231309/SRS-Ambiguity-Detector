@@ -9,6 +9,7 @@ import {
   deleteAnalysis,
   getAnalysis,
   listAnalyses,
+  retryAi,
 } from "./analysis";
 
 function jsonResponse(data: unknown, status = 200): Response {
@@ -318,6 +319,61 @@ describe("deleteAnalysis", () => {
       vi.fn(async () => envelope("analysis_not_found", 404)),
     );
     await expect(deleteAnalysis("someone-elses")).rejects.toMatchObject({
+      code: "analysis_not_found",
+    });
+  });
+});
+
+describe("retryAi", () => {
+  const RETRY_OK = {
+    ai_status: "ok",
+    ai_overview: "Fresh overview.",
+    ai_provider: "groq",
+    ai_error: null,
+  };
+
+  it("POSTs the retry path and returns the four restamped fields", async () => {
+    let seenUrl = "";
+    let seenMethod = "";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        seenUrl = String(input);
+        seenMethod = init?.method ?? "GET";
+        return jsonResponse(RETRY_OK);
+      }),
+    );
+    await expect(retryAi("analysis-1")).resolves.toEqual(RETRY_OK);
+    expect(seenUrl).toMatch(/\/analysis\/analysis-1\/retry-ai$/);
+    expect(seenMethod).toBe("POST");
+  });
+
+  it("silently refreshes once on 401, then retries the POST", async () => {
+    const posts: string[] = [];
+    const refreshes: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/auth/refresh")) {
+          refreshes.push(url);
+          return jsonResponse({ id: "u1", email: "ada@example.com", is_verified: true });
+        }
+        posts.push(url);
+        return posts.length === 1 ? envelope("unauthenticated", 401) : jsonResponse(RETRY_OK);
+      }),
+    );
+    await expect(retryAi("analysis-1")).resolves.toEqual(RETRY_OK);
+    expect(posts).toHaveLength(2);
+    expect(refreshes).toHaveLength(1);
+  });
+
+  it("surfaces analysis_not_found when the id is missing/foreign", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => envelope("analysis_not_found", 404)),
+    );
+    await expect(retryAi("someone-elses")).rejects.toMatchObject({
       code: "analysis_not_found",
     });
   });

@@ -226,4 +226,46 @@ describe("AnalysisReportScreen", () => {
     expect(await screen.findByText("Saved analysis · 2 requirements · 1 issue")).toBeDefined();
     expect(calls).toBe(2);
   });
+
+  it("AI retry posts, then silently re-reads into the ok state (Stage 17)", async () => {
+    const user = userEvent.setup();
+    const failed = { ...analysisResult(), ai_status: "failed", ai_error: "Provider timed out." };
+    const recovered = {
+      ...analysisResult(),
+      ai_status: "ok",
+      ai_overview: "Fresh overview.",
+      ai_provider: "groq",
+      ai_error: null,
+    };
+    let gets = 0;
+    let posts = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes("/auth/me")) return userResponse();
+        if (url.includes("/auth/refresh"))
+          return errorResponse("unauthenticated", "Session expired.", 401);
+        if (url.includes("/retry-ai") && init?.method === "POST") {
+          posts += 1;
+          return jsonResponse({
+            ai_status: "ok",
+            ai_overview: "Fresh overview.",
+            ai_provider: "groq",
+            ai_error: null,
+          });
+        }
+        gets += 1;
+        return jsonResponse(gets === 1 ? failed : recovered);
+      }),
+    );
+    renderScreen();
+    expect(await screen.findByRole("heading", { name: "AI enhancement failed" })).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    // Silent refresh: no skeleton flash — the ok block swaps straight in.
+    expect(await screen.findByRole("heading", { name: "AI overview" })).toBeDefined();
+    expect(screen.getByText("Fresh overview.")).toBeDefined();
+    expect(posts).toBe(1);
+    expect(gets).toBe(2);
+  });
 });

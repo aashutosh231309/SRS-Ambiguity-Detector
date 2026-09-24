@@ -70,12 +70,16 @@ export function AnalysisResultView({
   result,
   context = "fresh",
   actions,
+  onAiRetried,
 }: {
   result: AnalysisResult;
   /** "fresh" = just analyzed in the workspace; "saved" = opened report route. */
   context?: "fresh" | "saved";
   /** Footer actions (Start over for fresh; Back + Delete for saved). */
   actions?: React.ReactNode;
+  /** AI-retry refresh (Stage 17): re-read the detail after a retry POST.
+   * Absent → the failed AI card renders buttonless (no fake controls). */
+  onAiRetried?: (analysisId: string) => Promise<unknown>;
 }) {
   const [filters, setFilters] = useState<ReportFilterState>(DEFAULT_FILTERS);
   const [sort, setSort] = useState<SortMode>("original");
@@ -266,6 +270,11 @@ export function AnalysisResultView({
         provider={result.ai_provider}
         error={result.ai_error}
         rewriteCoverage={rewriteCoverage}
+        retry={
+          onAiRetried === undefined
+            ? null
+            : { analysisId: result.id, onRetried: () => onAiRetried(result.id) }
+        }
       />
 
       {result.requirements.length >= 2 ? (

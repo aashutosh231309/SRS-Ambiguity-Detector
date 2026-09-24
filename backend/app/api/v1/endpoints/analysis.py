@@ -1,8 +1,11 @@
-"""Analysis endpoints (API_CONTRACT §4.3 — Stage 07: create + read + delete).
+"""Analysis endpoints (API_CONTRACT §4.3 — Stage 07: create + read + delete;
+Stage 17: AI retry).
 
 Thin: guards (verified identity; CSRF + per-user rate limit on POST, CSRF +
-default bucket on DELETE, identity-only on safe GETs) → service → response.
-Reads are owner-scoped: foreign ids 404 exactly like missing ones (IDOR rule).
+default bucket on DELETE and retry-ai, identity-only on safe GETs) → service
+→ response. Reads are owner-scoped: foreign ids 404 exactly like missing ones
+(IDOR rule). Retry-ai re-runs ONLY the AI step — deterministic columns are
+never written by it.
 """
 
 from typing import Annotated, Literal
@@ -12,13 +15,14 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.dependencies import get_current_verified_user, verified_user_guard
-from app.api.v1.presenters import detail_response, summary_response
+from app.api.v1.presenters import detail_response, retry_ai_response, summary_response
 from app.core.config import get_settings
 from app.core.database import get_session
 from app.schemas.analysis import (
     AnalysisCreateRequest,
     AnalysisDetailResponse,
     AnalysisSummaryResponse,
+    RetryAiResponse,
 )
 from app.schemas.common import Page, PaginationParams
 from app.services import analysis as analysis_service
@@ -31,6 +35,9 @@ create_guard = verified_user_guard(
     "analysis:create", limit=lambda: get_settings().RATE_LIMIT_ANALYSIS_PER_MINUTE
 )
 delete_guard = verified_user_guard("analysis:delete")
+# Retry-ai rides the default verified-mutation bucket (a dedicated AI bucket
+# is Stage 22's — AI_PROVIDER_SPEC §9 names retry-ai + test as its surface).
+retry_guard = verified_user_guard("analysis:retry-ai")
 
 SortParam = Literal["created_at", "-created_at", "score", "-score"]
 BandParam = Literal["low", "moderate", "high", "very_high"]
@@ -109,3 +116,23 @@ async def delete_analysis(
 ) -> Response:
     await analysis_service.delete_analysis(session, owner_id=user.id, analysis_id=analysis_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{analysis_id}/retry-ai", response_model=RetryAiResponse)
+async def retry_ai(
+    analysis_id: UUID,
+    user: Annotated[UserInfo, Depends(retry_guard)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> RetryAiResponse:
+    """Re-run ONLY the AI enhancement step (reset → re-read → shared step).
+
+    Owner-scoped (foreign ids 404, malformed ids 400 — same rules as the
+    detail GET). Accepts any prior `ai_status` — a retry is always an
+    explicit user action, including over `ok` (fresh overview) and `skipped`
+    (first AI request for the run). The response carries the four restamped
+    AI fields; clients re-read the detail for rewrites.
+    """
+    detail = await analysis_service.retry_analysis_ai(
+        session, owner_id=user.id, analysis_id=analysis_id
+    )
+    return retry_ai_response(detail)

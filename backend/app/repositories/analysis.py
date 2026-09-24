@@ -279,6 +279,21 @@ class RequirementRepository:
                 )
                 .values(suggested_rewrite=text, suggestion_source="ai")
             )
+
+    async def clear_ai_rewrites(self, *, analysis_id: uuid.UUID) -> None:
+        """Drop AI-stamped rewrites for a re-run (Stage 17: `retry-ai` resets
+        BEFORE re-running so a failed retry can never strand stale `ok`
+        rewrites under a `failed` status. `suggestion_source='ai'` ONLY —
+        rule-sourced suggestions are deterministic and never touched)."""
+        await self._session.execute(
+            update(Requirement)
+            .where(
+                Requirement.analysis_id == analysis_id,
+                Requirement.suggestion_source == "ai",
+            )
+            .values(suggested_rewrite=None, suggestion_source=None)
+        )
+        await self._session.flush()
         await self._session.flush()
 
 

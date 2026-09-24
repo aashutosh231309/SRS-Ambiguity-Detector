@@ -164,6 +164,11 @@ function ReportContent() {
       <AnalysisResultView
         result={state.analysis}
         context="saved"
+        onAiRetried={async () => {
+          // Silent re-read: the effect below keeps the ready report rendered
+          // while the fresh detail resolves (no skeleton flash).
+          setAttempt((count) => count + 1);
+        }}
         actions={
           <>
             <Link

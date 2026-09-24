@@ -137,7 +137,7 @@ means OpenAI-compatible hosts ONLY via explicit allowlist additions, never arbit
    opt-in checkbox + Settings link; history/dashboard are untouched (their
    summary shape carries no AI fields — no contract churn for decoration).
 
-## 7. Failure behavior matrix (Stage 14 implements + tests each row; `retry-ai` stays future)
+## 7. Failure behavior matrix (Stage 14 implements + tests each row; Stage 17 ships `retry-ai`)
 
 | Failure | `ai_status` | UX |
 |---------|-------------|----|
@@ -156,6 +156,15 @@ ranked provider (max chain = 3 attempts); the FIRST error wins the
 actionable). `attempted_providers[]` is LOGGED (ids only), not returned —
 no such field exists in the contract, and §8's log rule already covers
 transparency without wire churn. Improvements never trigger failover.
+
+Explicit retry (IMPLEMENTED Stage 17): `POST /analysis/{id}/retry-ai`
+re-runs the whole step above through the SAME service (reset →
+re-read → enhance — never a parallel path). Any prior `ai_status` is
+accepted (a retry is always explicit, §9's "plus explicit retries"
+allowance); the reset drops AI-stamped rewrites first so a failed retry
+can't strand stale `ok` output. The report's failed card carries the
+"Try again" button; `unconfigured`/`skipped`/`ok` states get no button
+(their next actions are Settings / nothing / nothing).
 
 ## 8. Privacy & disclosure
 

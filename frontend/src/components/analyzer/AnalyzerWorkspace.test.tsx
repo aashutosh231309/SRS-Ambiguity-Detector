@@ -263,4 +263,56 @@ describe("AnalyzerWorkspace", () => {
     await waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/login"));
     expect(screen.queryByLabelText("SRS text")).toBeNull();
   });
+
+  it("fresh-report AI retry re-reads into the ok state without leaving the result (Stage 17)", async () => {
+    const user = userEvent.setup();
+    const failed = { ...analysisResult(), ai_status: "failed", ai_error: "Provider timed out." };
+    const recovered = {
+      ...analysisResult(),
+      ai_status: "ok",
+      ai_overview: "Fresh overview.",
+      ai_provider: "groq",
+      ai_error: null,
+    };
+    let posts = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = init?.method ?? "GET";
+        if (url.includes("/auth/me")) return userResponse(true);
+        if (url.includes("/auth/refresh"))
+          return jsonResponse({ error: { code: "unauthenticated", message: "no" } }, 401);
+        if (url.includes("/retry-ai") && method === "POST") {
+          posts += 1;
+          return jsonResponse({
+            ai_status: "ok",
+            ai_overview: "Fresh overview.",
+            ai_provider: "groq",
+            ai_error: null,
+          });
+        }
+        if (url.endsWith("/analysis") && method === "POST") return jsonResponse(failed);
+        if (url.includes("/analysis/analysis-1") && method === "GET")
+          return jsonResponse(recovered);
+        throw new Error(`unexpected request: ${method} ${url}`);
+      }),
+    );
+    render(
+      <AuthProvider>
+        <AnalyzerWorkspace />
+      </AuthProvider>,
+    );
+    fireEvent.change(await screen.findByLabelText("SRS text"), {
+      target: { value: "FR-001: The system shall allow login." },
+    });
+    await user.click(screen.getByRole("button", { name: "Analyze requirements" }));
+    expect(await screen.findByRole("heading", { name: "AI enhancement failed" })).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByRole("heading", { name: "AI overview" })).toBeDefined();
+    expect(screen.getByText("Fresh overview.")).toBeDefined();
+    // Still the fresh result (not bounced to the editor, draft intact).
+    expect(posts).toBe(1);
+    expect(screen.getByRole("button", { name: "Start over" })).toBeDefined();
+  });
 });

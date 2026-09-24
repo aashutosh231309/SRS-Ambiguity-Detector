@@ -536,3 +536,51 @@ async def _delete_orphaned_document(
     await DocumentRepository(session).delete(doc)
     get_storage_backend().delete(doc.storage_path)
     logger.info("orphaned document purged document_id=%s owner_id=%s", document_id, owner_id)
+
+
+async def retry_analysis_ai(
+    session: AsyncSession, *, owner_id: uuid.UUID, analysis_id: uuid.UUID
+) -> AnalysisDetail:
+    """Re-run ONLY the AI enhancement step of a persisted analysis (Stage 17).
+
+    Reset → re-read → enhance: the reset clears the previous AI payload
+    (overview/provider/error NULLs + AI-stamped rewrites dropped) in ONE short
+    transaction so a failed retry can never strand stale `ok` output under a
+    `failed` status; the re-read builds a rewrite-free detail for the shared
+    step; `enhance_analysis` then runs exactly as on the creation path (same
+    chain, caps, fail-open, persistence). No transaction spans provider I/O.
+    Deterministic columns are never written here — scores/issues survive every
+    outcome, including a mid-run concurrent DELETE (the outcome orphans by
+    design, logged with ids only). 404 unless owned (no oracle).
+    """
+    detail = await get_analysis_detail(session, owner_id=owner_id, analysis_id=analysis_id)
+    await _reset_ai_outcome(
+        session, owner_id=owner_id, analysis_id=analysis_id, ai_status=detail.ai_status
+    )
+    fresh = await get_analysis_detail(session, owner_id=owner_id, analysis_id=analysis_id)
+    # Lazy import: same cycle as `create_text_analysis` (ai_enhancement owns
+    # AnalysisDetail from THIS module).
+    from app.services.ai_enhancement import enhance_analysis
+
+    return await enhance_analysis(session, owner_id=owner_id, detail=fresh, ai_enhance=True)
+
+
+@transactional
+async def _reset_ai_outcome(
+    session: AsyncSession, *, owner_id: uuid.UUID, analysis_id: uuid.UUID, ai_status: str
+) -> None:
+    """Clear the previous AI payload ahead of a retry (short txn, no I/O).
+
+    `ai_status` is deliberately left in place until the new outcome lands —
+    the only observable intermediate is "old status, cleared payload", and
+    only to a concurrent reader inside this request's window.
+    """
+    await AnalysisRepository(session).record_ai_result(
+        owner_id=owner_id,
+        analysis_id=analysis_id,
+        ai_overview=None,
+        ai_provider=None,
+        ai_status=ai_status,
+        ai_error=None,
+    )
+    await RequirementRepository(session).clear_ai_rewrites(analysis_id=analysis_id)

@@ -18,6 +18,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import type { AnalysisResult } from "@/types/analysis";
 import { Container } from "@/components/layout/Container";
 import { Reveal } from "@/components/Reveal";
+import { getAnalysis } from "@/lib/analysis";
 import { cn } from "@/lib/utils";
 
 import { ProtectedRoute } from "../auth/ProtectedRoute";
@@ -136,6 +137,12 @@ export function AnalyzerWorkspace() {
         ) : (
           <AnalysisResultView
             result={result}
+            onAiRetried={async (analysisId) => {
+              // Silent re-read: the just-analyzed report stays rendered while
+              // the post-retry detail resolves. Rejections propagate to the
+              // retry control (mapped copy), never to a crash.
+              setResult(await getAnalysis(analysisId));
+            }}
             actions={
               <button
                 type="button"

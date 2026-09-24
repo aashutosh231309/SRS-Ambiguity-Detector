@@ -92,6 +92,15 @@ export interface AnalysisDocumentRef {
  * requested; `unconfigured` = requested but no usable provider. */
 export type AiStatus = "ok" | "failed" | "skipped" | "unconfigured";
 
+/** POST /analysis/{id}/retry-ai — the four restamped AI fields only (Stage 17).
+ * Clients re-read the full detail (fresh rewrites included) after a retry. */
+export interface AiRetryResult {
+  ai_status: AiStatus;
+  ai_overview: string | null;
+  ai_provider: string | null;
+  ai_error: string | null;
+}
+
 export interface AnalysisResult {
   id: string;
   title: string;

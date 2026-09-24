@@ -14,6 +14,7 @@ from app.schemas.analysis import (
     DocumentRefResponse,
     IssueResponse,
     RequirementResponse,
+    RetryAiResponse,
     SegmentationMetaResponse,
 )
 from app.schemas.dashboard import (
@@ -122,6 +123,19 @@ def detail_response(detail: AnalysisDetail) -> AnalysisDetailResponse:
         requirements=[requirement_response(item) for item in detail.requirements],
         created_at=detail.created_at,
         updated_at=detail.updated_at,
+    )
+
+
+def retry_ai_response(detail: AnalysisDetail) -> RetryAiResponse:
+    """The four restamped AI fields after a retry (Stage 17 — deterministic
+    columns are untouched by retries, so they stay out of the response)."""
+    if detail.ai_status not in _VALID_AI_STATUSES:
+        raise ValueError(f"unexpected AI status: {detail.ai_status!r}")
+    return RetryAiResponse(
+        ai_status=detail.ai_status,  # type: ignore[arg-type]  # narrowed above
+        ai_overview=detail.ai_overview,
+        ai_provider=detail.ai_provider,
+        ai_error=detail.ai_error,
     )
 
 

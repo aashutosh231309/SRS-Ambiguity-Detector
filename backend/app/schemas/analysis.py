@@ -132,6 +132,20 @@ class AnalysisDetailResponse(BaseModel):
     updated_at: datetime
 
 
+class RetryAiResponse(BaseModel):
+    """POST /analysis/{id}/retry-ai (Stage 17): the AI outcome subset only.
+
+    The deterministic record is untouched by a retry, so the response carries
+    just the four restamped fields; clients re-read the full detail (fresh
+    rewrites included) the same way they do after any mutation.
+    """
+
+    ai_status: Literal["ok", "failed", "skipped", "unconfigured"]
+    ai_overview: str | None
+    ai_provider: str | None
+    ai_error: str | None
+
+
 class AnalysisSummaryResponse(BaseModel):
     """History-list row: detail minus `requirements`, plus `source_excerpt`.
     Stage 10: carries the `document` display pointer (like the detail)."""

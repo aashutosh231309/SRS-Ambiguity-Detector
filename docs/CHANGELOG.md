@@ -29,6 +29,31 @@
 - API_CONTRACT §4.7 finalized: profile fields final (above); privacy endpoint
   names reserved for Stage 23 with the fake-control rationale recorded.
 
+## [0.18.0] — Stage 17 (as-built) — `retry-ai` endpoint + report Retry button — 2026-09-24
+
+### Added
+- `POST /analysis/{id}/retry-ai` (verified + CSRF guarded, default
+  verified-mutation bucket): re-runs ONLY the AI step through the shared
+  Stage-14 service — reset (AI payload NULLed + AI-stamped rewrites dropped)
+  → re-read → enhance. Accepts any prior `ai_status`; owner-scoped 404
+  (byte-identical to missing — no oracle); malformed ids 400. Response =
+  the four restamped AI fields (`RetryAiResponse`); clients re-read the
+  detail for rewrites. Deterministic columns never written. No migration.
+- Report "Try again" button on the failed AI card (`AiOverviewSection` +
+  `retryAi` client): pending state, code-mapped errors, session-gone
+  sign-in link; both report parents (saved `/analysis/[id]` + fresh
+  workspace) silently re-read on success. No wiring, no button (§9).
+
+### Changed
+- Frontend suite 384 → 396 (+12: client ×3, section ×6, pass-through ×1,
+  saved integration ×1, fresh integration ×1). Backend suite 482 → 494
+  (+12 retry API tests). Roadmap-20 retry slice closed (chain/matrix
+  shipped in Stage 14; dedicated AI rate buckets stay Stage 22's).
+
+### Contract
+- API_CONTRACT §4.3 retry-ai finalized (semantics above); AI_PROVIDER_SPEC
+  §7 + UI_UX_SPEC §13 updated (retry rules, button behavior).
+
 ## [0.16.0] — Stage 15 (as-built) — AI results integration & trust UX — 2026-09-24
 
 ### Added

@@ -1093,11 +1093,62 @@ pre-existed), NO privacy endpoints (fake-control rule — see below).
 and/or anthropic/HF adapters (roadmap-18 remainder).
 
 ## Current stage
-None active — Stage 16 complete; all success conditions hold (roadmap-16
-closed: profile API + four settings sections, DELETE-typed deletion with
-farewell, 482/482 + 384/384 tests, verify.sh green, docs match).
-Next: **Stage 17 (as-built) — document list/download and/or `retry-ai`
-and/or anthropic/HF adapters**.
+### Stage 17 (as-built) — `retry-ai` endpoint + report Retry button ✅ (2026-09-24)
+
+Scope note: the Stage 17 prompt framed a "final QA / release verification"
+pass, but the repo is mid-roadmap (roadmap-21+ hardening and stages 22–32
+all unfinished; roadmap-17 itself shipped early in Stage 12). Per the
+prompt's own repo-authority rule, this as-built Stage 17 implements ONE
+remainder from the documented next-pointer: the roadmap-20 `retry-ai`
+slice (the other two — document list/download, anthropic/HF adapters —
+stay explicitly future). No QA-rewrite; narrow vertical slice only.
+
+- Backend: `POST /analysis/{id}/retry-ai` → 200 `RetryAiResponse`
+  (verified + CSRF guarded, default verified-mutation bucket — a dedicated
+  AI bucket is Stage 22's per AI_PROVIDER_SPEC §9). `retry_analysis_ai`
+  (services/analysis.py): owner-scoped lookup (404, byte-identical to
+  missing) → reset txn (AI payload NULLed, `ai_status` held, AI-stamped
+  rewrites dropped via `clear_ai_rewrites` — rule-sourced untouched) →
+  re-read → the SHARED `enhance_analysis` (same chain/caps/fail-open —
+  no parallel AI path). Any prior `ai_status` accepted (explicit action);
+  deterministic columns never written; presenter-validated response.
+- Frontend: `retryAi` client (`withSessionRetry`-safe) + "Try again" on
+  the failed card (pending `Retrying…`, code-mapped errors via
+  `analysisErrorMessage`, session-gone sign-in link; no wiring, no
+  button). Both parents wired: saved `/analysis/[id]` bumps its fetch
+  attempt (silent — ready report stays rendered), fresh workspace swaps
+  `setResult(await getAnalysis(id))` (rejections surface mapped, no crash).
+- 494/494 pytest (+12) + 396/396 vitest (+12: client ×3, section ×6,
+  pass-through ×1, saved ×1, fresh ×1), tsc/eslint/prettier + ruff/mypy
+  clean, `verify.sh` green, live journey green (failed→retry→ok with the
+  fake-adapter seam at the HTTP layer + stale-rewrite + determinism proofs
+  in-suite).
+- Security notes (§11): no new `{id}` semantics (same owner-scope + 404 +
+  400-malformed rules as the detail GET, all tested); no new secret/log
+  surface (ids + codes only, inherited); mutation bucket inherited from
+  the verified guard; no contract drift (specs amended in-stage).
+
+**Known limitations (accepted, not bugs):**
+- NO browser in this sandbox (as in Stages 05–16) — Retry button, pending,
+  and silent re-read NOT pixel-verified, NO screenshots ship
+  (`screenshots/` still empty). First browsed environment must capture
+  `stage17-*` at 390/768/1440 + the pending sets.
+- `docker-compose.yml` STILL unvalidated (no Docker in sandbox).
+- Sandbox note: this session's environment was a FRESH clone (local branch
+  reset to the base commit, toolchains absent). Recovered via
+  `git fetch` + `reset --mixed` to `origin/arena/…` (tree verified
+  byte-identical to `ed25c93`, zero loss), then bootstrapped pip/npm +
+  a pgserver holder. No repo content changed by the recovery.
+
+**Next stage:** Stage 18 (as-built) — document list/download endpoints
+(roadmap-09 remainder) and/or anthropic/HF adapters (roadmap-18 remainder).
+
+## Current stage
+None active — Stage 17 complete; all success conditions hold (roadmap-20
+retry slice closed: endpoint + Retry button on both report surfaces,
+494/494 + 396/396 tests, verify.sh green, docs match).
+Next: **Stage 18 (as-built) — document list/download and/or anthropic/HF
+adapters**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 Database → backend → auth backend → auth frontend → SRS input/segmentation/preview ✅ →

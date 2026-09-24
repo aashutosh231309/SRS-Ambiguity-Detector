@@ -10,6 +10,7 @@
  */
 
 import type {
+  AiRetryResult,
   AnalysisResult,
   AnalysisSummary,
   CreateAnalysisInput,
@@ -35,6 +36,16 @@ export async function createAnalysis(input: CreateAnalysisInput): Promise<Analys
       },
     }),
   );
+}
+
+/**
+ * Re-run ONLY the AI enhancement step of a persisted analysis (Stage 17).
+ * Retry-safe like creation: the guard rejects pre-execution on 401, and a
+ * retry is idempotent-shaped (reset + rerun the same step — a doubled call
+ * can only repeat the same outcome, never corrupt the deterministic record).
+ */
+export async function retryAi(id: string): Promise<AiRetryResult> {
+  return withSessionRetry(() => api<AiRetryResult>(`/analysis/${id}/retry-ai`, { method: "POST" }));
 }
 
 /** Fetch one owned analysis with requirements + nested issues (404 if foreign). */
