@@ -69,6 +69,32 @@ body {
   color: #fff;
 }
 
+@layer components {
+  /* Primary action (Stage 13: referenced by the shared SubmitButton since
+     Stage 05 but never defined — auth submits and settings dialogs inherit
+     the same signal pill from here). */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 9999px;
+    background: var(--color-signal);
+    padding: 0.625rem 1.25rem;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    transition:
+      background 120ms var(--ease-out-expo),
+      opacity 120ms var(--ease-out-expo);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-signal-deep);
+  }
+  .btn-primary:disabled {
+    opacity: 0.6;
+  }
+}
+
 button:not(:disabled) {
   cursor: pointer;
 }

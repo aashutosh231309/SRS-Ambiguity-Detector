@@ -105,7 +105,10 @@ means OpenAI-compatible hosts ONLY via explicit allowlist additions, never arbit
 
 ## 6. Discovery UX (binding — Stages 05/13/16 implement)
 
-1. **Settings → AI Providers → Add Provider** (full management surface).
+1. **Settings → AI Providers → Add Provider** (full management surface —
+   IMPLEMENTED Stage 13 as `/settings`: list/add/test/enable/default/
+   replace/remove on the §4.6 API; test verdict `error` renders verbatim
+   as backend-curated user-safe data, never as an error envelope).
 2. **Post-registration nudge:** after verification, inform that core detection works
    without AI; offer `Configure AI Provider` / `Maybe Later`. NEVER blocks app use.
 3. **Result-page empty states:** when unconfigured, the AI Overview + AI Improvements

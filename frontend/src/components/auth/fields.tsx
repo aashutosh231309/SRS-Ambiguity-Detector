@@ -155,15 +155,23 @@ export interface SubmitButtonProps {
   pendingLabel: string;
   /** Extra disable reason (e.g. resend cooldown) — announced via adjacent text. */
   disabled?: boolean;
+  /** Layout override (e.g. `w-auto` for dialog action rows — default is full-width). */
+  className?: string;
   children: React.ReactNode;
 }
 
-export function SubmitButton({ pending, pendingLabel, disabled, children }: SubmitButtonProps) {
+export function SubmitButton({
+  pending,
+  pendingLabel,
+  disabled,
+  className,
+  children,
+}: SubmitButtonProps) {
   return (
     <button
       type="submit"
       disabled={pending || disabled}
-      className="btn-primary w-full justify-center"
+      className={cn("btn-primary w-full justify-center", className)}
     >
       {pending ? (
         <>

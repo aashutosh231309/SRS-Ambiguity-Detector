@@ -74,6 +74,11 @@
 > CRUD/test endpoints; NO adapters, NO settings UI, NO generation) —
 > roadmap-16 still owns the Settings UI, roadmap-18 the live adapters,
 > roadmap-19 the generation.
+> Actual Stage 13 (2026-09-24) shipped the providers-mgmt-UI slice of
+> roadmap-16 EARLY as `/settings` (list/add/test/enable/default/
+> replace/remove on the Stage 12 API; no backend changes) — roadmap-16's
+> remainder (profile, password, privacy, DELETE-typed account deletion)
+> slots into the same route as future sections.
 > The table above keeps its original numbers; STAGE_STATUS.md records the
 > as-built mapping.
 

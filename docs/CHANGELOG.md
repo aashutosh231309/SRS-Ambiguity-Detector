@@ -4,6 +4,40 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.14.0] — Stage 13 — AI Provider Settings UI (`/settings`) — 2026-09-24
+
+### Added
+- Authenticated, verified-users-only `/settings` route (`noindex,nofollow`)
+  with the AI-providers management section: provider cards (display name,
+  label, masked key, Enabled/Disabled + Default + last-test chips,
+  last-tested freshness), add-provider dialog (canonical six-provider
+  select with configured options marked, optional label, masked secret
+  field with deliberate reveal), replace-key dialog (masked value shown
+  as information only, fresh blank secret), per-card Test connection
+  (pending guard, inline verdict with model count + latency, backend's
+  user-safe verdict text), enable/disable switch, Set-as-default,
+  explicit-confirm remove (safe default, Esc, focus trap + return,
+  404-as-success). Every mutation ends in a silent list refetch —
+  server ordering and flags, never optimistic merges.
+- `lib/providers.ts` (six contract §4.6 calls via the canonical client +
+  `withSessionRetry`; the browser never contacts providers directly) and
+  `lib/provider-errors.ts` (code→copy incl. per-action `conflict` copy,
+  test-bucket 429 copy, and `validation_error` field mapping).
+- First-use empty state: deterministic analysis works without any
+  provider; keys are user-owned, encrypted at rest, never shown again.
+
+### Changed
+- Drive-by fix: `.btn-primary` (referenced by the shared `SubmitButton`
+  since Stage 05 but never defined — auth submits rendered unstyled) is
+  now defined in `globals.css`; `SubmitButton` accepts a layout override
+  for dialog action rows. Visual-only, zero behavior change.
+
+### Contract (no §4.6 changes — pure frontend stage)
+- Test verdict `error` renders verbatim BY DESIGN: it is backend-curated,
+  user-safe data (capped server-side), not an error envelope. All true
+  failures map backend `code` → frontend copy; backend `message` strings
+  are never displayed.
+
 ## [0.13.0] — Stage 12 — AI Credential Vault & Provider Management — 2026-09-24
 
 ### Added

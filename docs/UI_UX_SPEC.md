@@ -134,7 +134,8 @@ reasoning (+ optional AI explanation when available). No black boxes.
 - [x] Product: HealthBars, CategoryBars, DeleteConfirm dialog (Stage 09 — explicit-confirm delete on the report route; `DELETE`-typing variant still future; Stage 10 — compact row variant + `onDeleted` refetch path for history)
 - [x] Product: HistoryScreen + HistoryToolbar + HistoryTable + HistoryPagination (Stage 10 — authenticated `/history` on the list API: debounced server search, band/source filters, backend sort, envelope-driven paging, semantic table → CSS cards, distinct no-analyses/no-match empties)
 - [x] Product: DashboardScreen + DashboardTrend + TrendChart + SeverityMix + RecentAnalyses (Stage 11 — authenticated `/dashboard` on one aggregate snapshot: stats strip, lazy client-only Recharts area + volume bars with legend + spoken summary + data table, latest-run gauge, band/category/severity distributions, recent links, first-use + partial states)
-- [ ] Product: Navbar, SettingsForms, ProviderCard (owning stages)
+- [x] Product: SettingsScreen + ProviderCard + ProviderDialog + DeleteProviderDialog + CredentialField + DialogShell (Stage 13 — authenticated `/settings` AI-providers section per §12; settings-local dialog shell — the SHARED Dialog primitive is still pending)
+- [ ] Product: Navbar, SettingsForms (profile/password/privacy sections slot into `/settings` next), shared Dialog/Toast/Select/Switch primitives (owning stages)
 - [ ] Marketing: Hero, FeatureGrid, HowItWorks steps, CTA, Footer, Breadcrumbs (Stage 26+)
 
 Rules: no fake buttons (every control does something or doesn't ship); no placeholder
@@ -154,3 +155,26 @@ navbar collapses ≤768; analyzer stacks input→results vertically on phone; ta
 cards or horizontal-scroll regions with sticky first column; charts reflow (Recharts
 `ResponsiveContainer`) with simplified mobile variants; dialogs become bottom sheets ≤430.
 Stage 28 verifies the full width matrix (320→2560+).
+
+## 12. Settings & secrets UX (binding — Stage 13)
+
+Durable rules for any UI that touches credentials (provider keys today, password/token
+forms tomorrow):
+
+- Secrets live in short-lived LOCAL form state only: never global stores, never URLs,
+  never `localStorage`/`sessionStorage`, never analytics/telemetry, never DOM attributes
+  beyond the input's own value. Cleared on success, on close, and on session loss.
+- Secret fields are masked by default with a deliberate reveal toggle that has a text
+  label (`Show`/`Hide` + `aria-pressed` + `aria-label`), never an icon alone.
+- Masked server values (e.g. `masked_key`) render as INERT text — never prefilled into
+  an editable field, never resubmitted. Replacement always starts from a blank field
+  with explicit "this replaces the stored credential" copy.
+- Every credential mutation re-reads from the server (refetch or fresh-row merge):
+  no optimistic state for create/update/delete/default changes; stale rows behind a
+  failed refresh say so honestly instead of silently lying.
+- Security copy stays inside `SECURITY_SPEC.md`: "encrypted at rest", "never shown
+  again", "yours per-account" are allowed; "zero-knowledge", "military-grade", and
+  "impossible to access" are banned. AI stays framed as optional — settings never
+  pressures configuration and never implies analysis needs it.
+- Destructive credential actions confirm explicitly (safe default focused, Esc cancels,
+  focus trapped + returned, pending state, 404-as-success, errors stay open).

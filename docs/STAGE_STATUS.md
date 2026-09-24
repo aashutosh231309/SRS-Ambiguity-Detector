@@ -834,16 +834,107 @@ ids only — no key material anywhere.
 - Master-key ROTATION is designed (versioned envelope + `key_version`) but
   the runbook is unwritten — owning stage must document it before prod.
 
-**Next stage:** Stage 13 (as-built) — document list/download endpoints
+**Next stage:** Stage 13 (as-built) — AI provider settings UI
+(roadmap-16 providers slice, shipped early; no backend changes).
+
+### Stage 13 — AI Provider Settings UI (`/settings`) ✅ (2026-09-24)
+Authenticated, verified-users-only settings route with the AI-providers
+management section on the Stage 12 API (contract §4.6 — no backend
+changes, no migrations, deterministic analysis untouched): provider cards
+(name, label, masked key, Enabled/Disabled + Default + last-test chips,
+last-tested freshness), add dialog (canonical six-provider select with
+configured options marked, optional label, masked secret + reveal),
+replace-key dialog (masked shown as information only, blank secret),
+per-card Test connection (pending guard, inline verdict), enable/disable
+switch, Set-as-default, explicit-confirm remove. Every mutation ends in
+a silent list refetch (server ordering/flags — no optimistic merges);
+test verdict `error` renders verbatim as backend-curated user-safe data.
+Details:
+
+**Completed:**
+- `/settings` page (`noindex,nofollow`, `ProtectedRoute requireVerified`,
+  `○` static shell — content loads client-side behind the guard like
+  dashboard/history) + `SettingsScreen` (loading skeleton, session-gone
+  nudge, code-mapped error + retry, wrong-shape rejection, deliberate
+  first-use panel framing AI as optional, dismissible status notices).
+- `types/providers.ts` (contract shapes + the SINGLE provider
+  id/display-name vocabulary), `lib/providers.ts` (six §4.6 calls via
+  the canonical client + `withSessionRetry`; browser never contacts
+  providers directly), `lib/provider-errors.ts` (code→copy with
+  per-action `conflict` copy, test-bucket 429 copy, reserved
+  `provider_error`/`ai_unavailable` mapping, `validation_error` field
+  mapping via the shared traversal).
+- `ProviderCard` (five server-backed actions, per-action pending,
+  verdict + session-aware inline errors), `ProviderDialog` (add/rotate
+  modes, UX-only client validation, secret cleared on success/close/
+  session-loss with safe selections preserved), `DeleteProviderDialog`
+  (safe default, Esc, focus trap + return, pending, 404-as-success),
+  `CredentialField` (masked + text-labeled reveal), settings-local
+  `DialogShell` (shared dialog chrome; global Dialog primitive still
+  pending). Reused: TextField/FormAlert/SubmitButton, Container, Reveal,
+  ProtectedRoute.
+- Drive-by fix: `.btn-primary` (referenced by `SubmitButton` since
+  Stage 05 but never defined — auth submits rendered unstyled) is now
+  defined in `globals.css`; `SubmitButton` takes a layout override for
+  dialog rows. Visual-only, zero behavior change.
+- 63 frontend tests (`providers`/`provider-errors` libs: bodies/URLs/
+  methods, code propagation, refresh-retry, copy × contexts, field
+  mapping; card: rendering/chips/switch/test pending+verdicts/unavailable
+  /429/session/toggle/default/failure-no-flip; screen: load states,
+  verify gate, empty state, add validation/success/409/field-errors/
+  session-secret-clear/reveal/Esc, rotate masked-not-editable/success/
+ 409, delete focus/Esc/trap/pending/404/500/session, refetch-after-every-
+  mutation, stale-refresh honesty, storage/URL/DOM secret-lifecycle,
+  keyboard switch, announcements).
+
+**Verification:** 418/418 pytest (backend untouched), 341/341 vitest
+(44 files; new suites re-run 5× after fixing one sync-on-h1 race),
+ruff + eslint + `tsc` + prettier + mypy clean, `./scripts/verify.sh`
+green (`○ /settings` in build). Live journey: SSR `/settings` 200 +
+noindex + bootstrap shell; `/dashboard` `/history` `/analyzer` `/login`
+all 200 (regression); register → verify → login → deterministic analysis
+with NO provider (score 70 — pipeline fully functional) → history →
+dashboard → provider create → disable → test-while-disabled → delete →
+empty list.
+
+**Security notes (SECURITY_SPEC §11 — frontend-only stage):**
+- No new `{id}` routes, no backend/schema/env changes — ownership/IDOR
+  posture unchanged from Stage 12 (UI surfaces 404s as not-found).
+- No secret/token/log exposure: no `console.log`, no
+  `localStorage`/`sessionStorage` writes (asserted in tests), no
+  `dangerouslySetInnerHTML`, keys only in create/rotate JSON bodies
+  (never URLs — asserted), no browser→provider calls (every request
+  URL asserted backend-prefixed; base URLs stay server-side).
+- Errors switch on backend `code` (never `message`); the sole verbatim
+  backend string is the curated, capped test-verdict `error` field.
+- Rate limit: test action honors the 10/min bucket with dedicated 429
+  copy; pending guards prevent accidental duplicates.
+
+**Known limitations (accepted, not bugs):**
+- NO browser in this sandbox (as in Stages 05–12) — settings route,
+  cards, dialogs, reveal toggle, switch, and responsive widths NOT
+  pixel-verified, NO screenshots ship (`screenshots/` still empty).
+  First browsed environment must capture `stage13-*` at 390/768/1440 +
+  the pending `stage05/06/07/08/09/10/11-*` sets.
+- `docker-compose.yml` STILL unvalidated (no Docker in sandbox) — recurring warning.
+- `/settings` holds ONLY the AI-providers section (profile/password/
+  privacy/account-deletion still future — same route, later sections);
+  no navbar links to it yet (Navbar is an owning-stage item); label
+  editing and `fallback_rank` are intentionally unsurfaced (no
+  user-meaningful effect until Stage 19 fallback).
+
+**Next stage:** Stage 14 (as-built) — document list/download endpoints
 (roadmap-09 remainder: no download/list/purge-by-id surface yet) and/or
-Settings/profile/security (roadmap-16).
+Settings remainder (roadmap-16: profile/password/privacy sections).
 
 ## Current stage
-None active — Stage 12 complete; all success conditions hold (keys
-encrypted at rest, ownership-isolated CRUD, transactional default
-invariant, rate-limited test, deterministic analysis untouched, 418/418
-+ 278/278 tests, journey green, docs match).
-Next: **Stage 13 (as-built) — document list/download and/or Settings**.
+None active — Stage 13 complete; all success conditions hold (provider
+settings UI on the Stage 12 API, secrets never displayed/persisted,
+server truth after every mutation, code-mapped errors, existing auth/
+analyzer/report/history/dashboard intact, 418/418 + 341/341 tests,
+journey green, docs match).
+Next: **Stage 14 (as-built) — document list/download and/or Settings
+remainder (profile/password/privacy)**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 Database → backend → auth backend → auth frontend → SRS input/segmentation/preview ✅ →
@@ -895,8 +986,9 @@ responsive/a11y → QA → deploy → docs/shots → audit.
 ## Warnings for future agents
 1. IMPLEMENTED: `app/{models,schemas,services,repositories,exceptions}/`
    (Stages 02–03), `app/analysis/` (Stage 07), `app/email/` (Stage 04),
-   `app/documents/` + `app/storage/` (Stage 08). Remaining SEAM (docstrings
-   only): `app/ai/` — do not import behavior from it until its stage lands.
+   `app/documents/` + `app/storage/` (Stage 08), `app/ai/` ABC + registry
+   + `app/core/vault.py` (Stage 12 — adapters still future, Stage 18).
+   No docstring-only seams remain under `app/`.
 2. Never rename `owner_id`, envelope shapes, env names, or `docs/` files without ADR + CHANGELOG.
 3. Never `npm install` a dependency the stage doesn't import (recharts: dashboard/report stages).
 4. Frontend placeholder `/` page must be REPLACED in the SEO/marketing stage, not extended.
