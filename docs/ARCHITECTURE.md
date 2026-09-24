@@ -43,7 +43,7 @@ SRS-Ambiguity-Detector/
 │   │   ├── analysis/          # Deterministic NLP/rule engine (Stage 06+)
 │   │   ├── ai/                # ABC + registry (12 ✅); 4 adapters + prompts + enhancement (14 ✅)
 │   │   ├── email/             # Email port + Resend/console adapters (Stage 04 ✅)
-│   │   └── storage/           # StorageBackend ABC + local adapter (Stage 08 ✅)
+│   │   └── storage/           # StorageBackend ABC + local/Supabase adapters (Stages 08/30 ✅)
 │   ├── alembic.ini            # Migration config (no DSN — env.py reads app config)
 │   ├── alembic/               # env.py + versions/ (linear; 0001 schema, 0002 auth tokens)
 │   ├── tests/                 # pytest suite (mirrors app structure)
@@ -88,6 +88,8 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
 ```
 
 - Local dev: frontend `:3000`, backend `:8000`, Postgres via `docker-compose` (or Supabase project).
+- Production deployment runbook: [`docs/DEPLOYMENT.md`](DEPLOYMENT.md). FastAPI runs on a
+  Python service host behind HTTPS; Vercel hosts the Next.js frontend only.
 - API base URL is the ONLY backend address the browser needs: `NEXT_PUBLIC_API_URL`
   (default `http://localhost:8000/api/v1`). Browser code MUST NEVER call `localhost` for any
   other service; all backend access goes through this one base URL.
@@ -150,10 +152,11 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
   `api/v1/presenters.py` is the single service→response mapper for BOTH
   text and document analyses.
 - `app/storage/` (Stage 08 ✅) — `base.py` (`StorageBackend` ABC:
-  `store_file`/`delete`) + `local.py` (dev adapter: server-generated keys
-  under `STORAGE_LOCAL_DIR`, traversal/symlink-proof resolution, empty-dir
-  pruning, EXDEV-safe move). `storage_key_for_document()` owns the key
-  convention. Supabase adapter arrives with the prod stages.
+  `store_file`/`delete`/`read_bytes`) + `local.py` (dev/single-node adapter:
+  server-generated keys under `STORAGE_LOCAL_DIR`, traversal/symlink-proof
+  resolution, empty-dir pruning, EXDEV-safe move) + `supabase.py` (Stage 30
+  production adapter using Supabase Storage REST with a backend-only service-role
+  key and private bucket). `storage_key_for_document()` owns the key convention.
 
 ## 5. Frontend module map
 
@@ -256,7 +259,7 @@ Backend reads env via `app/core/config.py` (see `backend/.env.example` for the f
 | `MAX_UPLOAD_SIZE_BYTES` (10 MiB) + `MAX_EXTRACTED_TEXT_CHARS` (200 000) + `MAX_FILES_PER_REQUEST` (1) + `DOCUMENT_PROCESSING_TIMEOUT_SECONDS` (60) + `DOCUMENT_EXTRACTOR_WORKERS` (2) | all (Stage 08 ✅ / Stage 25 ✅) | Upload/validate/extract budgets; parser work is bounded per process so timeout leftovers cannot accumulate unboundedly |
 | `TURNSTILE_ENABLED`, `TURNSTILE_SECRET_KEY`, `TURNSTILE_VERIFY_URL`, `TURNSTILE_TIMEOUT_SECONDS` | all (Stage 22 ✅) | Backend-only Turnstile siteverify config for public high-abuse auth routes; secret never reaches frontend; disabled by default outside prod |
 | `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `SENTRY_RELEASE`, `SENTRY_TRACES_SAMPLE_RATE` | Stage 24 ✅ | Optional backend Sentry error tracking; initialized only when DSN is set; scrubber strips bodies/query/headers/tokens/content |
-| `STORAGE_BACKEND` + `STORAGE_LOCAL_DIR` + `DOCUMENT_DOWNLOAD_URL_MINUTES` (15) | all (Stage 08 ✅ + Stage 19 ✅) | `local` dev adapter (server-generated keys under the dir); Supabase adapter with prod stages; signed-download TTL (spec-capped ≤15 — higher fails boot) |
+| `STORAGE_BACKEND`, `STORAGE_LOCAL_DIR`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET`, `DOCUMENT_DOWNLOAD_URL_MINUTES` (15) | all (Stage 08 ✅ + Stage 19 ✅ + Stage 30 ✅) | `local` dev/single-node adapter or `supabase` production adapter; service-role key is backend-only; signed-download TTL is spec-capped ≤15 (higher fails boot) |
 
 Frontend (`frontend/.env.example`): `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL`,
 `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (public by design; pairs with backend verification),

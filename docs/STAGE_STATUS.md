@@ -1865,11 +1865,70 @@ user explicitly prioritizes the deferred distributed limiter-store slice first.
 **Next stage:** Stage 30 — Production deployment, or the separately documented distributed
 limiter-storage slice if explicitly prioritized first.
 
+### Stage 30 — Production deployment & environment configuration ✅ (2026-09-24)
+
+**Completed:**
+
+- Added the missing production storage adapter: `STORAGE_BACKEND=supabase` now resolves to a
+  Supabase Storage REST backend using `SUPABASE_URL`, backend-only
+  `SUPABASE_SERVICE_ROLE_KEY`, and `SUPABASE_STORAGE_BUCKET`. Object paths remain server-generated
+  (`documents/{owner_id}/{document_id}/source`), filenames remain metadata-only, reads map missing
+  objects to `FileNotFoundError`, and deletes are idempotent.
+- Kept `STORAGE_BACKEND=local` for development and single-node durable-disk deployments, but no
+  longer documents it as the managed production target.
+- Added configuration validation for Supabase storage fields when the Supabase backend is selected.
+- Updated root/backend env examples to include the server-only Supabase storage variables and to
+  preserve the public/frontend vs backend-secret split. No global AI provider keys were introduced.
+- Added `docs/DEPLOYMENT.md`: production topology, prerequisites, complete env tables, deployment
+  order, Alembic migration procedure, storage readiness, rate-limit decision, security checklist,
+  smoke tests, rollback, backups/recovery, SEO/domain notes, and troubleshooting.
+- Updated `README.md` and `docs/ARCHITECTURE.md` for the Vercel + separate FastAPI host +
+  Supabase Postgres/Storage topology and linked the deployment runbook.
+
+**Production decisions:**
+
+- Target topology: Browser → Vercel-hosted Next.js frontend → separate FastAPI service host →
+  PostgreSQL/Supabase + Supabase Storage, with Resend, Turnstile, optional Sentry, and optional
+  user-owned AI providers. FastAPI is not presented as Vercel-hosted.
+- Rate limiting: Option A for v1 — single backend instance/process-local limiter. Horizontal
+  multi-instance production remains blocked/deferred unless the operator accepts approximately
+  `N × limit` budgets or a future shared limiter is implemented. Redis/queues/Kubernetes were not
+  added.
+- Storage: Supabase Storage is the documented managed production path. Local storage is allowed
+  only for dev or a single backend instance with durable disk, not ephemeral/multi-instance hosts.
+
+**Verification:**
+
+- Focused Stage 30 backend checks: `cd backend && ruff check app/storage app/core/config.py tests/test_storage_supabase.py && mypy app/storage app/core/config.py tests/test_storage_supabase.py && PYTHONPATH=. pytest -q tests/test_storage_supabase.py` → ruff clean, mypy clean, 10 passed, 1 Starlette warning.
+- Environment availability check: `docker`, Docker Compose, `psql`, `pg_ctl`, `initdb`, Chromium/Chrome, and Playwright CLI were not available in the sandbox.
+- Final full gate: `PATH="$HOME/.local/bin:$PATH" ./scripts/verify.sh` → ALL CHECKS PASSED. Backend ruff/format clean (141 files), mypy clean (100 source files), pytest passed with DB-backed tests skipped because no PostgreSQL test database was reachable, FastAPI import/OpenAPI sanity passed. Frontend eslint/typecheck clean; Vitest 53 files / 432 tests passed; Prettier clean; Next production build passed with 19 routes. Secret scan clean; `npm audit` 0 vulnerabilities; `pip-audit` clean with the repository's configured ignored advisories.
+- Alembic metadata: `cd backend && alembic heads` → `0006 (head)`. `alembic current` was not run to completion because no `DATABASE_URL`/live database was configured for Stage 30.
+
+**Live validation status:**
+
+- PostgreSQL/Supabase DB: not live-validated in this sandbox for Stage 30; migration procedure
+  is documented and DB-backed tests remain skip-safe when no database is reachable.
+- Docker: not validated because Docker/Docker Compose were unavailable in the sandbox.
+- Browser/device/a11y: no browser automation or manual assistive-technology validation is claimed.
+- Supabase Storage: adapter behavior is tested with mocked HTTP; no disposable live bucket/object
+  validation was performed.
+- Turnstile, Sentry, Resend, AI providers: configuration and privacy posture documented; no live
+  external-service calls were made in the sandbox.
+
+**Known limitations:**
+
+- Distributed/shared rate limiter remains future production hardening.
+- Operator must run the deployment smoke test against real production services and domains.
+- If `ENCRYPTION_MASTER_KEY` is lost, encrypted per-user AI provider credentials are unrecoverable;
+  the runbook calls this out as a backup requirement.
+- Final screenshots/user-guide docs and release audit remain upcoming stages.
+
+**Next stage:** Stage 31 — Documentation/screenshots.
+
 ## Current stage
 
-None active — Stage 29 complete in this working branch. Distributed limiter storage remains future.
-Next: **Stage 30 — Production deployment** (unless the next prompt explicitly prioritizes the remaining
-distributed limiter-store slice).
+None active — Stage 30 complete in this working branch. Distributed limiter storage remains future.
+Next: **Stage 31 — Documentation/screenshots**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 
@@ -1878,7 +1937,7 @@ detection+scoring+CRUD+result-UI ✅ → upload+extraction+upload-UI ✅ →
 history UI → report UI → dashboard data → dashboard viz → settings → AI vault →
 providers → overview/improvements → fallback → hardening → Turnstile CAPTCHA ✅
 (+ distributed limiter storage still future) → privacy → monitoring ✅ → performance ✅ → SEO foundation ✅ → SEO content ✅ →
-responsive/a11y ✅ → QA ✅ → deploy → docs/shots → audit.
+responsive/a11y ✅ → QA ✅ → deploy ✅ → docs/shots → audit.
 (As-built order; roadmap numbers preserved — see the FUTURE_ROADMAP.md as-built note.)
 
 ## Major decisions log

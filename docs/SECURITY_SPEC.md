@@ -113,7 +113,10 @@ their own keys; we disclose what is sent — see `AI_PROVIDER_SPEC.md` §Privacy
 - Storage objects private; user downloads go through short-lived signed URLs
   ONLY (Stage 19 ✅ — single-document HS256 bearer, ≤15 min enforced at boot,
   bytes re-hashed against the stored sha256 before release, never logged).
-  No binaries in Postgres — the DB holds metadata only.
+  Stage 30 adds the production Supabase Storage adapter (`STORAGE_BACKEND=supabase`)
+  using a backend-only service-role key and private bucket; local filesystem storage
+  remains dev/single-node durable-disk only. No binaries in Postgres — the DB holds
+  metadata only.
 
 ## 6. Input validation & output encoding
 
@@ -137,7 +140,9 @@ Sensitive ops (register, login, verify-resend, forgot/reset, analysis, upload, A
 AI retry) get server-side limits (token-bucket per IP + per-user where authed),
 configurable via env (`RATE_LIMIT_*`), returning `429` + `Retry-After`. As-built:
 auth default, analysis-create, upload, provider-TEST, document-download-mint, and
-retry-AI all have dedicated/env-backed buckets; distributed storage remains future.
+retry-AI all have dedicated/env-backed buckets. Stage 30 explicitly chooses a
+single backend instance/process-local limiter for v1 production; distributed/shared
+limiter storage remains future hardening.
 Stage 22 adds Cloudflare Turnstile as an additional abuse-defense layer for the
 public high-abuse auth operations only: register, login, resend verification,
 forgot password, and reset password. It does NOT replace authentication, CSRF,

@@ -38,7 +38,7 @@
 | 27    | SEO content ✅                      | SEO_SPEC §4                             | Delivered: public content routes, educational resources, internal links, breadcrumbs/Article JSON-LD, sitemap/robots expansion, content/privacy tests                                                              |
 | 28    | Responsive/a11y refinement ✅       | UI_UX_SPEC §10–11                       | Delivered repository slice: dialog close/scroll/focus refinements, 44px touch targets, long-content wrapping, switch names, focused tests; browser/AT visual validation remains ops/QA                             |
 | 29    | Testing/QA ✅                       | DEVELOPMENT_RULES §4                    | Delivered QA baseline: route-surface sentinel, deterministic golden corpus, AI prompt privacy/cap tests, full gate + flakiness rerun; DB/browser/Docker validation remains environment/deployment work             |
-| 30    | Production deployment               | ARCHITECTURE §3                         | Vercel + Supabase topology validated, env runbook, backups, rollback plan                                                                                                                                          |
+| 30    | Production deployment ✅            | ARCHITECTURE §3                         | Delivered: Vercel + separate FastAPI host + Supabase Postgres/Storage topology documented, Supabase storage adapter, env runbook, backups, rollback, smoke tests; live external validation remains operator-run |
 | 31    | Documentation/screenshots           | PROJECT_SPEC §2                         | README final, screenshots full set, API docs, user guide                                                                                                                                                           |
 | 32    | Final audit                         | ALL                                     | Baseline checklist 12/12, security pass, DoD pass, release tag                                                                                                                                                     |
 
@@ -164,6 +164,16 @@
 > browser automation, axe/manual screen-reader validation, Supabase, Cloudflare, Sentry,
 > email, and real AI provider validation remain deployment/operations work in this sandbox;
 > distributed limiter storage remains the deferred Stage 22 production-hardening slice.
+>
+> Actual Stage 30 (2026-09-24) closed the repository production-deployment readiness slice:
+> FastAPI remains a separate Python service host (not Vercel), the frontend remains Vercel,
+> and Supabase is the documented managed Postgres + Storage target. The missing Supabase
+> Storage adapter was implemented behind the storage port, env examples now include backend-only
+> Supabase storage secrets, and `docs/DEPLOYMENT.md` owns the production env/migration/health/
+> smoke/rollback/backup/security/SEO/troubleshooting runbook. Live external-service validation
+> still belongs to operators because this sandbox has no production Supabase, Turnstile, Resend,
+> Sentry, browser/device, or AI-provider credentials. Rate limiting intentionally remains
+> process-local single-instance for v1; a shared limiter is future hardening.
 
 ## Dependency notes
 

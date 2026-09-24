@@ -4,6 +4,37 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.31.0] — Stage 30 — Production deployment & environment configuration — 2026-09-24
+
+### Added
+
+- Supabase Storage backend behind the existing storage port (`STORAGE_BACKEND=supabase`) using
+  backend-only `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `SUPABASE_STORAGE_BUCKET`.
+- Mocked Supabase storage adapter tests covering upload, read, delete, unsafe-key rejection, and
+  settings validation.
+- `docs/DEPLOYMENT.md` production runbook with topology, env-var tables, deployment order,
+  migration procedure, health checks, smoke tests, rate-limit decision, rollback, backups/recovery,
+  security checklist, SEO/domain guidance, and troubleshooting.
+
+### Changed
+
+- Env examples now document Supabase Storage variables as server-only production config while
+  keeping browser-public `NEXT_PUBLIC_*` values separate and preserving the no-global-AI-key rule.
+- README and architecture docs now describe the actual production topology: Vercel hosts Next.js;
+  FastAPI runs on a separate Python service host; PostgreSQL/Supabase and Supabase Storage provide
+  managed persistence.
+- Local filesystem storage is documented as development/single-node durable-disk only, not the
+  managed multi-instance production storage path.
+
+### Contract
+
+- Storage config contract expands from `STORAGE_BACKEND=local` to `local|supabase`; selecting
+  `supabase` requires `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and
+  `SUPABASE_STORAGE_BUCKET` at startup.
+- No API route, database migration, frontend UI contract, or AI provider key model changed.
+- Rate-limit production posture is explicitly single-instance/process-local for v1; shared limiter
+  storage remains a future hardening item.
+
 ## [0.30.0] — Stage 29 — Comprehensive testing & quality assurance — 2026-09-24
 
 ### Added

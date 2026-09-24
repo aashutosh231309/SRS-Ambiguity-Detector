@@ -5,11 +5,12 @@ documents and requirement text, detects ambiguity with a **deterministic NLP/rul
 explains every finding, scores requirement quality, and — optionally, with the user's own
 AI provider keys — adds AI-generated overviews and improvements.
 
-> **Status: under staged development.** Analysis spine + document upload +
-> saved-report route (Stage 09) are in place; product features land stage by
-> stage. See
-> [`docs/STAGE_STATUS.md`](docs/STAGE_STATUS.md) for progress and
-> [`docs/FUTURE_ROADMAP.md`](docs/FUTURE_ROADMAP.md) for the plan.
+> **Status: late pre-release.** Core product features are implemented: auth,
+> text/document analysis, history, dashboard, settings/privacy, optional user-owned
+> AI enhancement, SEO public pages, monitoring hooks, and Stage 30 production
+> deployment runbook/configuration. Final screenshots/docs and release audit remain.
+> See [`docs/STAGE_STATUS.md`](docs/STAGE_STATUS.md) and
+> [`docs/FUTURE_ROADMAP.md`](docs/FUTURE_ROADMAP.md).
 
 ## Baseline (immutable — all 12 ship in v1)
 
@@ -110,7 +111,27 @@ All settings are environment-driven and validated at boot. Copy the examples and
 | `DOCUMENT_EXTRACTOR_WORKERS`                   | `2`                                                      | Per-process bounded parser workers for PDF/DOCX/TXT validation + extraction                                                               |
 | `JWT_SECRET`                                   | _(required for auth)_                                    | 256-bit-minimum HS256 signing secret (fail-closed)                                                                                        |
 | `EMAIL_PROVIDER`                               | `console`                                                | `console` (local dev outbox) / `resend` (production delivery)                                                                             |
+| `STORAGE_BACKEND`                              | `local`                                                  | `local` for dev/single-node persistent disk; `supabase` for managed production storage                                                    |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_STORAGE_BUCKET` | placeholders | Supabase Storage REST config for a private bucket; service-role key is backend-only                                                        |
+| `TURNSTILE_ENABLED` / `TURNSTILE_SECRET_KEY` / `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | `false` / placeholders | Cloudflare Turnstile server verification for high-abuse auth routes; site key is public, secret is backend-only                           |
 | `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN`        | _(unset — monitoring disabled)_                          | Optional backend/frontend Sentry projects; scrubbers strip bodies, query strings, tokens, credentials, SRS text, uploads, and AI payloads |
+
+Production: set `APP_ENV=production`, `DEBUG=false`, exact `BACKEND_CORS_ORIGINS`, HTTPS
+origins, `EMAIL_PROVIDER=resend`, strong `JWT_SECRET`, and a backed-up
+`ENCRYPTION_MASTER_KEY` if AI provider credentials are enabled.
+
+## Production deployment
+
+The supported production topology is Vercel for the Next.js frontend plus a separate
+Python/FastAPI service host connected to PostgreSQL/Supabase and Supabase Storage. FastAPI is
+not hosted by Vercel. The complete operator runbook is
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md), including env-var tables, migration order,
+health checks, smoke tests, rollback, backups/recovery, security checklist, SEO/domain setup,
+and troubleshooting.
+
+Rate-limiting decision for v1 production: run a single backend instance/process with the
+implemented process-local token buckets, or accept `N × limit` behavior across `N` instances
+until a shared limiter is added. Redis/queues/Kubernetes are intentionally not introduced.
 
 ## Database
 
@@ -158,23 +179,20 @@ future hardening work.
 
 ## Current limitations
 
-Backend auth + auth UI are done, and so are the analysis spine (SRS text
-input + document upload/extraction + deterministic segmentation +
-11-detector ambiguity analysis + transparent scoring + persistence), history,
-dashboard, settings, AI providers/enhancement/retry, report experience, document
-list/download/delete, Turnstile on sensitive public auth ops, and privacy lifecycle
-controls (retention/export/purge/storage-aware account deletion), and monitoring/Sentry
-with privacy scrubbers, the Stage 25 performance pass (summary-query projections,
-bounded document parser workers, env-driven DB pool tuning, and frontend derivation
-memoization), the Stage 26 SEO foundation (metadata, OG/Twitter, robots, sitemap, JSON-LD,
-and noindex private/auth policy), and the Stage 27 public content layer (`/features`,
-`/how-it-works`, `/resources`, and two educational resource guides). Still intentionally NOT
-implemented yet: distributed limiter storage, external SEO/Search Console validation,
-responsive/a11y final pass, production deployment, screenshots/docs finalization. Scores are
-heuristic triage aids, not validated measurements (see [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md)
-§4.3 honest limits). Full plan:
-[`docs/FUTURE_ROADMAP.md`](docs/FUTURE_ROADMAP.md) (see the as-built sequencing
-note — the analysis spine shipped input-first, then detection + CRUD).
+Implemented: auth + auth UI, SRS text analysis, PDF/DOCX/TXT upload/extraction,
+11-detector deterministic ambiguity analysis, transparent scoring, history, dashboard,
+settings, AI provider management/enhancement/retry, reports, document list/download/delete,
+Turnstile on sensitive public auth operations, privacy lifecycle controls, monitoring/Sentry
+scrubbers, performance tuning, SEO public pages, Supabase Storage adapter, and production
+runbook/env configuration.
+
+Still intentionally pending: distributed/shared rate-limiter storage, external SEO/Search
+Console validation, real production browser/device/accessibility screenshots, final user-guide
+screenshots/docs, and final release audit. Stage 30 did not have live Supabase/Turnstile/Resend/
+Sentry/AI provider credentials in the sandbox, so those integrations are documented and tested
+through mocked/static checks but must be smoke-tested by operators on real deployed services.
+Scores are heuristic triage aids, not validated measurements (see
+[`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) §4.3 honest limits).
 
 ## Screenshots
 

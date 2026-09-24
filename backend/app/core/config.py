@@ -82,9 +82,12 @@ class Settings(BaseSettings):
     # Maximum simultaneous validate+extract workers per backend process. This
     # bounds timed-out parser work that CPython cannot kill mid-call.
     DOCUMENT_EXTRACTOR_WORKERS: int = 2
-    # Storage backend: local dev dir now; `supabase` arrives with prod stages.
-    STORAGE_BACKEND: Literal["local"] = "local"
+    # Storage backend: local dev/single-instance disk or Supabase Storage for managed production.
+    STORAGE_BACKEND: Literal["local", "supabase"] = "local"
     STORAGE_LOCAL_DIR: str = "./uploads"
+    SUPABASE_URL: str | None = None
+    SUPABASE_SERVICE_ROLE_KEY: str | None = None
+    SUPABASE_STORAGE_BUCKET: str | None = None
     # --- Stage 19: signed document downloads (SECURITY_SPEC §5) ---
     # Signed-URL lifetime (minutes). SECURITY_SPEC §5 caps this at 15 —
     # the validator below refuses anything higher at boot.
@@ -199,6 +202,23 @@ class Settings(BaseSettings):
         # override above that fails boot loudly rather than silently.
         if not 1 <= self.DOCUMENT_DOWNLOAD_URL_MINUTES <= 15:
             raise ValueError("DOCUMENT_DOWNLOAD_URL_MINUTES must be within [1, 15].")
+        return self
+
+    @model_validator(mode="after")
+    def _supabase_storage_configured(self) -> "Settings":
+        if self.STORAGE_BACKEND != "supabase":
+            return self
+        missing = [
+            name
+            for name, value in (
+                ("SUPABASE_URL", self.SUPABASE_URL),
+                ("SUPABASE_SERVICE_ROLE_KEY", self.SUPABASE_SERVICE_ROLE_KEY),
+                ("SUPABASE_STORAGE_BUCKET", self.SUPABASE_STORAGE_BUCKET),
+            )
+            if not value
+        ]
+        if missing:
+            raise ValueError("STORAGE_BACKEND=supabase requires " + ", ".join(missing) + ".")
         return self
 
     @model_validator(mode="after")
