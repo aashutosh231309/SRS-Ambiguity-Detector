@@ -18,7 +18,13 @@
 5. No key exfiltration: keys decrypt in backend memory, go only to the configured
    provider's HTTPS endpoint, and are redacted from every log/error/Sentry event.
 
-## 2. Provider abstraction (binding interface)
+## 2. Provider abstraction (binding interface — IMPLEMENTED Stage 12 in `app/ai/providers.py`)
+
+> As-built Stage 12: the ABC + payload/result models (`ProviderError`,
+> `ProviderAuthResult`, `ProviderHealth`, `FindingSummary`, `OverviewPayload`,
+> `ImprovementPayload`, `AITextResult` with the §3 caps) ship exactly as
+> specified below. NO adapters yet — Stage 18 owns them; the service seam +
+> test fakes exercise the interface meanwhile.
 
 ```python
 class AIProvider(ABC):
@@ -50,7 +56,13 @@ class AIProvider(ABC):
   chars). Prompt-injection note: requirement text may contain instructions ("ignore previous…");
   prompts frame it as quoted data; overview endpoint never executes tool calls.
 
-## 4. Provider registry (Stage 18 implements; order + scope locked)
+## 4. Provider registry (metadata IMPLEMENTED Stage 12; adapters Stage 18; order + scope locked)
+
+> As-built Stage 12 (`app/ai/registry.py`): the six ids, display names,
+> allowlisted `base_url` constants (server-side only — never user input),
+> registry order, and the `register/get_adapter` seam are live; the adapter
+> map is EMPTY until Stage 18. Adding provider #7 is still adapter +
+> metadata row + docs + tests — no router/service/rendering changes.
 
 | # | Provider | Adapter | Notes |
 |---|----------|---------|-------|
@@ -65,19 +77,31 @@ Adding provider #7 = new adapter + registry row + docs + tests. No changes to
 routers/services/rendering. "Other compatible providers where practical" (master prompt)
 means OpenAI-compatible hosts ONLY via explicit allowlist additions, never arbitrary URLs.
 
-## 5. Credential lifecycle (vault in Stage 17; UX in Stage 16/19)
+## 5. Credential lifecycle (vault IMPLEMENTED Stage 12; live-proof + UX in Stage 16/18/19)
+
+> As-built Stage 12: creation is SHAPE-only (strip, 4–2000 chars) — the live
+> `validate_credentials` proof waits for Stage 18 adapters (a key that fails
+> proof then returns `provider_error` with a user-safe message and stores
+> nothing). TEST runs the full decrypt → adapter → sanitize → record flow
+> through the registry seam, but with no adapters registered it
+> deterministically returns `200 {ok:false}` + an unavailable message and
+> leaves `last_test_*` untouched.
 
 - Add: `POST /ai/providers {provider, label?, api_key}` → server validates shape →
-  `validate_credentials` against provider (proves the key works) → Fernet-encrypt →
-  store `{encrypted_key, fingerprint, last4}` → return metadata WITHOUT key. Test failures
-  return `provider_error` with user-safe message; nothing is stored.
+  (Stage 18: `validate_credentials` against provider — proves the key works) →
+  Fernet-encrypt → store `{encrypted_key, fingerprint, last4}` → return metadata
+  WITHOUT key. Always `is_enabled=true`, `is_default=false` (NO auto-default).
 - Display: `••••••••••••7A91` (last4 only) + provider + label + status. Full key NEVER
-  re-displayed; "change" = `rotate-key` (new ciphertext, new fingerprint).
-- Default + fallback: exactly one `is_default` per user; `fallback_rank` orders the chain.
-  Enhancement tries default → fallbacks in rank order → records which provider succeeded.
+  re-displayed; "change" = `rotate-key` (new ciphertext, new fingerprint, verdict cleared).
+- Default + fallback: exactly one `is_default` per user (partial unique index +
+  same-transaction claim-move; races → `409`); `fallback_rank` orders the chain.
+  (Stage 19: enhancement tries default → fallbacks in rank order → records which
+  provider succeeded.)
 - Remove: row deleted immediately; in-flight calls finish with the in-memory key only.
-- Test: `POST /ai/providers/{id}/test` decrypts → `health_check` + `list_models` →
-  updates `last_tested_at/status`. Rate-limited (expensive op).
+- Test: `POST /ai/providers/{id}/test` decrypts → `health_check` (+ `list_models` on
+  success) → updates `last_tested_at/status`. Dedicated 10/min bucket (expensive op);
+  no transaction spans the network I/O. Disabled credentials still test (the check
+  validates key material, not routing state).
 
 ## 6. Discovery UX (binding — Stages 05/13/16 implement)
 

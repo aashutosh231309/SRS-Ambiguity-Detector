@@ -6,6 +6,8 @@ are byte-identical by construction, not by parallel maintenance. Pydantic
 re-validates every value on the way out: service/DB drift 500s, never lies.
 """
 
+from app.models.ai_credential import AICredential
+from app.schemas.ai_providers import ProviderMetadataResponse
 from app.schemas.analysis import (
     AnalysisDetailResponse,
     AnalysisSummaryResponse,
@@ -197,4 +199,31 @@ def dashboard_response(data: DashboardData) -> DashboardResponse:
             for item in data.trend
         ],
         recent=[summary_response(item) for item in data.recent],
+    )
+
+
+def provider_response(row: AICredential) -> ProviderMetadataResponse:
+    """Vault row → safe metadata: `masked_key` is 12 bullets + last4 — the
+    ONLY key-derived value that ever leaves the server. A provider id outside
+    the registry (schema drift / tampered row) 500s (drift never lies)."""
+    if row.provider not in (
+        "gemini",
+        "groq",
+        "openai",
+        "anthropic",
+        "openrouter",
+        "huggingface",
+    ):
+        raise ValueError(f"unexpected provider: {row.provider!r}")
+    return ProviderMetadataResponse(
+        id=row.id,
+        provider=row.provider,  # type: ignore[arg-type]  # narrowed above
+        label=row.label,
+        masked_key=f"{'•' * 12}{row.last4}",
+        is_enabled=row.is_enabled,
+        is_default=row.is_default,
+        fallback_rank=row.fallback_rank,
+        key_version=row.key_version,
+        last_tested_at=row.last_tested_at,
+        last_test_status=row.last_test_status,  # type: ignore[arg-type]  # ck-guarded
     )

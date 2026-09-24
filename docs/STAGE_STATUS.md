@@ -772,17 +772,78 @@ Stage 09 report → post-auth landing is `/dashboard`.
   `stage05/06/07/08/09/10-*` sets.
 - `docker-compose.yml` STILL unvalidated (no Docker in sandbox) — recurring warning.
 
-**Next stage:** Stage 12 (as-built) — document list/download endpoints
+**Next stage:** Stage 12 (as-built) — AI credential vault + provider
+management (roadmap-17 spine, shipped early).
+
+### Stage 12 — AI Credential Vault & Provider Management ✅ (2026-09-24)
+User-owned encrypted provider keys: Fernet vault, `AIProvider` ABC +
+six-provider metadata registry (NO adapters — Stage 18), and six
+endpoints (`GET/POST /ai/providers`, `POST …/test`, `PATCH …`,
+`POST …/rotate-key`, `DELETE …`). Plaintext exists ONLY in inbound
+create/rotate bodies; every response is allowlist-serialized metadata
+(`masked_key` = 12 bullets + last4); logs carry ids + provider ids only.
+NO settings UI (roadmap-16), NO adapters (roadmap-18), NO generation
+(roadmap-19) — deterministic analysis is untouched. Details:
+
+**Completed:**
+- Vault (`app/core/vault.py`, `cryptography==50.0.1` pinned): `v1:`
+  ciphertext at rest, env-only `ENCRYPTION_MASTER_KEY` (boot-validated —
+  absent legal, malformed fails closed naming the variable only), lazy use
+  (analysis/dashboard/list work keyless), `sha256(key)[0:16]` fingerprints,
+  secret-free `VaultError`s → `500 internal_error`. NO migration — `0001`
+  already carried the full `ai_provider_credentials` shape (unique,
+  checks, partial indexes).
+- ABC + registry (`app/ai/`): `AIProvider` (validate/health/list_models/
+  generate_overview/generate_improvement) + `ProviderError` (code +
+  user-safe message) + §3 payload/result models with caps; registry order
+  (`gemini,groq,openai,anthropic,openrouter,huggingface`), display names,
+  allowlisted base URLs, empty-until-Stage-18 adapter map.
+- Endpoints (contract §4.6 amendment): bare-array list (registry →
+  enabled-first → oldest); shape-only create (always enabled, never
+  default); PATCH with contradiction/default-on-disabled 409s, disabled-
+  default auto-clear, same-transaction default-claim moves,
+  `IntegrityError → 409` on races; rotate (verdict cleared, same-key
+  re-save OK, other-row fingerprint 409); delete (204); test OUTSIDE any
+  transaction (no txn spans network I/O) on a dedicated 10/min bucket —
+  unavailable until adapters (`200 {ok:false}`, `last_test_*` untouched).
+- New codes: `404 ai_provider_not_found` (IDOR-safe), service-level `400
+  validation_error`, explicit `500 internal_error`; `provider_error` /
+  `ai_unavailable` reserved for Stage 18+. `GET /models` deferred to
+  Stage 18.
+- 58 backend tests (`test_ai_vault.py`: roundtrip, non-determinism,
+  wrong-key/tampered/malformed, missing-vs-malformed master key,
+  fingerprint shape, leak-freedom, registry table/seam; plus
+  `test_ai_providers.py`: auth gating, shape/normalizers, 400s/409s,
+  order, isolation, default moves, rotation, ciphertext-at-rest proofs,
+  unavailable path, fake-adapter ok/failed/error + verdict recording,
+  test-bucket 429, vault 500s).
+
+**Verification:** 418/418 pytest, 278/278 vitest (40 files), ruff + eslint +
+`tsc` + prettier + mypy clean, `./scripts/verify.sh` green. Live journey:
+register → verify → login → create (masked) → list → test (unavailable)
+→ default-claim → rotate (new mask, verdict cleared) → dup-create 409 →
+delete 204 → list `[]`. Server logs carry credential/owner ids + provider
+ids only — no key material anywhere.
+
+**Known limitations (accepted, not bugs):**
+- NO browser in this sandbox (as in Stages 05–11) — nothing pixel-verified,
+  NO screenshots ship (`screenshots/` still empty). First browsed
+  environment must capture the pending `stage05/06/07/08/09/10/11-*` sets
+  (Stage 12 adds no UI).
+- `docker-compose.yml` STILL unvalidated (no Docker in sandbox) — recurring warning.
+- Master-key ROTATION is designed (versioned envelope + `key_version`) but
+  the runbook is unwritten — owning stage must document it before prod.
+
+**Next stage:** Stage 13 (as-built) — document list/download endpoints
 (roadmap-09 remainder: no download/list/purge-by-id surface yet) and/or
 Settings/profile/security (roadmap-16).
 
 ## Current stage
-None active — Stage 11 complete; all success conditions hold (dashboard page
-with server-computed aggregates, ownership-safe snapshot, UTC-bucketed
-trend, honest empty/partial states, accessible lazy chart + data table,
-post-auth landing on `/dashboard`, 360/360 + 278/278 tests, journey green,
-docs match).
-Next: **Stage 12 (as-built) — document list/download and/or Settings**.
+None active — Stage 12 complete; all success conditions hold (keys
+encrypted at rest, ownership-isolated CRUD, transactional default
+invariant, rate-limited test, deterministic analysis untouched, 418/418
++ 278/278 tests, journey green, docs match).
+Next: **Stage 13 (as-built) — document list/download and/or Settings**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 Database → backend → auth backend → auth frontend → SRS input/segmentation/preview ✅ →

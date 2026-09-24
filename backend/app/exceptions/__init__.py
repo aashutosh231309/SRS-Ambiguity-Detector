@@ -225,3 +225,24 @@ class DocumentProcessingTimeoutError(AppError):
 
     def __init__(self, message: str = "Document processing took too long.") -> None:
         super().__init__("document_processing_timeout", message, 503)
+
+
+class ValidationError(AppError):
+    """400 — service-level contract misuse (same code the schema handler
+    emits for malformed bodies). Schemas own HTTP input validation; this
+    guards service preconditions for non-HTTP/internal callers."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__("validation_error", message, 400)
+
+
+class InternalError(AppError):
+    """500 — explicit server-side failure (e.g. vault misconfigured).
+
+    Preferred over relying on the unhandled-exception path when the service
+    KNOWS the failure mode: same wire shape, clearer intent. Messages MUST
+    stay generic — never interpolate secrets, ciphertext, or config values.
+    """
+
+    def __init__(self, message: str = "Something went wrong.") -> None:
+        super().__init__("internal_error", message, 500)

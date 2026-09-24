@@ -41,7 +41,7 @@
 | 400 | `bad_request` / `validation_error` / `invalid_token` / `password_too_weak` / `current_password_incorrect` / `text_too_large` / `no_requirements_detected` / `document_analysis_unavailable` / `unsupported_file_type` / `invalid_filename` / `empty_file` / `file_too_large` / `extracted_text_too_large` / `too_many_files` | Malformed input / schema failure / bad link-token / weak password / wrong current password / text over budget or requirements over cap (with counts) / segmentable text yielded zero requirements / by-id re-analysis still unavailable / extension+MIME+magic disagree or type outside pdf/docx/txt / filename missing/unusable / zero bytes / bytes/pages/members over budget (reason + limit in details) / extracted text over chars (`max_chars` in details) / more than one file part (`max_files` in details) |
 | 401 | `unauthenticated` / `invalid_credentials` | Missing/invalid session / bad email+password (indistinguishable) |
 | 403 | `forbidden` / `email_unverified` / `account_disabled` | Not owner / unverified / deactivated |
-| 404 | `<resource>_not_found` | e.g. `analysis_not_found`, `document_not_found` (missing AND foreign ids identical — no oracle) |
+| 404 | `<resource>_not_found` | e.g. `analysis_not_found`, `document_not_found`, `ai_provider_not_found` (missing AND foreign ids identical — no oracle) |
 | 409 | `conflict` | e.g. duplicate provider key |
 | 413 | (reserved — never emitted) | Size budgets refuse with 400 `file_too_large` / `extracted_text_too_large` instead (reason + limit in details) |
 | 415 | (reserved — never emitted) | Unacceptable files refuse with 400 `unsupported_file_type` instead |
@@ -395,19 +395,35 @@ validation_error` (bad `range`) / `5xx` generic. No paged envelope — the
 snapshot is bounded by construction (fixed vocabularies + zero-filled window
 + 5 recents).
 
-### 4.6 AI providers — Stage 17/18
+### 4.6 AI providers — Stage 12 (as-built: vault CRUD + test; adapters Stage 18)
 
 ```
-GET    /ai/providers                 → [{id,provider,label,last4(fingerprint display),is_default,fallback_rank,last_tested_at,last_test_status}]
-POST   /ai/providers                 {provider,label?,api_key} → 201 (same shape, key NEVER returned)
-POST   /ai/providers/{id}/test       → 200 {ok:true, models:[…], latency_ms} | 200 {ok:false, error:"user-safe"}
-PATCH  /ai/providers/{id}            {label?,is_default?,fallback_rank?} → 200 (key rotation via dedicated endpoint)
-POST   /ai/providers/{id}/rotate-key {api_key} → 200
+GET    /ai/providers                 → [{id,provider,label,masked_key,is_enabled,is_default,fallback_rank,key_version,last_tested_at,last_test_status}] (bare array: registry order → enabled-first → oldest)
+POST   /ai/providers                 {provider,label?,api_key} → 201 (same shape; always enabled, never default; key NEVER returned)
+POST   /ai/providers/{id}/test       → 200 {ok, models, latency_ms, error?} (a failed check is data, not an error; dedicated 10/min bucket)
+PATCH  /ai/providers/{id}            {label?,is_enabled?,is_default?,fallback_rank?} → 200 (contradictions / default-on-disabled → 409; disabling the default auto-clears it)
+POST   /ai/providers/{id}/rotate-key {api_key} → 200 (new ciphertext + fingerprint; test verdict cleared — the new key is unproven)
 DELETE /ai/providers/{id}            → 204 (ciphertext row deleted; nothing retained)
-GET    /ai/providers/models?provider=gemini → 200 {models:[…]} (best-effort via stored key)
+GET    /ai/providers/models          → DEFERRED to Stage 18 (ships with the adapters)
 ```
-Plaintext keys appear ONLY in inbound `POST`/`rotate-key` bodies, are validated + encrypted
-immediately, and MUST never appear in any response, log, or error.
+Plaintext keys appear ONLY in inbound `POST`/`rotate-key` bodies (opaque, edge-trimmed,
+4–2000 chars), are Fernet-encrypted immediately, and MUST never appear in any response,
+log, or error. Responses are allowlist-serialized metadata: `masked_key` = 12 bullets +
+last4 is the ONLY key-derived value that ever leaves the server.
+
+**Stage 12 rules (all asserted in tests):** creation is SHAPE-only (no live key proof —
+adapters land in Stage 18); one ENABLED credential per (owner, provider); each key
+fingerprint (`sha256(key)[0:16]`) unique per (owner, provider); exactly one default per
+owner (a claim moves it in the same transaction); labels strip with blank→None; unknown
+providers fail as `400 validation_error` via the request vocabulary. Until adapters ship,
+every TEST deterministically returns `200 {ok:false}` with an unavailable message and
+leaves `last_test_*` untouched. **Errors:** `401 unauthenticated` / `403
+email_unverified` / `400 validation_error` (shape, unknown provider, malformed id) /
+`404 ai_provider_not_found` (missing AND foreign ids identical — no oracle) / `409
+conflict` (enabled/fingerprint dup, contradictory PATCH, occupied re-enable) / `429
+rate_limited` (test bucket only) / `500 internal_error` (vault unconfigured or ciphertext
+tampered — generic message, never vault internals). `provider_error` / `ai_unavailable`
+stay RESERVED for live-provider failures (Stage 18+).
 
 ### 4.7 Settings / privacy — Stage 16/23
 

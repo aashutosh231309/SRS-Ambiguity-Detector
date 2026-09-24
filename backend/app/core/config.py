@@ -7,6 +7,7 @@ and ``docs/ARCHITECTURE.md`` §7 for the stage-by-stage breakdown.
 from functools import lru_cache
 from typing import Literal
 
+from cryptography.fernet import Fernet
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -79,6 +80,15 @@ class Settings(BaseSettings):
     ARGON2_TIME_COST: int = 3
     ARGON2_MEMORY_COST: int = 65536
     ARGON2_PARALLELISM: int = 4
+    # --- Stage 12: AI credential vault (SECURITY_SPEC §4) ---
+    # Fernet master key (32 bytes, base64) for per-user provider keys at rest.
+    # Absent by default (AI is optional — the app boots and analyzes without
+    # it); REQUIRED for any vault write/read — fail closed on first use.
+    # There are deliberately NO global GEMINI/GROQ/OPENAI/... keys, ever.
+    ENCRYPTION_MASTER_KEY: str | None = None
+    # Credential-test budget: per-user tests per minute (tests can trigger
+    # external provider calls — tighter than the auth default).
+    RATE_LIMIT_AI_TEST_PER_MINUTE: int = 10
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
@@ -95,6 +105,21 @@ class Settings(BaseSettings):
     def _jwt_secret_strength(cls, value: str | None) -> str | None:
         if value is not None and len(value.encode("utf-8")) < 32:
             raise ValueError("JWT_SECRET must be at least 32 bytes (256 bits).")
+        return value
+
+    @field_validator("ENCRYPTION_MASTER_KEY")
+    @classmethod
+    def _master_key_wellformed(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        try:
+            Fernet(value.encode("utf-8"))
+        except ValueError:
+            # Never echo the value: the message names the variable only.
+            raise ValueError(
+                "ENCRYPTION_MASTER_KEY must be a Fernet key (32 bytes, base64). "
+                "Generate one per backend/.env.example."
+            ) from None
         return value
 
     @property

@@ -41,7 +41,7 @@ SRS-Ambiguity-Detector/
 │   │   ├── repositories/      # Data access — SQLAlchemy lives here only
 │   │   ├── exceptions/        # AppError → envelope mapping
 │   │   ├── analysis/          # Deterministic NLP/rule engine (Stage 06+)
-│   │   ├── ai/                # Provider abstraction + implementations (Stage 17+)
+│   │   ├── ai/                # ABC + registry (Stage 12 ✅); adapters Stage 18+
 │   │   ├── email/             # Email port + Resend/console adapters (Stage 04 ✅)
 │   │   └── storage/           # StorageBackend ABC + local adapter (Stage 08 ✅)
 │   ├── alembic.ini            # Migration config (no DSN — env.py reads app config)
@@ -125,8 +125,10 @@ Browser ──HTTPS──▶ Next.js (Vercel) ──HTTPS──▶ FastAPI (serv
   configurable rule packs; emits findings with evidence offsets. MUST have zero network
   calls and zero LLM calls. Its Stage 06 precursor, `services/segmentation.py`, already
   honors that rule: pure segmentation over normalized text, no I/O, no scores.
-- `app/ai/` — provider abstraction (`AIProvider` ABC) + per-provider adapters. Called ONLY
-  from an enhancement step that can fail open (deterministic result is always returned).
+- `app/ai/` (Stage 12 ✅) — provider abstraction (`AIProvider` ABC) + metadata
+  registry (no adapters until Stage 18). Called ONLY from an enhancement step that can
+  fail open (deterministic result is always returned). `app/core/vault.py` (Stage 12 ✅)
+  owns the Fernet envelope for per-user keys (env-only master key, lazy validation).
 - `app/email/` (Stage 04 ✅) — port (`EmailMessage` + templates + `EmailService` ABC)
   with Resend (prod) and console/file-outbox (dev-only, refused in prod) adapters;
   sends are best-effort post-commit background work.
@@ -231,10 +233,10 @@ Backend reads env via `app/core/config.py` (see `backend/.env.example` for the f
 | `APP_ENV` (`local`/`staging`/`production`) | all | Behavior switch (docs, frame headers, cookie `Secure`) |
 | `DATABASE_URL` | staging/prod (Stage 02+) | `postgresql+asyncpg://…` (pooled/app connection) |
 | `DIRECT_DATABASE_URL` | staging/prod (Stage 02+) | Direct connection for Alembic migrations (bypasses pooler) |
-| `ENCRYPTION_MASTER_KEY` | staging/prod (Stage 17+) | Fernet key encrypting provider API keys at rest |
+| `ENCRYPTION_MASTER_KEY` | staging/prod (Stage 12 ✅) | Fernet key encrypting provider API keys at rest (absent legal — AI optional; malformed fails boot) |
 | `JWT_SECRET`, `ACCESS_TOKEN_MINUTES`, `REFRESH_TOKEN_DAYS` (+ verify/reset TTLs) | all (Stage 04 ✅) | Access/refresh signing — secret REQUIRED, fail-closed |
 | `EMAIL_PROVIDER`, `RESEND_API_KEY`, `EMAIL_FROM`, `APP_BASE_URL`, `DEV_OUTBOX_DIR` | all (Stage 04 ✅) | Transactional email (console dev-only, refused in prod) |
-| `RATE_LIMIT_*` | all (Stage 04 ✅ + Stage 06 ✅ + Stage 08 ✅) | Auth buckets + per-user analysis bucket (`RATE_LIMIT_ANALYSIS_PER_MINUTE`, default 20) + per-user upload bucket (`RATE_LIMIT_UPLOADS_PER_MINUTE`, default 10), single-process (distributed Stage 22) |
+| `RATE_LIMIT_*` | all (Stage 04 ✅ + Stage 06 ✅ + Stage 08 ✅ + Stage 12 ✅) | Auth buckets + per-user analysis bucket (`RATE_LIMIT_ANALYSIS_PER_MINUTE`, default 20) + per-user upload bucket (`RATE_LIMIT_UPLOADS_PER_MINUTE`, default 10) + per-user AI-test bucket (`RATE_LIMIT_AI_TEST_PER_MINUTE`, default 10), single-process (distributed Stage 22) |
 | `ARGON2_*` | all (Stage 04 ✅) | Password work factors |
 | `MAX_UPLOAD_SIZE_BYTES` (10 MiB) + `MAX_EXTRACTED_TEXT_CHARS` (200 000) + `MAX_FILES_PER_REQUEST` (1) + `DOCUMENT_PROCESSING_TIMEOUT_SECONDS` (60) | all (Stage 08 ✅) | Upload/validate/extract budgets (request-time resolution, retunable per env) |
 | `TURNSTILE_SECRET_KEY` | Stage 22+ | Server-side CAPTCHA verify |

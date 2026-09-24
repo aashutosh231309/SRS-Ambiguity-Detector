@@ -4,6 +4,48 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.13.0] — Stage 12 — AI Credential Vault & Provider Management — 2026-09-24
+
+### Added
+- User-owned provider credentials (`/api/v1/ai/providers`, verified
+  users): `GET` bare-array list (registry order → enabled-first →
+  oldest), `POST` create (always enabled, never default), `PATCH`
+  metadata (label/enabled/default/rank), `POST …/rotate-key` (new
+  ciphertext + fingerprint, verdict cleared), `DELETE` (204, nothing
+  retained), `POST …/test` (dedicated 10/min bucket; always 200 — a
+  failed check is data, not an error). Ownership-isolated throughout
+  (foreign ids 404 exactly like missing ones).
+- Fernet vault (`app/core/vault.py`, `cryptography` pinned): `v1:`
+  ciphertext at rest, env-only `ENCRYPTION_MASTER_KEY` (boot-validated
+  — absent legal, malformed fails closed; lazy use keeps
+  analysis/dashboard working keyless), `sha256(key)[0:16]` fingerprints,
+  secret-free `VaultError`s mapped to `500 internal_error`.
+- `AIProvider` ABC + payload models (`app/ai/providers.py`) and the
+  six-provider metadata registry (`app/ai/registry.py`, allowlisted
+  base URLs, adapter seam) — NO adapters yet (Stage 18): every TEST
+  deterministically returns `200 {ok:false}` + an unavailable message
+  with `last_test_*` untouched, through the full decrypt → adapter →
+  sanitize → record flow (fakes prove it in tests).
+- New error codes: `404 ai_provider_not_found` (IDOR-safe),
+  service-level `400 validation_error` (same code the schema handler
+  emits), explicit `500 internal_error` (vault failures).
+
+### Changed
+- Plaintext keys exist ONLY in inbound create/rotate bodies
+  (edge-trimmed, 4–2000 chars); every response is allowlist-serialized
+  metadata (`masked_key` = 12 bullets + last4) and logs carry ids +
+  provider ids only — asserted on every journey.
+- `GET /ai/providers/models` deferred to Stage 18 (ships with
+  adapters); live key-proof at creation likewise (creation is
+  shape-only until then).
+
+### Contract (Stage 12 amendment to §4.6, all asserted in tests)
+- Endpoint table rewritten as-built (bare-array list + order,
+  `masked_key`, `is_enabled` in PATCH, rotate semantics, unavailable
+  test); rule block (enabled/fingerprint/default invariants,
+  contradiction 409s, test bucket, vault 500s); `provider_error` /
+  `ai_unavailable` stay RESERVED for live-provider failures.
+
 ## [0.12.0] — Stage 11 — Analytics Dashboard & Statistics (`/dashboard`) — 2026-09-24
 
 ### Added

@@ -69,6 +69,11 @@
 > and flipped the post-auth landing to `/dashboard` per UI_UX_SPEC §5.
 > Roadmap-09's download/list/purge-by-id surface is still the outstanding
 > remainder.
+> Actual Stage 12 (2026-09-24) shipped the roadmap-17 vault spine EARLY as
+> vault + provider management (ABC + metadata registry + Fernet vault +
+> CRUD/test endpoints; NO adapters, NO settings UI, NO generation) —
+> roadmap-16 still owns the Settings UI, roadmap-18 the live adapters,
+> roadmap-19 the generation.
 > The table above keeps its original numbers; STAGE_STATUS.md records the
 > as-built mapping.
 

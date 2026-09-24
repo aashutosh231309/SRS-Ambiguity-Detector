@@ -57,16 +57,21 @@ their own keys; we disclose what is sent — see `AI_PROVIDER_SPEC.md` §Privacy
   change requires the current password; reset links ≤1 h, single-use, and trigger
   logout-everywhere; security notices on verify/reset/change/delete.
 
-## 4. API-key vault (provider credentials — Stage 17 implements; design locked here)
+## 4. API-key vault (provider credentials — IMPLEMENTED Stage 12 in `app/core/vault.py`)
 
 - Transport: HTTPS only in staging/prod (HSTS; redirect 80→443 at platform).
 - At rest: **Fernet (AES-128-CBC + HMAC-SHA256)**, ciphertext stored as `v1:<token>`.
-  Master key = `ENCRYPTION_MASTER_KEY` env (Fernet key, 32 bytes, base64). Rotation:
-  introduce `v2`, decrypt-with-old → encrypt-with-new lazily + `key_version` column
-  discipline; document rotation runbook in Stage 17.
+  Master key = `ENCRYPTION_MASTER_KEY` env (Fernet key, 32 bytes, base64), validated
+  at BOOT (absent is legal — AI is optional; malformed fails closed naming the
+  variable only, never the value). Vault use is LAZY: analysis/dashboard/list work
+  keyless; only encrypt/decrypt paths require the key. Master-key ROTATION is still
+  future: introduce `v2`, decrypt-with-old → encrypt-with-new lazily + `key_version`
+  column discipline; document the rotation runbook in the owning stage.
 - In use: decrypt ONLY inside the backend process at call time; key lives in local memory,
-  never logged, never attached to exceptions, never returned by any endpoint (only `last4`
-  + fingerprint). `GET /ai/providers` response shape is allowlist-serialized.
+  never logged, never attached to exceptions, never returned by any endpoint (only
+  `masked_key` = 12 bullets + `last4`). `GET /ai/providers` response shape is
+  allowlist-serialized; `VaultError` messages name the failure category only and map
+  to `500 internal_error` with a generic message.
 - Deletion: row delete on provider removal AND account deletion; no soft-delete, no backups
   exemption documented (managed-DB PITR window is disclosed in Privacy UI copy, Stage 23).
 
@@ -133,7 +138,7 @@ verified-user guard — anonymous callers never reach the bucket (401 first).
 | Use | Primitive | Notes |
 |-----|-----------|-------|
 | Passwords | argon2id | ✅ Stage 04 |
-| Provider keys at rest | Fernet (`ENCRYPTION_MASTER_KEY`) | Stage 17 |
+| Provider keys at rest | Fernet (`ENCRYPTION_MASTER_KEY`) | ✅ Stage 12 |
 | Session signing | JWT HS256 with 256-bit server secret (separate from master key) | ✅ Stage 04 |
 | Token storage | sha256 hash of 256-bit random tokens | ✅ Stage 04 |
 | Checksums | sha256 of uploads (streamed during staging, stored per document) | Stage 08 ✅ |
@@ -165,7 +170,8 @@ verified-user guard — anonymous callers never reach the bucket (401 first).
   intentional for join-free ownership checks).
 - **UUIDs ≠ authorization:** unpredictable ids reduce enumeration only; checks still apply.
 - **Credential encryption:** `ai_provider_credentials.encrypted_api_key` holds Fernet
-  ciphertext (`vN:`-prefixed) — never plaintext. Vault + rotation land in Stage 17;
+  ciphertext (`vN:`-prefixed) — never plaintext. Vault ✅ Stage 12
+  (`app/core/vault.py`); master-key rotation runbook still future.
   `key_version` already supports rotation audits. `ENCRYPTION_MASTER_KEY` is env-only.
 - **Password hashing:** `users.password_hash` holds argon2id hashes (✅ Stage 04) — the
   column shape (nullable TEXT) reserves NULL for a future external IdP only.
