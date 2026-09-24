@@ -138,7 +138,8 @@ rewrites, §13). No black boxes.
 - [x] Product: DashboardScreen + DashboardTrend + TrendChart + SeverityMix + RecentAnalyses (Stage 11 — authenticated `/dashboard` on one aggregate snapshot: stats strip, lazy client-only Recharts area + volume bars with legend + spoken summary + data table, latest-run gauge, band/category/severity distributions, recent links, first-use + partial states)
 - [x] Product: SettingsScreen + ProviderCard + ProviderDialog + DeleteProviderDialog + CredentialField + DialogShell (Stage 13 — authenticated `/settings` AI-providers section per §12; settings-local dialog shell — the SHARED Dialog primitive is still pending)
 - [x] Product: AiOverviewSection + analyzer AI checkboxes + requirement rewrite block (Stage 14 — four-state AI outcome block on the report per §13, opt-in checkbox + Settings link on both analyzer forms, labeled additive-only rewrite in RequirementCard; history/dashboard untouched)
-- [ ] Product: Navbar, SettingsForms (profile/password/privacy sections slot into `/settings` next), shared Dialog/Toast/Select/Switch primitives (owning stages)
+- [x] Product: SettingsForms (Stage 16 — profile/password/privacy/delete-account sections in `/settings` per §12a; shared Dialog primitive still pending, settings-local DialogShell reused)
+- [ ] Product: Navbar, shared Dialog/Toast/Select/Switch primitives (owning stages)
 - [ ] Marketing: Hero, FeatureGrid, HowItWorks steps, CTA, Footer, Breadcrumbs (Stage 26+)
 
 Rules: no fake buttons (every control does something or doesn't ship); no placeholder
@@ -181,6 +182,27 @@ forms tomorrow):
   pressures configuration and never implies analysis needs it.
 - Destructive credential actions confirm explicitly (safe default focused, Esc cancels,
   focus trapped + returned, pending state, 404-as-success, errors stay open).
+
+## 12a. Settings account sections (binding — Stage 16, additive over §12)
+
+- `/settings` sections in order: Profile, Password, AI providers (§12), Privacy,
+  Delete account. Profile owns its own fetch states (skeleton / session-gone /
+  load-failed + retry) so a profile outage never blocks the provider list.
+- Email renders read-only (identity + recovery anchor — no change affordance);
+  display name edits save to the server and re-sync global identity (`refreshUser`)
+  so no stale name lingers. Field-shaped failures land on the field OR
+  form-level — never duplicated in both (one screen-reader announcement).
+- Password mounts the Stage 05 `ChangePasswordForm` as-is (no fork, no restyle).
+- Privacy is an HONEST lifecycle statement with links to working controls only
+  — no retention/export/purge controls until Stage 23 ships their enforcement.
+  Banned here: fake settings, disabled-looking buttons, "coming soon" buttons.
+- Account deletion requires typing DELETE (exact, case-sensitive); the confirm
+  stays disabled until armed. The dialog names the account email, focuses the
+  safe default, and reports a mid-delete 401 honestly (session ended — sign back
+  in if the account still exists) instead of guessing success/failure. A
+  confirmed 204 unmounts the protected tree into a farewell panel (session dead,
+  so no redirect could carry the confirmation) with "Create a new account" and
+  "Back to home" links — never a bounce to login with no explanation.
 
 ## 13. AI surfaces UX (binding — Stage 14)
 

@@ -135,6 +135,18 @@ export async function changePassword(input: ChangePasswordInput): Promise<EmptyR
   );
 }
 
+/**
+ * Delete the signed-in account (contract §4.2: `{confirmation: "DELETE"}` →
+ * 204 + cleared session cookies). Retry-safe like `changePassword`: the
+ * guard rejects pre-execution on 401, and a deleted-then-retried account
+ * reads 401 again (never a double delete — there is nothing left to delete).
+ */
+export async function deleteAccount(): Promise<void> {
+  return withSessionRetry(() =>
+    api<void>("/auth/account", { method: "DELETE", body: { confirmation: "DELETE" } }),
+  );
+}
+
 /** True when the backend says "no usable session" (logged out / expired / revoked). */
 export function isSessionGone(err: unknown): boolean {
   return (

@@ -41,6 +41,10 @@ class UserRepository:
         user.password_hash = new_hash
         await self._session.flush()
 
+    async def set_display_name(self, user: User, display_name: str | None) -> None:
+        user.display_name = display_name
+        await self._session.flush()
+
     async def record_login(self, user: User, at: dt.datetime) -> None:
         user.last_login_at = at
         await self._session.flush()

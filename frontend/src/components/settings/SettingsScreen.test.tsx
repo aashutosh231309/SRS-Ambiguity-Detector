@@ -43,6 +43,16 @@ function userResponse(verified = true): Response {
   });
 }
 
+function profileResponse(displayName: string | null = "Ada"): Response {
+  return jsonResponse({
+    email: "ada@example.com",
+    display_name: displayName,
+    is_verified: true,
+    is_active: true,
+    created_at: "2026-09-24T00:00:00Z",
+  });
+}
+
 function credential(overrides: Partial<ProviderCredential> = {}): ProviderCredential {
   return {
     id: "cred-groq",
@@ -83,7 +93,11 @@ function createStore(initial: ProviderCredential[]) {
     rotate?: RouteHandler;
     test?: RouteHandler;
     remove?: RouteHandler;
+    getProfile?: () => Response | Promise<Response>;
+    patchProfile?: RouteHandler;
+    deleteAccount?: RouteHandler;
   } = {};
+  let profileName: string | null = "Ada";
   let testVerdict: ProviderTestResult = { ok: true, models: ["m"], latency_ms: 7, error: null };
 
   function handler(input: RequestInfo | URL, init?: RequestInit): Response | Promise<Response> {
@@ -94,6 +108,21 @@ function createStore(initial: ProviderCredential[]) {
     requests.push({ url, method, body });
     if (url.includes("/auth/me")) return userResponse(store.verified);
     if (url.includes("/auth/refresh")) return errorResponse("unauthenticated", 401);
+    if (url.endsWith("/settings/profile") && method === "GET") {
+      if (overrides.getProfile !== undefined) return overrides.getProfile();
+      return profileResponse(profileName);
+    }
+    if (url.endsWith("/settings/profile") && method === "PATCH") {
+      if (overrides.patchProfile !== undefined) return overrides.patchProfile("", body);
+      const next = body.display_name;
+      profileName = typeof next === "string" && next.trim() !== "" ? next.trim() : null;
+      return profileResponse(profileName);
+    }
+    if (url.endsWith("/auth/account") && method === "DELETE") {
+      if (overrides.deleteAccount !== undefined) return overrides.deleteAccount("", body);
+      if (body.confirmation !== "DELETE") return errorResponse("validation_error", 400);
+      return new Response(null, { status: 204 });
+    }
 
     const testMatch = /\/ai\/providers\/([^/]+)\/test$/.exec(url);
     if (method === "POST" && testMatch?.[1] !== undefined) {
@@ -545,7 +574,7 @@ describe("SettingsScreen delete flow", () => {
     await user.click(trigger);
     const dialog = screen.getByRole("dialog", { name: "Remove Groq?" });
     expect(dialog.getAttribute("aria-modal")).toBe("true");
-    expect(screen.getByText(/cannot be undone/)).toBeDefined();
+    expect(within(dialog).getByText(/cannot be undone/)).toBeDefined();
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Keep credential" }));
 
     await user.click(screen.getByRole("button", { name: "Keep credential" }));
@@ -798,5 +827,94 @@ describe("SettingsScreen keyboard and announcements", () => {
     expect((within(dialog).getByLabelText("Provider") as HTMLSelectElement).value).toBe("");
     expect(within(dialog).getByLabelText("Label (optional)")).toBeDefined();
     expect(within(dialog).getByLabelText("API key")).toBeDefined();
+  });
+});
+
+describe("SettingsScreen account sections (Stage 16)", () => {
+  it("renders profile with email read-only and the saved display name", async () => {
+    createStore([]);
+    renderScreen();
+    // The input only exists once the profile GET resolves — sync on it first.
+    const input = (await screen.findByLabelText("Display name")) as HTMLInputElement;
+    expect(input.value).toBe("Ada");
+    const section = screen.getByRole("region", { name: "Profile" });
+    expect(within(section).getByText("ada@example.com")).toBeDefined();
+  });
+
+  it("saves the display name and confirms from the server row", async () => {
+    const user = userEvent.setup();
+    const store = createStore([]);
+    renderScreen();
+    const input = (await screen.findByLabelText("Display name")) as HTMLInputElement;
+    await user.clear(input);
+    await user.type(input, "  Grace Hopper  ");
+    await user.click(screen.getByRole("button", { name: "Save profile" }));
+    expect(await screen.findByText("Profile saved.")).toBeDefined();
+    const patch = store.requests.find(
+      (request) => request.url.endsWith("/settings/profile") && request.method === "PATCH",
+    );
+    // Client-side trim: the server also normalizes, but we never send padding.
+    expect(patch?.body).toEqual({ display_name: "Grace Hopper" });
+    expect((screen.getByLabelText("Display name") as HTMLInputElement).value).toBe("Grace Hopper");
+  });
+
+  it("mounts the password form as its own section", async () => {
+    createStore([]);
+    renderScreen();
+    expect(await screen.findByRole("heading", { name: "Password", level: 2 })).toBeDefined();
+    expect(screen.getByRole("form", { name: "Change password" })).toBeDefined();
+  });
+
+  it("privacy section states the lifecycle honestly with no fake controls", async () => {
+    createStore([]);
+    renderScreen();
+    const section = await screen.findByRole("region", { name: "Privacy" });
+    expect(within(section).getByRole("link", { name: "Manage analyses in History" })).toBeDefined();
+    expect(within(section).queryByRole("button")).toBeNull();
+    expect(
+      within(section).getByText(/retention controls and a self-serve data export arrive/),
+    ).toBeDefined();
+  });
+
+  it("deletes the account only after typing DELETE, then shows the farewell", async () => {
+    const user = userEvent.setup();
+    const store = createStore([]);
+    renderScreen();
+    expect(await screen.findByRole("heading", { name: "Delete account", level: 2 })).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "Delete my account…" }));
+    const dialog = screen.getByRole("dialog", { name: "Delete your account?" });
+    expect(within(dialog).getByText("ada@example.com")).toBeDefined();
+    const confirm = within(dialog).getByRole("button", { name: "Delete account" });
+    expect((confirm as HTMLButtonElement).disabled).toBe(true);
+    await user.type(within(dialog).getByLabelText("Type DELETE to confirm"), "DELET");
+    expect((confirm as HTMLButtonElement).disabled).toBe(true);
+    await user.type(within(dialog).getByLabelText("Type DELETE to confirm"), "E");
+    expect((confirm as HTMLButtonElement).disabled).toBe(false);
+    await user.click(confirm);
+    expect(await screen.findByRole("heading", { name: "Account deleted", level: 1 })).toBeDefined();
+    expect(screen.getByRole("link", { name: "Create a new account" })).toBeDefined();
+    const call = store.requests.find(
+      (request) => request.url.endsWith("/auth/account") && request.method === "DELETE",
+    );
+    expect(call?.body).toEqual({ confirmation: "DELETE" });
+    // The protected tree is gone — no provider rows, no profile form behind it.
+    expect(screen.queryByRole("heading", { name: "AI providers" })).toBeNull();
+  });
+
+  it("keeps the delete dialog open with mapped copy when the server refuses", async () => {
+    const user = userEvent.setup();
+    const store = createStore([]);
+    store.overrides.deleteAccount = () => errorResponse("rate_limited", 429);
+    renderScreen();
+    await screen.findByRole("heading", { name: "Delete account", level: 2 });
+    await user.click(screen.getByRole("button", { name: "Delete my account…" }));
+    const dialog = screen.getByRole("dialog", { name: "Delete your account?" });
+    await user.type(within(dialog).getByLabelText("Type DELETE to confirm"), "DELETE");
+    await user.click(within(dialog).getByRole("button", { name: "Delete account" }));
+    expect(
+      await within(dialog).findByText("Too many attempts. Please try again later."),
+    ).toBeDefined();
+    expect(screen.getByRole("dialog", { name: "Delete your account?" })).toBeDefined();
+    expect(screen.queryByRole("heading", { name: "Account deleted" })).toBeNull();
   });
 });

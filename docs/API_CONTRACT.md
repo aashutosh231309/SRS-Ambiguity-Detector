@@ -451,15 +451,33 @@ rate_limited` (test bucket only) / `500 internal_error` (vault unconfigured or c
 tampered — generic message, never vault internals). `provider_error` / `ai_unavailable`
 stay RESERVED for live-provider failures (Stage 18+).
 
-### 4.7 Settings / privacy — Stage 16/23
+### 4.7 Settings / privacy — Stage 16 (profile final) / Stage 23 (privacy)
 
 ```
-GET/PATCH /settings/profile    {display_name?…} (minimal; email change NOT in v1 — doc if added)
+GET /settings/profile    → 200 {email, display_name, is_verified, is_active, created_at}
+PATCH /settings/profile  {display_name: string|null} → 200 (same shape)
+```
+
+Profile (FINAL Stage 16): verified users only (`401 unauthenticated` /
+`403 email_unverified`, envelope §2); `display_name` is the ONLY settable
+field — trimmed server-side, max 100 chars (`400 validation_error` beyond),
+explicit `null` or blank clears it back to unset, and the field is required
+(absent ≠ clear). Email change is NOT in v1 (the address is identity +
+recovery anchor). No `{id}` exists — the session IS the selector, so there
+is no IDOR surface. PATCH rides the default verified-mutation rate bucket.
+
+Privacy (RESERVED for Stage 23 — names held, no endpoints yet):
+
+```
 GET/PATCH /settings/privacy    {history_retention_days|null, …}
 POST /privacy/export           → 202 {export_id} then GET /privacy/export/{id} (signed, expiring)
 POST /privacy/purge-history    {older_than_days?} → 200 {deleted_analyses:n}
 ```
-Exact fields finalized in Stage 16; names above are reserved.
+
+Stage 16 deliberately ships NO retention/export/purge controls: a setting
+with no enforcement behind it would be a fake control (UI_UX_SPEC §9 bans
+those). The Stage 16 Privacy UI section states the lifecycle honestly and
+points at the working controls (per-analysis delete, account delete).
 
 ## 5. Conventions
 

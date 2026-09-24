@@ -79,6 +79,11 @@
 > replace/remove on the Stage 12 API; no backend changes) — roadmap-16's
 > remainder (profile, password, privacy, DELETE-typed account deletion)
 > slots into the same route as future sections.
+> Actual Stage 16 (2026-09-24) closed roadmap-16: GET/PATCH
+> `/settings/profile` (verified-only, no migration) + Profile/Password/
+> Privacy/Delete-account sections in `/settings` (password form mounted
+> as-is, privacy honestly control-free, DELETE-typed deletion → farewell).
+> Privacy ENFORCEMENT (retention/export/purge endpoints) stays Stage 23's.
 > Actual Stage 14 (2026-09-24) absorbed roadmap-18 + roadmap-19 + the
 > roadmap-20 chain/matrix slice EARLY as live AI enhancement: 4 of 6
 > adapters (gemini/groq/openai/openrouter over mocked-HTTP tests),

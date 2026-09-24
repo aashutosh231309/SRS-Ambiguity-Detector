@@ -1,31 +1,39 @@
 "use client";
 
 /**
- * Settings (Stage 13): the authenticated user's AI provider credentials —
- * list, add, test, enable/disable, default, replace-key, remove. States
- * mirror dashboard/history: loading skeleton, session-gone sign-in nudge,
- * code-mapped error + retry, deliberate first-use panel, and wrong-shape
- * rejection. The backend is the source of truth after EVERY mutation: each
- * success ends in a silent list refetch (server ordering, server flags —
- * no optimistic merges), with a visible confirmation and a spoken status
- * announcement. Secrets never appear here: dialogs own the short-lived
- * keystrokes and this screen only ever sees masked metadata.
+ * Settings (Stage 13 providers + Stage 16 account sections): profile, password,
+ * AI provider credentials (list, add, test, enable/disable, default,
+ * replace-key, remove), privacy notes, and DELETE-typed account deletion.
+ * Provider states mirror dashboard/history: loading skeleton, session-gone
+ * sign-in nudge, code-mapped error + retry, deliberate first-use panel, and
+ * wrong-shape rejection. The backend is the source of truth after EVERY
+ * mutation: each success ends in a silent re-read (server ordering, server
+ * flags — no optimistic merges), with a visible confirmation and a spoken
+ * status announcement. Secrets never appear here: dialogs own the short-lived
+ * keystrokes and this screen only ever sees masked metadata. After a confirmed
+ * account deletion the protected tree unmounts into a farewell panel (the
+ * session is dead, so no redirect could carry the confirmation anywhere).
  */
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Inbox, KeyRound, Plus, TriangleAlert } from "lucide-react";
 
+import { ChangePasswordForm } from "@/components/auth/ChangePasswordForm";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Container } from "@/components/layout/Container";
 import { Reveal } from "@/components/Reveal";
+import { useAuth } from "@/hooks/useAuth";
 import { isSessionGone } from "@/lib/auth";
 import { listProviders } from "@/lib/providers";
 import { providerErrorMessage } from "@/lib/provider-errors";
 import type { ProviderCredential } from "@/types/providers";
 import { PROVIDER_DISPLAY_NAMES, isProviderId } from "@/types/providers";
 
+import { DeleteAccountDialog } from "./DeleteAccountDialog";
 import { DeleteProviderDialog } from "./DeleteProviderDialog";
+import { PrivacySection } from "./PrivacySection";
+import { ProfileSection } from "./ProfileSection";
 import { ProviderCard } from "./ProviderCard";
 import { ProviderDialog } from "./ProviderDialog";
 
@@ -75,10 +83,12 @@ function BackLink() {
   );
 }
 
-function SettingsContent() {
+function SettingsContent({ onDeleted }: { onDeleted: () => void }) {
+  const { user, clearAuth } = useAuth();
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [refreshKey, setRefreshKey] = useState(0);
   const [dialog, setDialog] = useState<DialogState>({ open: false });
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -142,10 +152,25 @@ function SettingsContent() {
           Settings
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-ink-soft">
-          Your workspace preferences. Analysis runs deterministically and needs nothing here — AI
-          providers below are optional enhancements for later stages.
+          Account, security, and data controls. Analysis runs deterministically and needs nothing
+          here — AI providers below are optional enhancements.
         </p>
       </Reveal>
+
+      <ProfileSection />
+
+      <section aria-labelledby="password-heading" className="mt-10">
+        <h2 id="password-heading" className="text-2xl font-semibold tracking-[-0.02em]">
+          Password
+        </h2>
+        <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-ink-soft">
+          Changing your password signs you out everywhere else. If you signed up with an email and
+          password, you can also reset it from the login page.
+        </p>
+        <div className="mt-6 max-w-xl">
+          <ChangePasswordForm />
+        </div>
+      </section>
 
       {state.status === "loading" ? (
         <div
@@ -311,6 +336,39 @@ function SettingsContent() {
         </section>
       ) : null}
 
+      <PrivacySection />
+
+      <section aria-labelledby="delete-account-heading" className="mt-10">
+        <h2 id="delete-account-heading" className="text-2xl font-semibold tracking-[-0.02em]">
+          Delete account
+        </h2>
+        <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-ink-soft">
+          Permanently removes your account, analyses, uploaded documents, and saved AI provider
+          keys, and signs you out everywhere. You will type DELETE to confirm — this cannot be
+          undone.
+        </p>
+        <p className="mt-4">
+          <button
+            type="button"
+            onClick={() => setDeleteAccountOpen(true)}
+            className="inline-flex items-center justify-center rounded-full border border-critic/50 px-5 py-2.5 text-[15px] font-semibold text-critic transition outline-none hover:bg-critic hover:text-white focus-visible:ring-2 focus-visible:ring-critic/50"
+          >
+            Delete my account…
+          </button>
+        </p>
+      </section>
+
+      {deleteAccountOpen ? (
+        <DeleteAccountDialog
+          email={user?.email ?? ""}
+          onClose={() => setDeleteAccountOpen(false)}
+          onDeleted={() => {
+            clearAuth();
+            onDeleted();
+          }}
+        />
+      ) : null}
+
       {dialog.open && dialog.mode === "add" ? (
         <ProviderDialog
           mode="add"
@@ -347,10 +405,43 @@ function SettingsContent() {
   );
 }
 
+function AccountDeletedFarewell() {
+  return (
+    <Container className="max-w-3xl py-10 sm:py-14">
+      <div role="status" className="max-w-xl">
+        <p className="font-mono text-xs tracking-[0.2em] text-signal uppercase">Settings</p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-[-0.02em] text-balance">
+          Account deleted
+        </h1>
+        <p className="mt-4 text-base leading-relaxed text-ink-soft">
+          Your account, analyses, uploaded documents, and saved AI provider keys were permanently
+          deleted, and you have been signed out. We&apos;re sorry to see you go.
+        </p>
+        <p className="mt-6 flex flex-wrap gap-3">
+          <Link
+            href="/signup"
+            className="inline-flex items-center justify-center rounded-full bg-signal px-5 py-2.5 text-[15px] font-semibold text-white transition outline-none hover:bg-signal-deep focus-visible:ring-2 focus-visible:ring-signal/50"
+          >
+            Create a new account
+          </Link>
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center rounded-full border border-line px-5 py-2.5 text-[15px] font-medium text-ink-soft transition outline-none hover:bg-paper-deep focus-visible:ring-2 focus-visible:ring-signal/50"
+          >
+            Back to home
+          </Link>
+        </p>
+      </div>
+    </Container>
+  );
+}
+
 export function SettingsScreen() {
+  const [deleted, setDeleted] = useState(false);
+  if (deleted) return <AccountDeletedFarewell />;
   return (
     <ProtectedRoute requireVerified>
-      <SettingsContent />
+      <SettingsContent onDeleted={() => setDeleted(true)} />
     </ProtectedRoute>
   );
 }

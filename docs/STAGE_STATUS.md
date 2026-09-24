@@ -1048,12 +1048,56 @@ schema, or migration change.
 (roadmap-09 remainder) and/or Settings remainder (roadmap-16:
 profile/password/privacy sections) and/or the `retry-ai` endpoint.
 
+### Stage 16 (as-built) — Settings remainder (profile, password, privacy, deletion) ✅ (2026-09-24)
+
+Closes roadmap-16 (providers slice shipped early in Stage 13). Profile backend
++ all four remaining `/settings` sections; NO migration (`users.display_name`
+pre-existed), NO privacy endpoints (fake-control rule — see below).
+
+- Backend: `GET/PATCH /settings/profile` (verified-only, default verified-mutation
+  bucket) via `endpoints/settings.py` + `schemas/settings.py` + `services/settings.py`
+  + `UserRepository.set_display_name`. Display name trimmed, ≤100 chars, explicit
+  null/blank clears, field required (absent ≠ clear). No `{id}` — the session IS
+  the selector (no IDOR surface). Rejected writes persist nothing (tested).
+- Frontend: `ProfileSection` (read-only email, editable name, self-contained
+  fetch states, `refreshUser` sync on save, field-OR-form single-announcement
+  errors), `ChangePasswordForm` mounted as-is, `PrivacySection` (honest lifecycle
+  statement + History link, zero fake controls), `DeleteAccountDialog`
+  (exact-DELETE arming, safe-default focus, honest mid-delete 401 copy) →
+  farewell panel + `clearAuth` on 204. New `lib/settings` + `lib/settings-errors`
+  + `deleteAccount` clients (all `withSessionRetry`-safe).
+- Contract: API_CONTRACT §4.7 finalized — profile fields final; privacy/export/
+  purge names RESERVED for Stage 23 with the rationale recorded (a retention
+  setting with no enforcement would be a fake control, UI_UX_SPEC §9).
+- 482/482 pytest (+12) + 384/384 vitest (+16: profile ×6, delete dialog ×4,
+  screen ×6), tsc/eslint/prettier + ruff/mypy clean, `verify.sh` green, live
+  journey (register→verify→login→PATCH profile→DELETE account→0 rows) green.
+- Security notes (§11): no new `{id}` routes (ownership N/A by construction);
+  schemas cap lengths (100) with envelope 400s; no secret/token/log exposure
+  (display names never logged); mutation bucket inherited from the verified
+  guard; deletion semantics unchanged from Stage 04 (rows cascade; storage
+  objects still orphan — Stage 23 owns the purge per DATABASE_SCHEMA §4).
+
+**Known limitations (accepted, not bugs):**
+- NO browser in this sandbox (as in Stages 05–15) — profile/password/privacy/
+  farewell sections NOT pixel-verified, NO screenshots ship (`screenshots/`
+  still empty). First browsed environment must capture `stage16-*` at
+  390/768/1440 + the pending sets.
+- Privacy section is statement-only until Stage 23 (retention/export/purge);
+  unverified users can't reach `/settings` (verified-gated) so UI deletion is
+  verified-only — the API itself stays identity-authed as since Stage 04.
+- `docker-compose.yml` STILL unvalidated (no Docker in sandbox).
+
+**Next stage:** Stage 17 (as-built) — document list/download endpoints
+(roadmap-09 remainder) and/or the `retry-ai` endpoint (roadmap-20 remainder)
+and/or anthropic/HF adapters (roadmap-18 remainder).
+
 ## Current stage
-None active — Stage 15 complete; all success conditions hold (AI results
-integrated + trustworthy in the shared report, deterministic-first ordering,
-review/copy/coverage UX, 470/470 + 368/368 tests, verify.sh green, docs match).
-Next: **Stage 16 (as-built) — document list/download and/or Settings
-remainder (profile/password/privacy) and/or `retry-ai`**.
+None active — Stage 16 complete; all success conditions hold (roadmap-16
+closed: profile API + four settings sections, DELETE-typed deletion with
+farewell, 482/482 + 384/384 tests, verify.sh green, docs match).
+Next: **Stage 17 (as-built) — document list/download and/or `retry-ai`
+and/or anthropic/HF adapters**.
 
 ## Upcoming stages (summary — authority: FUTURE_ROADMAP.md)
 Database → backend → auth backend → auth frontend → SRS input/segmentation/preview ✅ →

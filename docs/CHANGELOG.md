@@ -4,6 +4,31 @@
 > `## [version] — Stage NN — date (UTC)` with Added/Changed/Contract subsections.
 > Versions: `0.x` pre-release (minor per stage group), `1.0.0` at Stage 32.
 
+## [0.17.0] — Stage 16 (as-built) — Settings remainder: profile, password, privacy, account deletion — 2026-09-24
+
+### Added
+- `GET/PATCH /settings/profile` (verified-only): safe-subset read + display-name
+  write (trimmed, ≤100 chars, explicit null/blank clears, field required).
+  No migration — `users.display_name` already existed. Privacy/export/purge
+  endpoints deliberately NOT built (a retention control with no enforcement
+  would be a fake control); §4.7 reserves their names for Stage 23.
+- `/settings` account sections (UI_UX_SPEC §12a): Profile (read-only email +
+  editable display name, self-contained fetch states, identity re-sync on
+  save), Password (Stage 05 `ChangePasswordForm` mounted as-is), Privacy
+  (honest lifecycle statement + History link, zero fake controls), Delete
+  account (DELETE-typed confirm dialog → 204 → farewell panel + auth clear).
+- `deleteAccount` client (`DELETE /auth/account`, retry-safe) + `lib/settings`
+  profile clients + code-mapped `settings-errors` copy.
+
+### Changed
+- Frontend suite 368 → 384 tests (+16: profile × 6, delete dialog × 4, screen
+  integration × 6). Backend suite 470 → 482 (+12 profile API tests).
+  Roadmap-16 fully closed (providers slice shipped early in Stage 13).
+
+### Contract
+- API_CONTRACT §4.7 finalized: profile fields final (above); privacy endpoint
+  names reserved for Stage 23 with the fake-control rationale recorded.
+
 ## [0.16.0] — Stage 15 (as-built) — AI results integration & trust UX — 2026-09-24
 
 ### Added
